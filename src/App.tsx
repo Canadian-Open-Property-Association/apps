@@ -1,0 +1,135 @@
+import { useState } from 'react';
+import { useVctStore } from './store/vctStore';
+import { getLocaleName } from './types/vct';
+import MetadataForm from './components/FormPanel/MetadataForm';
+import DisplayForm from './components/FormPanel/DisplayForm';
+import ClaimsForm from './components/FormPanel/ClaimsForm';
+import JsonPreview from './components/JsonPanel/JsonPreview';
+import CredentialPreview from './components/PreviewPanel/CredentialPreview';
+import Toolbar from './components/Toolbar/Toolbar';
+
+type FormSection = 'metadata' | 'display' | 'claims';
+
+function App() {
+  const [activeSection, setActiveSection] = useState<FormSection>('metadata');
+  const [previewLocale, setPreviewLocale] = useState<string>('en-CA');
+  const [previewMode, setPreviewMode] = useState<'simple' | 'svg'>('simple');
+  const currentProjectName = useVctStore((state) => state.currentProjectName);
+  const currentVct = useVctStore((state) => state.currentVct);
+
+  // Get available locales from the current VCT display configuration
+  const availableLocales = currentVct.display.map((d) => d.locale);
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-100">
+      {/* Header */}
+      <header className="bg-slate-800 text-white px-6 py-4 shadow-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">VCT Builder</h1>
+            <p className="text-slate-300 text-sm">
+              Build Verifiable Credential Type files for COPA
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-slate-300 text-sm">Current Project</p>
+            <p className="font-medium">{currentProjectName}</p>
+          </div>
+        </div>
+      </header>
+
+      {/* Toolbar */}
+      <Toolbar />
+
+      {/* Main Content - Three Panel Layout */}
+      <main className="flex-1 flex overflow-hidden">
+        {/* Left Panel - Form Input */}
+        <div className="w-1/3 border-r border-gray-300 bg-white overflow-y-auto">
+          {/* Section Tabs */}
+          <div className="flex border-b border-gray-200 sticky top-0 bg-white z-10">
+            <button
+              onClick={() => setActiveSection('metadata')}
+              className={`flex-1 px-4 py-3 text-sm font-medium ${
+                activeSection === 'metadata'
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+              }`}
+            >
+              Metadata
+            </button>
+            <button
+              onClick={() => setActiveSection('display')}
+              className={`flex-1 px-4 py-3 text-sm font-medium ${
+                activeSection === 'display'
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+              }`}
+            >
+              Display
+            </button>
+            <button
+              onClick={() => setActiveSection('claims')}
+              className={`flex-1 px-4 py-3 text-sm font-medium ${
+                activeSection === 'claims'
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+              }`}
+            >
+              Claims
+            </button>
+          </div>
+
+          {/* Form Content */}
+          <div className="p-4">
+            {activeSection === 'metadata' && <MetadataForm />}
+            {activeSection === 'display' && <DisplayForm />}
+            {activeSection === 'claims' && <ClaimsForm />}
+          </div>
+        </div>
+
+        {/* Middle Panel - JSON Preview */}
+        <div className="w-1/3 border-r border-gray-300 bg-gray-900 overflow-y-auto">
+          <div className="sticky top-0 bg-gray-800 px-4 py-2 border-b border-gray-700">
+            <h2 className="text-white font-medium">VCT JSON</h2>
+          </div>
+          <JsonPreview />
+        </div>
+
+        {/* Right Panel - Credential Preview */}
+        <div className="w-1/3 bg-gray-50 overflow-y-auto">
+          {/* Preview Controls */}
+          <div className="sticky top-0 bg-white px-4 py-2 border-b border-gray-200 flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600">Language:</label>
+              <select
+                value={previewLocale}
+                onChange={(e) => setPreviewLocale(e.target.value)}
+                className="text-sm border border-gray-300 rounded px-2 py-1"
+              >
+                {availableLocales.map((locale) => (
+                  <option key={locale} value={locale}>
+                    {getLocaleName(locale)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600">Mode:</label>
+              <select
+                value={previewMode}
+                onChange={(e) => setPreviewMode(e.target.value as 'simple' | 'svg')}
+                className="text-sm border border-gray-300 rounded px-2 py-1"
+              >
+                <option value="simple">Simple Card</option>
+                <option value="svg">SVG Template</option>
+              </select>
+            </div>
+          </div>
+          <CredentialPreview locale={previewLocale} mode={previewMode} />
+        </div>
+      </main>
+    </div>
+  );
+}
+
+export default App;
