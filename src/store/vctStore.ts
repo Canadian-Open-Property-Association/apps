@@ -4,6 +4,9 @@ import {
   VCT,
   VCTDisplay,
   VCTClaim,
+  VCTSimpleRendering,
+  VCTSvgTemplate,
+  VCTSvgTemplateProperties,
   SampleData,
   SavedProject,
   VCTStore,
@@ -14,9 +17,9 @@ const generateId = () => crypto.randomUUID();
 
 // Legacy type for imported VCTs with old field names
 interface LegacyRendering {
-  simple?: VCTDisplay['rendering']['simple'];
+  simple?: VCTSimpleRendering;
   svg_template?: { uri: string; 'uri#integrity'?: string; properties?: Record<string, unknown> };
-  svg_templates?: VCTDisplay['rendering']['svg_templates'];
+  svg_templates?: VCTSvgTemplate[];
 }
 
 // Helper to normalize imported VCT (handle legacy fields)
@@ -32,7 +35,7 @@ const normalizeVct = (vct: VCT): VCT => {
         svgTemplates = [{
           uri: legacyRendering.svg_template.uri,
           'uri#integrity': legacyRendering.svg_template['uri#integrity'],
-          properties: legacyRendering.svg_template.properties as VCTDisplay['rendering']['svg_templates'][0]['properties'],
+          properties: legacyRendering.svg_template.properties as VCTSvgTemplateProperties,
         }];
       }
 
@@ -41,7 +44,7 @@ const normalizeVct = (vct: VCT): VCT => {
         // Handle legacy 'lang' field by mapping to 'locale'
         locale: (d as VCTDisplay & { lang?: string }).lang || d.locale,
         rendering: d.rendering ? {
-          simple: d.rendering.simple,
+          simple: legacyRendering?.simple,
           svg_templates: svgTemplates,
         } : undefined,
       };
