@@ -6,7 +6,7 @@ const router = express.Router();
 // GitHub repo configuration
 const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || 'Canadian-Open-Property-Association';
 const GITHUB_REPO_NAME = process.env.GITHUB_REPO_NAME || 'governance';
-const VCT_FOLDER_PATH = process.env.VCT_FOLDER_PATH || 'docs/credential-branding/vct-types';
+const VCT_FOLDER_PATH = process.env.VCT_FOLDER_PATH || 'credentials/vct';
 
 // List VCT files from the repository
 router.get('/vct-library', requireAuth, async (req, res) => {
