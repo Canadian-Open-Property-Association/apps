@@ -16,8 +16,9 @@ const app = express();
 const PORT = process.env.PORT || 5174;
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Assets directory
-const ASSETS_DIR = path.join(__dirname, '../assets');
+// Assets directory - use ASSETS_PATH env var for persistent storage (e.g., Render Disk)
+// In production, mount a persistent disk and set ASSETS_PATH=/var/data/assets
+const ASSETS_DIR = process.env.ASSETS_PATH || path.join(__dirname, '../assets');
 
 // Ensure assets directory exists
 if (!fs.existsSync(ASSETS_DIR)) {
