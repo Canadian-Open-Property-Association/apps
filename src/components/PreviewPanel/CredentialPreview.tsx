@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useVctStore } from '../../store/vctStore';
 import {
   getLocaleName,
@@ -20,13 +20,22 @@ export default function CredentialPreview({ locale, mode, cardSide }: Credential
   const sampleData = useVctStore((state) => state.sampleData);
   const [isFlipped, setIsFlipped] = useState(false);
 
+  // Sync flip state when cardSide prop changes from parent buttons
+  useEffect(() => {
+    if (cardSide === 'back') {
+      setIsFlipped(true);
+    } else if (cardSide === 'front') {
+      setIsFlipped(false);
+    }
+  }, [cardSide]);
+
   // Try to find the requested locale, fallback to first available
   const display = currentVct.display.find((d) => d.locale === locale) || currentVct.display[0];
   const effectiveLocale = display?.locale || locale;
   const displayMode = display ? detectDisplayMode(display) : 'legacy';
 
-  // Determine which side to show
-  const currentSide = cardSide || (isFlipped ? 'back' : 'front');
+  // Determine which side to show - clicking always toggles, buttons set a preference that can be toggled from
+  const currentSide = isFlipped ? 'back' : 'front';
 
   if (!display) {
     return (
@@ -232,7 +241,6 @@ export default function CredentialPreview({ locale, mode, cardSide }: Credential
 
   const renderCopaCard = () => {
     const templates = display.rendering?.svg_templates;
-    const cardElements = display.card_elements;
 
     // Get front/back templates
     let frontTemplate: VCTSvgTemplate | undefined;
@@ -249,7 +257,7 @@ export default function CredentialPreview({ locale, mode, cardSide }: Credential
         <div
           className="relative cursor-pointer perspective-1000"
           style={{ width: '340px', height: '214px' }}
-          onClick={() => !cardSide && setIsFlipped(!isFlipped)}
+          onClick={() => setIsFlipped(!isFlipped)}
         >
           {/* Front Side */}
           <div
@@ -285,29 +293,9 @@ export default function CredentialPreview({ locale, mode, cardSide }: Credential
         </div>
 
         {/* Flip Indicator */}
-        {!cardSide && (
-          <p className="mt-4 text-xs text-gray-500 text-center">
-            Click card to flip • Showing {currentSide}
-          </p>
-        )}
-
-        {/* Card Elements Summary (when no SVG templates) */}
-        {cardElements && !frontTemplate?.uri && !backTemplate?.uri && (
-          <div className="mt-4 p-3 bg-gray-50 rounded-lg text-xs w-full max-w-[340px]">
-            <p className="font-medium text-gray-700 mb-2">Card Elements Configured:</p>
-            <div className="space-y-1 text-gray-600">
-              {cardElements.front && Object.keys(cardElements.front).length > 0 && (
-                <p>Front: {Object.keys(cardElements.front).join(', ')}</p>
-              )}
-              {cardElements.back?.metadata && (
-                <p>Metadata: {cardElements.back.metadata.fields.join(', ')}</p>
-              )}
-              {cardElements.back?.evidence?.sources && (
-                <p>Evidence: {cardElements.back.evidence.sources.length} source(s)</p>
-              )}
-            </div>
-          </div>
-        )}
+        <p className="mt-4 text-xs text-gray-500 text-center">
+          Click card to flip • Showing {currentSide}
+        </p>
       </div>
     );
   };
@@ -420,12 +408,25 @@ export default function CredentialPreview({ locale, mode, cardSide }: Credential
               {evidence.sources.slice(0, 4).map((source) => (
                 <div
                   key={source.id}
-                  className="w-10 h-10 rounded bg-white/20 flex items-center justify-center text-xs font-medium"
+                  className="w-10 h-10 rounded bg-white/20 flex items-center justify-center text-xs font-medium overflow-hidden"
                   title={`${source.display} - ${source.description}`}
                 >
-                  {source.badge === 'initials'
-                    ? source.display.slice(0, 2).toUpperCase()
-                    : '...'}
+                  {source.logo_uri ? (
+                    <img
+                      src={source.logo_uri}
+                      alt={source.display}
+                      className="w-full h-full object-contain p-1"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.target as HTMLImageElement).parentElement!.innerHTML =
+                          source.display.slice(0, 2).toUpperCase();
+                      }}
+                    />
+                  ) : source.badge === 'initials' ? (
+                    source.display.slice(0, 2).toUpperCase()
+                  ) : (
+                    <span className="text-[8px] opacity-50">IMG</span>
+                  )}
                 </div>
               ))}
             </div>
@@ -491,19 +492,40 @@ export default function CredentialPreview({ locale, mode, cardSide }: Credential
         )}
       </div>
 
-      {/* Sample Data Summary */}
-      {Object.keys(sampleData).length > 0 && (
+      {/* Claims with Sample Data */}
+      {currentVct.claims.length > 0 && (
         <div className="mt-6 p-4 bg-white rounded-lg border border-gray-200">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">
-            Sample Data
+          <h4 className="text-sm font-medium text-gray-700 mb-3">
+            Credential Claims
           </h4>
-          <div className="space-y-1">
-            {Object.entries(sampleData).map(([path, value]) => (
-              <div key={path} className="flex justify-between text-xs">
-                <span className="text-gray-500 font-mono">{path}:</span>
-                <span className="text-gray-800">{value}</span>
-              </div>
-            ))}
+          <div className="space-y-2">
+            {currentVct.claims.map((claim, index) => {
+              const pathString = claim.path.filter(Boolean).join('.');
+              const claimDisplay = claim.display.find((d) => d.locale === effectiveLocale) || claim.display[0];
+              const value = sampleData[pathString];
+
+              return (
+                <div key={index} className="flex items-start justify-between py-1.5 border-b border-gray-100 last:border-0">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800">
+                      {claimDisplay?.label || pathString}
+                    </p>
+                    {claimDisplay?.description && (
+                      <p className="text-xs text-gray-500 mt-0.5">{claimDisplay.description}</p>
+                    )}
+                    <p className="text-xs text-gray-400 font-mono mt-0.5">{pathString}</p>
+                  </div>
+                  <div className="ml-4 text-right">
+                    <p className="text-sm text-gray-700 font-medium">
+                      {value || <span className="text-gray-400 italic">No sample</span>}
+                    </p>
+                    {claim.mandatory && (
+                      <span className="text-xs text-amber-600">Required</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

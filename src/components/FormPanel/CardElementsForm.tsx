@@ -8,6 +8,7 @@ import {
   METADATA_FIELD_OPTIONS,
   CardElementPosition,
 } from '../../types/vct';
+import AssetLibrary from '../AssetLibrary/AssetLibrary';
 
 interface CardElementsFormProps {
   displayIndex: number;
@@ -84,6 +85,7 @@ export default function CardElementsForm({ displayIndex }: CardElementsFormProps
     type: 'data_furnisher',
     badge: 'logo',
   });
+  const [assetPickerOpen, setAssetPickerOpen] = useState(false);
 
   const display = currentVct.display[displayIndex];
   const cardElements = display?.card_elements;
@@ -330,10 +332,23 @@ export default function CardElementsForm({ displayIndex }: CardElementsFormProps
                   key={source.id}
                   className="flex items-start gap-3 p-2 bg-gray-50 rounded border border-gray-200"
                 >
-                  <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center text-xs font-medium text-gray-600 shrink-0">
-                    {source.badge === 'initials'
-                      ? source.display.slice(0, 2).toUpperCase()
-                      : '...'}
+                  <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center text-xs font-medium text-gray-600 shrink-0 overflow-hidden">
+                    {source.logo_uri ? (
+                      <img
+                        src={source.logo_uri}
+                        alt={source.display}
+                        className="w-full h-full object-contain p-1"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                          (e.target as HTMLImageElement).parentElement!.innerHTML =
+                            source.display.slice(0, 2).toUpperCase();
+                        }}
+                      />
+                    ) : source.badge === 'initials' ? (
+                      source.display.slice(0, 2).toUpperCase()
+                    ) : (
+                      <span className="text-[8px] opacity-50">IMG</span>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -446,15 +461,38 @@ export default function CardElementsForm({ displayIndex }: CardElementsFormProps
               {newEvidence.badge === 'logo' && (
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Logo URI</label>
-                  <input
-                    type="url"
-                    value={newEvidence.logo_uri || ''}
-                    onChange={(e) =>
-                      setNewEvidence({ ...newEvidence, logo_uri: e.target.value })
-                    }
-                    placeholder="https://example.com/logo.png"
-                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={newEvidence.logo_uri || ''}
+                      onChange={(e) =>
+                        setNewEvidence({ ...newEvidence, logo_uri: e.target.value })
+                      }
+                      placeholder="https://example.com/logo.png"
+                      className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setAssetPickerOpen(true)}
+                      className="px-3 py-1.5 text-sm bg-gray-600 text-white rounded hover:bg-gray-700"
+                      title="Browse Asset Library"
+                    >
+                      Browse
+                    </button>
+                  </div>
+                  {newEvidence.logo_uri && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <img
+                        src={newEvidence.logo_uri}
+                        alt="Logo preview"
+                        className="w-8 h-8 object-contain border rounded"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                      <span className="text-xs text-gray-500 truncate">{newEvidence.logo_uri}</span>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -481,6 +519,17 @@ export default function CardElementsForm({ displayIndex }: CardElementsFormProps
           )}
         </div>
       </div>
+
+      {/* Asset Library Modal */}
+      <AssetLibrary
+        isOpen={assetPickerOpen}
+        onClose={() => setAssetPickerOpen(false)}
+        onSelect={(uri) => {
+          setNewEvidence({ ...newEvidence, logo_uri: uri });
+          setAssetPickerOpen(false);
+        }}
+        title="Select Logo Image"
+      />
     </div>
   );
 }
