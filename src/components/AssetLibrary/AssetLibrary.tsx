@@ -19,7 +19,8 @@ interface AssetLibraryProps {
   title?: string;
 }
 
-const API_BASE = 'http://localhost:5174';
+// Use relative URL so it works on any deployment (localhost, Render, etc.)
+const API_BASE = '';
 
 export default function AssetLibrary({ isOpen, onClose, onSelect, title = 'Asset Library' }: AssetLibraryProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
