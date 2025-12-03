@@ -31,10 +31,83 @@ export interface VCTSvgTemplate {
   properties?: VCTSvgTemplateProperties;
 }
 
+// COPA Card Display Standard - Front/Back SVG Templates
+export interface VCTSvgTemplates {
+  front?: VCTSvgTemplate;
+  back?: VCTSvgTemplate;
+}
+
 export interface VCTRendering {
   simple?: VCTSimpleRendering;
-  svg_templates?: VCTSvgTemplate[];
+  svg_templates?: VCTSvgTemplate[] | VCTSvgTemplates; // Support both legacy array and COPA front/back
 }
+
+// COPA Card Display Standard - Card Element Positions
+export type CardElementPosition =
+  | 'top_left'
+  | 'top_right'
+  | 'center'
+  | 'center_below'
+  | 'bottom_left'
+  | 'bottom_right'
+  | 'top'
+  | 'center_bottom';
+
+// COPA Card Display Standard - Front Card Element
+export interface VCTFrontCardElement {
+  position: CardElementPosition;
+  claim_path?: string; // JSONPath like "$.property_address"
+  value?: string; // Static value for fixed elements
+  label?: string; // Optional display label
+}
+
+// COPA Card Display Standard - Evidence Source Types
+export type EvidenceSourceType =
+  | 'linked_credential'
+  | 'data_furnisher'
+  | 'identity_verification'
+  | 'regulatory_body';
+
+// COPA Card Display Standard - Evidence Source
+export interface VCTEvidenceSource {
+  type: EvidenceSourceType;
+  id: string;
+  display: string;
+  badge?: 'initials' | 'logo';
+  logo_uri?: string;
+  description: string;
+}
+
+// COPA Card Display Standard - Back Card Elements
+export interface VCTBackCardElements {
+  metadata?: {
+    position: CardElementPosition;
+    fields: string[]; // ['credential_type', 'issued_at', 'expires_at', 'status']
+  };
+  evidence?: {
+    position: CardElementPosition;
+    sources: VCTEvidenceSource[];
+  };
+}
+
+// COPA Card Display Standard - Front Card Elements (6 standard positions)
+export interface VCTFrontCardElements {
+  portfolio_issuer?: VCTFrontCardElement;
+  network_mark?: VCTFrontCardElement;
+  primary_attribute?: VCTFrontCardElement;
+  secondary_attribute?: VCTFrontCardElement;
+  credential_name?: VCTFrontCardElement;
+  credential_issuer?: VCTFrontCardElement;
+}
+
+// COPA Card Display Standard - Card Elements Container
+export interface VCTCardElements {
+  front?: VCTFrontCardElements;
+  back?: VCTBackCardElements;
+}
+
+// Display mode for the VCT Builder
+export type DisplayMode = 'legacy' | 'copa';
 
 export interface VCTClaimDisplay {
   locale: string;
@@ -55,6 +128,7 @@ export interface VCTDisplay {
   name: string;
   description?: string;
   rendering?: VCTRendering;
+  card_elements?: VCTCardElements; // COPA Card Display Standard
 }
 
 export interface VCT {
@@ -138,6 +212,27 @@ export interface VCTStore {
   // Import/Export
   exportVct: () => string;
   importVct: (json: string) => void;
+
+  // COPA Card Display Standard actions
+  updateCardElements: (displayIndex: number, cardElements: Partial<VCTCardElements>) => void;
+  updateFrontElement: (
+    displayIndex: number,
+    elementKey: keyof VCTFrontCardElements,
+    element: Partial<VCTFrontCardElement>
+  ) => void;
+  addEvidenceSource: (displayIndex: number, source: VCTEvidenceSource) => void;
+  updateEvidenceSource: (
+    displayIndex: number,
+    sourceId: string,
+    source: Partial<VCTEvidenceSource>
+  ) => void;
+  removeEvidenceSource: (displayIndex: number, sourceId: string) => void;
+  updateSvgTemplateByFace: (
+    displayIndex: number,
+    face: 'front' | 'back',
+    template: VCTSvgTemplate | null
+  ) => void;
+  setDisplayMode: (displayIndex: number, mode: DisplayMode) => void;
 }
 
 // Default empty VCT - starts with only en-CA
@@ -167,3 +262,67 @@ export const getLocaleName = (code: string): string => {
   const locale = AVAILABLE_LOCALES.find((l) => l.code === code);
   return locale?.name || code;
 };
+
+// COPA Card Display Standard - Helper Functions
+
+// Check if svg_templates is in COPA front/back format
+export const isFrontBackFormat = (
+  templates: VCTSvgTemplate[] | VCTSvgTemplates | undefined
+): templates is VCTSvgTemplates => {
+  if (!templates) return false;
+  if (Array.isArray(templates)) return false;
+  return 'front' in templates || 'back' in templates;
+};
+
+// Check if svg_templates is in legacy array format
+export const isLegacyFormat = (
+  templates: VCTSvgTemplate[] | VCTSvgTemplates | undefined
+): templates is VCTSvgTemplate[] => {
+  return Array.isArray(templates);
+};
+
+// Detect display mode from VCT display configuration
+export const detectDisplayMode = (display: VCTDisplay): DisplayMode => {
+  // If card_elements exists, it's COPA mode
+  if (display.card_elements) return 'copa';
+
+  // If svg_templates is front/back object, it's COPA mode
+  if (display.rendering?.svg_templates && isFrontBackFormat(display.rendering.svg_templates)) {
+    return 'copa';
+  }
+
+  // Otherwise legacy mode
+  return 'legacy';
+};
+
+// Convert legacy array format to COPA front/back format
+export const migrateToFrontBack = (templates: VCTSvgTemplate[]): VCTSvgTemplates => {
+  return {
+    front: templates[0] || undefined,
+    back: templates[1] || undefined,
+  };
+};
+
+// Convert COPA front/back format to legacy array format
+export const migrateToLegacy = (templates: VCTSvgTemplates): VCTSvgTemplate[] => {
+  const result: VCTSvgTemplate[] = [];
+  if (templates.front) result.push(templates.front);
+  if (templates.back) result.push(templates.back);
+  return result;
+};
+
+// Evidence source type labels
+export const EVIDENCE_SOURCE_TYPE_LABELS: Record<EvidenceSourceType, string> = {
+  linked_credential: 'Linked Credential',
+  data_furnisher: 'Data Furnisher',
+  identity_verification: 'Identity Verification',
+  regulatory_body: 'Regulatory Body',
+};
+
+// Metadata field options for back of card
+export const METADATA_FIELD_OPTIONS = [
+  { id: 'credential_type', label: 'Credential Type' },
+  { id: 'issued_at', label: 'Issued Date' },
+  { id: 'expires_at', label: 'Expiry Date' },
+  { id: 'status', label: 'Status' },
+] as const;

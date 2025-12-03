@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useVctStore } from '../../store/vctStore';
+import { isLegacyFormat, isFrontBackFormat, VCTSvgTemplate } from '../../types/vct';
 
 export default function JsonPreview() {
   const currentVct = useVctStore((state) => state.currentVct);
@@ -82,28 +83,80 @@ export default function JsonPreview() {
           }
         }
 
-        // Handle svg_templates array
-        if (d.rendering.svg_templates && d.rendering.svg_templates.length > 0) {
-          rendering.svg_templates = d.rendering.svg_templates
-            .filter((t) => t.uri)
-            .map((t) => {
-              const template: Record<string, unknown> = {
-                uri: t.uri,
-              };
-              if (t['uri#integrity']) {
-                template['uri#integrity'] = t['uri#integrity'];
+        // Handle svg_templates (both legacy array and COPA front/back formats)
+        if (d.rendering.svg_templates) {
+          const cleanTemplate = (t: VCTSvgTemplate) => {
+            const template: Record<string, unknown> = {
+              uri: t.uri,
+            };
+            if (t['uri#integrity']) {
+              template['uri#integrity'] = t['uri#integrity'];
+            }
+            if (t.properties) {
+              const props: Record<string, unknown> = {};
+              if (t.properties.orientation) props.orientation = t.properties.orientation;
+              if (t.properties.color_scheme) props.color_scheme = t.properties.color_scheme;
+              if (t.properties.contrast) props.contrast = t.properties.contrast;
+              if (Object.keys(props).length > 0) {
+                template.properties = props;
               }
-              if (t.properties) {
-                const props: Record<string, unknown> = {};
-                if (t.properties.orientation) props.orientation = t.properties.orientation;
-                if (t.properties.color_scheme) props.color_scheme = t.properties.color_scheme;
-                if (t.properties.contrast) props.contrast = t.properties.contrast;
-                if (Object.keys(props).length > 0) {
-                  template.properties = props;
-                }
+            }
+            return template;
+          };
+
+          if (isLegacyFormat(d.rendering.svg_templates)) {
+            // Legacy array format
+            const filtered = d.rendering.svg_templates.filter((t: VCTSvgTemplate) => t.uri);
+            if (filtered.length > 0) {
+              rendering.svg_templates = filtered.map((t: VCTSvgTemplate) => cleanTemplate(t));
+            }
+          } else if (isFrontBackFormat(d.rendering.svg_templates)) {
+            // COPA front/back format
+            const templates: Record<string, unknown> = {};
+            if (d.rendering.svg_templates.front?.uri) {
+              templates.front = cleanTemplate(d.rendering.svg_templates.front);
+            }
+            if (d.rendering.svg_templates.back?.uri) {
+              templates.back = cleanTemplate(d.rendering.svg_templates.back);
+            }
+            if (Object.keys(templates).length > 0) {
+              rendering.svg_templates = templates;
+            }
+          }
+        }
+
+        // Handle card_elements (COPA standard)
+        if (d.card_elements) {
+          const cardElements: Record<string, unknown> = {};
+
+          if (d.card_elements.front) {
+            const front: Record<string, unknown> = {};
+            for (const [key, element] of Object.entries(d.card_elements.front)) {
+              if (element && (element.claim_path || element.value)) {
+                front[key] = element;
               }
-              return template;
-            });
+            }
+            if (Object.keys(front).length > 0) {
+              cardElements.front = front;
+            }
+          }
+
+          if (d.card_elements.back) {
+            const back: Record<string, unknown> = {};
+            if (d.card_elements.back.metadata && d.card_elements.back.metadata.fields.length > 0) {
+              back.metadata = d.card_elements.back.metadata;
+            }
+            if (d.card_elements.back.evidence && d.card_elements.back.evidence.sources.length > 0) {
+              back.evidence = d.card_elements.back.evidence;
+            }
+            if (Object.keys(back).length > 0) {
+              cardElements.back = back;
+            }
+          }
+
+          if (Object.keys(cardElements).length > 0) {
+            display.card_elements = cardElements;
+          }
         }
 
         if (Object.keys(rendering).length > 0) {

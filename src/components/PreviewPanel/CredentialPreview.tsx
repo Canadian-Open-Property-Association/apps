@@ -1,18 +1,32 @@
+import { useState } from 'react';
 import { useVctStore } from '../../store/vctStore';
-import { getLocaleName } from '../../types/vct';
+import {
+  getLocaleName,
+  isFrontBackFormat,
+  isLegacyFormat,
+  detectDisplayMode,
+  VCTSvgTemplate,
+  METADATA_FIELD_OPTIONS,
+} from '../../types/vct';
 
 interface CredentialPreviewProps {
   locale: string;
   mode: 'simple' | 'svg';
+  cardSide?: 'front' | 'back';
 }
 
-export default function CredentialPreview({ locale, mode }: CredentialPreviewProps) {
+export default function CredentialPreview({ locale, mode, cardSide }: CredentialPreviewProps) {
   const currentVct = useVctStore((state) => state.currentVct);
   const sampleData = useVctStore((state) => state.sampleData);
+  const [isFlipped, setIsFlipped] = useState(false);
 
   // Try to find the requested locale, fallback to first available
   const display = currentVct.display.find((d) => d.locale === locale) || currentVct.display[0];
   const effectiveLocale = display?.locale || locale;
+  const displayMode = display ? detectDisplayMode(display) : 'legacy';
+
+  // Determine which side to show
+  const currentSide = cardSide || (isFlipped ? 'back' : 'front');
 
   if (!display) {
     return (
@@ -21,6 +35,7 @@ export default function CredentialPreview({ locale, mode }: CredentialPreviewPro
       </div>
     );
   }
+
 
   const renderSimpleCard = () => {
     const simple = display.rendering?.simple;
@@ -111,9 +126,43 @@ export default function CredentialPreview({ locale, mode }: CredentialPreviewPro
     );
   };
 
-  const renderSvgTemplate = () => {
+  const renderSvgTemplate = (template: VCTSvgTemplate | undefined, side: 'front' | 'back') => {
+    if (!template?.uri) {
+      return (
+        <div
+          className="flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50"
+          style={{ width: '340px', height: '214px' }}
+        >
+          <p className="text-sm text-gray-400">
+            No {side} template configured
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <img
+        src={template.uri}
+        alt={`Credential ${side} template`}
+        className="max-w-full h-auto rounded-lg shadow-lg"
+        style={{ maxWidth: '340px' }}
+        onError={(e) => {
+          const target = e.target as HTMLImageElement;
+          target.style.display = 'none';
+          target.parentElement!.innerHTML = `
+            <div class="p-8 text-center text-red-500 border border-red-300 rounded-lg" style="width: 340px;">
+              <p>Failed to load SVG template</p>
+              <p class="text-xs mt-1 break-all">${template.uri}</p>
+            </div>
+          `;
+        }}
+      />
+    );
+  };
+
+  const renderLegacySvgTemplate = () => {
     const svgTemplates = display.rendering?.svg_templates;
-    if (!svgTemplates || svgTemplates.length === 0) {
+    if (!svgTemplates || (Array.isArray(svgTemplates) && svgTemplates.length === 0)) {
       return (
         <div className="p-8 text-center text-gray-500">
           <p>SVG template not configured</p>
@@ -124,8 +173,17 @@ export default function CredentialPreview({ locale, mode }: CredentialPreviewPro
       );
     }
 
-    // Show the first template for preview
-    const template = svgTemplates[0];
+    // For legacy array format, show the first template
+    const templates = isLegacyFormat(svgTemplates) ? svgTemplates : [];
+    const template = templates[0];
+
+    if (!template) {
+      return (
+        <div className="p-8 text-center text-gray-500">
+          <p>SVG template not configured</p>
+        </div>
+      );
+    }
 
     return (
       <div className="flex flex-col items-center">
@@ -163,31 +221,274 @@ export default function CredentialPreview({ locale, mode }: CredentialPreviewPro
           <br />
           This shows the raw SVG template.
         </p>
-        {svgTemplates.length > 1 && (
+        {templates.length > 1 && (
           <p className="mt-2 text-xs text-blue-600">
-            +{svgTemplates.length - 1} more template(s) configured
+            +{templates.length - 1} more template(s) configured
           </p>
         )}
       </div>
     );
   };
 
+  const renderCopaCard = () => {
+    const templates = display.rendering?.svg_templates;
+    const cardElements = display.card_elements;
+
+    // Get front/back templates
+    let frontTemplate: VCTSvgTemplate | undefined;
+    let backTemplate: VCTSvgTemplate | undefined;
+
+    if (templates && isFrontBackFormat(templates)) {
+      frontTemplate = templates.front;
+      backTemplate = templates.back;
+    }
+
+    return (
+      <div className="flex flex-col items-center">
+        {/* Card Container with Flip Animation */}
+        <div
+          className="relative cursor-pointer perspective-1000"
+          style={{ width: '340px', height: '214px' }}
+          onClick={() => !cardSide && setIsFlipped(!isFlipped)}
+        >
+          {/* Front Side */}
+          <div
+            className={`absolute inset-0 backface-hidden transition-transform duration-500 ${
+              currentSide === 'back' ? 'rotate-y-180' : ''
+            }`}
+            style={{
+              transform: currentSide === 'back' ? 'rotateY(180deg)' : 'rotateY(0deg)',
+              backfaceVisibility: 'hidden',
+            }}
+          >
+            {frontTemplate?.uri ? (
+              renderSvgTemplate(frontTemplate, 'front')
+            ) : (
+              renderSimpleCardFront()
+            )}
+          </div>
+
+          {/* Back Side */}
+          <div
+            className={`absolute inset-0 backface-hidden transition-transform duration-500`}
+            style={{
+              transform: currentSide === 'front' ? 'rotateY(-180deg)' : 'rotateY(0deg)',
+              backfaceVisibility: 'hidden',
+            }}
+          >
+            {backTemplate?.uri ? (
+              renderSvgTemplate(backTemplate, 'back')
+            ) : (
+              renderSimpleCardBack()
+            )}
+          </div>
+        </div>
+
+        {/* Flip Indicator */}
+        {!cardSide && (
+          <p className="mt-4 text-xs text-gray-500 text-center">
+            Click card to flip • Showing {currentSide}
+          </p>
+        )}
+
+        {/* Card Elements Summary (when no SVG templates) */}
+        {cardElements && !frontTemplate?.uri && !backTemplate?.uri && (
+          <div className="mt-4 p-3 bg-gray-50 rounded-lg text-xs w-full max-w-[340px]">
+            <p className="font-medium text-gray-700 mb-2">Card Elements Configured:</p>
+            <div className="space-y-1 text-gray-600">
+              {cardElements.front && Object.keys(cardElements.front).length > 0 && (
+                <p>Front: {Object.keys(cardElements.front).join(', ')}</p>
+              )}
+              {cardElements.back?.metadata && (
+                <p>Metadata: {cardElements.back.metadata.fields.join(', ')}</p>
+              )}
+              {cardElements.back?.evidence?.sources && (
+                <p>Evidence: {cardElements.back.evidence.sources.length} source(s)</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Simple card front (fallback when no SVG template)
+  const renderSimpleCardFront = () => {
+    const simple = display.rendering?.simple;
+    const cardElements = display.card_elements?.front;
+
+    return (
+      <div
+        className="rounded-xl shadow-lg overflow-hidden flex flex-col"
+        style={{
+          backgroundColor: simple?.background_color || '#1E3A5F',
+          color: simple?.text_color || '#FFFFFF',
+          width: '340px',
+          height: '214px',
+        }}
+      >
+        {/* Top Row: Portfolio Issuer + Network Mark */}
+        <div className="p-4 flex items-start justify-between flex-shrink-0">
+          <div className="text-xs">
+            {cardElements?.portfolio_issuer?.value || (
+              <span className="opacity-50">Portfolio Issuer</span>
+            )}
+          </div>
+          <div className="text-xs font-semibold opacity-75">
+            {cardElements?.network_mark?.value === 'cornerstone' ? '◆ CORNERSTONE' : 'Network'}
+          </div>
+        </div>
+
+        {/* Center: Primary & Secondary Attributes */}
+        <div className="px-4 flex-grow flex flex-col justify-center">
+          <div className="text-lg font-bold">
+            {getClaimValue(cardElements?.primary_attribute?.claim_path) ||
+              cardElements?.primary_attribute?.value || (
+                <span className="opacity-50">Primary Attribute</span>
+              )}
+          </div>
+          {cardElements?.secondary_attribute && (
+            <div className="text-sm opacity-80 mt-1">
+              {getClaimValue(cardElements?.secondary_attribute?.claim_path) ||
+                cardElements?.secondary_attribute?.value || (
+                  <span className="opacity-50">Secondary Attribute</span>
+                )}
+            </div>
+          )}
+        </div>
+
+        {/* Bottom Row: Credential Name + Issuer */}
+        <div className="px-4 py-3 flex justify-between items-end text-xs" style={{ backgroundColor: 'rgba(0,0,0,0.1)' }}>
+          <div>
+            {cardElements?.credential_name?.value || display.name || (
+              <span className="opacity-50">Credential Name</span>
+            )}
+          </div>
+          <div className="text-right opacity-75">
+            {getClaimValue(cardElements?.credential_issuer?.claim_path) ||
+              cardElements?.credential_issuer?.value || (
+                <span className="opacity-50">Issuer</span>
+              )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Simple card back (fallback when no SVG template)
+  const renderSimpleCardBack = () => {
+    const simple = display.rendering?.simple;
+    const backElements = display.card_elements?.back;
+    const metadata = backElements?.metadata;
+    const evidence = backElements?.evidence;
+
+    return (
+      <div
+        className="rounded-xl shadow-lg overflow-hidden flex flex-col"
+        style={{
+          backgroundColor: simple?.background_color || '#1E3A5F',
+          color: simple?.text_color || '#FFFFFF',
+          width: '340px',
+          height: '214px',
+        }}
+      >
+        {/* Network Mark */}
+        <div className="p-3 text-center text-sm font-semibold border-b border-white/20">
+          ◆ CORNERSTONE
+        </div>
+
+        {/* Metadata Section */}
+        {metadata && metadata.fields.length > 0 && (
+          <div className="px-4 py-2 text-xs space-y-1">
+            {metadata.fields.map((fieldId) => {
+              const fieldDef = METADATA_FIELD_OPTIONS.find((f) => f.id === fieldId);
+              return (
+                <div key={fieldId} className="flex justify-between">
+                  <span className="opacity-75">{fieldDef?.label || fieldId}:</span>
+                  <span>-</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Evidence Section */}
+        {evidence && evidence.sources.length > 0 && (
+          <div className="px-4 py-2 flex-grow">
+            <p className="text-xs opacity-75 mb-2">Evidence / Data Furnishers:</p>
+            <div className="flex flex-wrap gap-2">
+              {evidence.sources.slice(0, 4).map((source) => (
+                <div
+                  key={source.id}
+                  className="w-10 h-10 rounded bg-white/20 flex items-center justify-center text-xs font-medium"
+                  title={`${source.display} - ${source.description}`}
+                >
+                  {source.badge === 'initials'
+                    ? source.display.slice(0, 2).toUpperCase()
+                    : '...'}
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 text-xs space-y-0.5">
+              {evidence.sources.slice(0, 3).map((source) => (
+                <p key={source.id} className="opacity-75 truncate">
+                  • {source.display} - {source.description}
+                </p>
+              ))}
+              {evidence.sources.length > 3 && (
+                <p className="opacity-50">+{evidence.sources.length - 3} more</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {(!metadata || metadata.fields.length === 0) && (!evidence || evidence.sources.length === 0) && (
+          <div className="flex-grow flex items-center justify-center text-xs opacity-50">
+            Configure back card elements in COPA mode
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Helper to get claim value from sample data
+  const getClaimValue = (claimPath: string | undefined): string | undefined => {
+    if (!claimPath) return undefined;
+    // Remove the $. prefix if present
+    const normalizedPath = claimPath.startsWith('$.') ? claimPath.slice(2) : claimPath;
+    return sampleData[normalizedPath];
+  };
+
   return (
     <div className="p-6">
       <div className="mb-4">
         <h3 className="text-sm font-medium text-gray-700">
-          {mode === 'simple' ? 'Simple Card Preview' : 'SVG Template Preview'}
+          {mode === 'simple'
+            ? 'Simple Card Preview'
+            : displayMode === 'copa'
+            ? 'COPA Card Preview'
+            : 'SVG Template Preview'}
         </h3>
         <p className="text-xs text-gray-500">
           {getLocaleName(effectiveLocale)}
           {effectiveLocale !== locale && (
             <span className="ml-1 text-amber-600">(fallback from {locale})</span>
           )}
+          {displayMode === 'copa' && (
+            <span className="ml-2 px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">COPA</span>
+          )}
         </p>
       </div>
 
       <div className="flex justify-center">
-        {mode === 'simple' ? renderSimpleCard() : renderSvgTemplate()}
+        {mode === 'simple' ? (
+          displayMode === 'copa' ? renderCopaCard() : renderSimpleCard()
+        ) : displayMode === 'copa' ? (
+          renderCopaCard()
+        ) : (
+          renderLegacySvgTemplate()
+        )}
       </div>
 
       {/* Sample Data Summary */}

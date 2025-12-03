@@ -7,10 +7,16 @@ import {
   VCTSimpleRendering,
   VCTSvgTemplate,
   VCTSvgTemplateProperties,
+  VCTSvgTemplates,
+  VCTCardElements,
+  VCTFrontCardElements,
+  VCTFrontCardElement,
+  VCTEvidenceSource,
   SampleData,
   SavedProject,
   VCTStore,
   createDefaultVct,
+  isFrontBackFormat,
 } from '../types/vct';
 import { getCurrentUserId } from './authStore';
 
@@ -356,6 +362,251 @@ export const useVctStore = create<VCTStore>()(
           throw new Error('Invalid VCT JSON');
         }
       },
+
+      // COPA Card Display Standard actions
+      updateCardElements: (displayIndex: number, cardElements: Partial<VCTCardElements>) =>
+        set((state) => {
+          const newDisplay = [...state.currentVct.display];
+          newDisplay[displayIndex] = {
+            ...newDisplay[displayIndex],
+            card_elements: {
+              ...newDisplay[displayIndex].card_elements,
+              ...cardElements,
+            },
+          };
+          return {
+            currentVct: { ...state.currentVct, display: newDisplay },
+            isDirty: true,
+          };
+        }),
+
+      updateFrontElement: (
+        displayIndex: number,
+        elementKey: keyof VCTFrontCardElements,
+        element: Partial<VCTFrontCardElement>
+      ) =>
+        set((state) => {
+          const newDisplay = [...state.currentVct.display];
+          const currentCardElements = newDisplay[displayIndex].card_elements || {};
+          const currentFront = currentCardElements.front || {};
+
+          newDisplay[displayIndex] = {
+            ...newDisplay[displayIndex],
+            card_elements: {
+              ...currentCardElements,
+              front: {
+                ...currentFront,
+                [elementKey]: {
+                  ...currentFront[elementKey],
+                  ...element,
+                },
+              },
+            },
+          };
+          return {
+            currentVct: { ...state.currentVct, display: newDisplay },
+            isDirty: true,
+          };
+        }),
+
+      addEvidenceSource: (displayIndex: number, source: VCTEvidenceSource) =>
+        set((state) => {
+          const newDisplay = [...state.currentVct.display];
+          const currentCardElements = newDisplay[displayIndex].card_elements || {};
+          const currentBack = currentCardElements.back || {};
+          const currentEvidence = currentBack.evidence || { position: 'center_bottom', sources: [] };
+
+          newDisplay[displayIndex] = {
+            ...newDisplay[displayIndex],
+            card_elements: {
+              ...currentCardElements,
+              back: {
+                ...currentBack,
+                evidence: {
+                  ...currentEvidence,
+                  sources: [...currentEvidence.sources, source],
+                },
+              },
+            },
+          };
+          return {
+            currentVct: { ...state.currentVct, display: newDisplay },
+            isDirty: true,
+          };
+        }),
+
+      updateEvidenceSource: (
+        displayIndex: number,
+        sourceId: string,
+        sourceUpdate: Partial<VCTEvidenceSource>
+      ) =>
+        set((state) => {
+          const newDisplay = [...state.currentVct.display];
+          const currentCardElements = newDisplay[displayIndex].card_elements || {};
+          const currentBack = currentCardElements.back || {};
+          const currentEvidence = currentBack.evidence || { position: 'center_bottom', sources: [] };
+
+          newDisplay[displayIndex] = {
+            ...newDisplay[displayIndex],
+            card_elements: {
+              ...currentCardElements,
+              back: {
+                ...currentBack,
+                evidence: {
+                  ...currentEvidence,
+                  sources: currentEvidence.sources.map((s) =>
+                    s.id === sourceId ? { ...s, ...sourceUpdate } : s
+                  ),
+                },
+              },
+            },
+          };
+          return {
+            currentVct: { ...state.currentVct, display: newDisplay },
+            isDirty: true,
+          };
+        }),
+
+      removeEvidenceSource: (displayIndex: number, sourceId: string) =>
+        set((state) => {
+          const newDisplay = [...state.currentVct.display];
+          const currentCardElements = newDisplay[displayIndex].card_elements || {};
+          const currentBack = currentCardElements.back || {};
+          const currentEvidence = currentBack.evidence || { position: 'center_bottom', sources: [] };
+
+          newDisplay[displayIndex] = {
+            ...newDisplay[displayIndex],
+            card_elements: {
+              ...currentCardElements,
+              back: {
+                ...currentBack,
+                evidence: {
+                  ...currentEvidence,
+                  sources: currentEvidence.sources.filter((s) => s.id !== sourceId),
+                },
+              },
+            },
+          };
+          return {
+            currentVct: { ...state.currentVct, display: newDisplay },
+            isDirty: true,
+          };
+        }),
+
+      updateSvgTemplateByFace: (
+        displayIndex: number,
+        face: 'front' | 'back',
+        template: VCTSvgTemplate | null
+      ) =>
+        set((state) => {
+          const newDisplay = [...state.currentVct.display];
+          const currentRendering = newDisplay[displayIndex].rendering || {};
+
+          // Always use the COPA front/back format when updating by face
+          let currentTemplates: VCTSvgTemplates = {};
+
+          // Convert from array if needed
+          if (currentRendering.svg_templates) {
+            if (isFrontBackFormat(currentRendering.svg_templates)) {
+              currentTemplates = currentRendering.svg_templates;
+            } else if (Array.isArray(currentRendering.svg_templates)) {
+              // Migrate from legacy array format
+              currentTemplates = {
+                front: currentRendering.svg_templates[0],
+                back: currentRendering.svg_templates[1],
+              };
+            }
+          }
+
+          // Update the specific face
+          const newTemplates: VCTSvgTemplates = {
+            ...currentTemplates,
+            [face]: template || undefined,
+          };
+
+          newDisplay[displayIndex] = {
+            ...newDisplay[displayIndex],
+            rendering: {
+              ...currentRendering,
+              svg_templates: newTemplates,
+            },
+          };
+
+          return {
+            currentVct: { ...state.currentVct, display: newDisplay },
+            isDirty: true,
+          };
+        }),
+
+      setDisplayMode: (displayIndex: number, mode: 'legacy' | 'copa') =>
+        set((state) => {
+          const newDisplay = [...state.currentVct.display];
+          const currentRendering = newDisplay[displayIndex].rendering || {};
+          const currentTemplates = currentRendering.svg_templates;
+
+          if (mode === 'copa') {
+            // Convert to COPA format
+            let newTemplates: VCTSvgTemplates = {};
+
+            if (Array.isArray(currentTemplates)) {
+              // Migrate from legacy array
+              newTemplates = {
+                front: currentTemplates[0],
+                back: currentTemplates[1],
+              };
+            } else if (currentTemplates && isFrontBackFormat(currentTemplates)) {
+              newTemplates = currentTemplates;
+            }
+
+            // Initialize card_elements if not present
+            const currentCardElements = newDisplay[displayIndex].card_elements || {
+              front: {
+                network_mark: { position: 'top_right', value: 'cornerstone' },
+              },
+              back: {
+                metadata: {
+                  position: 'top',
+                  fields: ['credential_type', 'issued_at', 'expires_at', 'status'],
+                },
+                evidence: { position: 'center_bottom', sources: [] },
+              },
+            };
+
+            newDisplay[displayIndex] = {
+              ...newDisplay[displayIndex],
+              rendering: {
+                ...currentRendering,
+                svg_templates: newTemplates,
+              },
+              card_elements: currentCardElements,
+            };
+          } else {
+            // Convert to legacy format
+            let newTemplates: VCTSvgTemplate[] = [];
+
+            if (currentTemplates && isFrontBackFormat(currentTemplates)) {
+              if (currentTemplates.front) newTemplates.push(currentTemplates.front);
+              if (currentTemplates.back) newTemplates.push(currentTemplates.back);
+            } else if (Array.isArray(currentTemplates)) {
+              newTemplates = currentTemplates;
+            }
+
+            newDisplay[displayIndex] = {
+              ...newDisplay[displayIndex],
+              rendering: {
+                ...currentRendering,
+                svg_templates: newTemplates.length > 0 ? newTemplates : undefined,
+              },
+              // Remove card_elements when switching to legacy
+              card_elements: undefined,
+            };
+          }
+
+          return {
+            currentVct: { ...state.currentVct, display: newDisplay },
+            isDirty: true,
+          };
+        }),
     }),
     {
       name: 'vct-builder-storage',
