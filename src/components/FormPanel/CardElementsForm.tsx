@@ -32,12 +32,14 @@ const FRONT_ELEMENTS: {
   defaultPosition: CardElementPosition;
   isFixed?: boolean;
   fixedValue?: string;
+  supportsLogo?: boolean; // Whether this element can have a logo/icon
 }[] = [
   {
     key: 'portfolio_issuer',
     label: 'Portfolio Issuer',
     description: 'Organization operating the credential portfolio (logo or name)',
     defaultPosition: 'top_left',
+    supportsLogo: true,
   },
   {
     key: 'network_mark',
@@ -46,6 +48,7 @@ const FRONT_ELEMENTS: {
     defaultPosition: 'top_right',
     isFixed: true,
     fixedValue: 'cornerstone',
+    supportsLogo: true,
   },
   {
     key: 'primary_attribute',
@@ -70,6 +73,7 @@ const FRONT_ELEMENTS: {
     label: 'Credential Issuer',
     description: 'Entity that issued/signed this credential',
     defaultPosition: 'bottom_right',
+    supportsLogo: true,
   },
 ];
 
@@ -86,6 +90,9 @@ export default function CardElementsForm({ displayIndex }: CardElementsFormProps
     badge: 'logo',
   });
   const [assetPickerOpen, setAssetPickerOpen] = useState(false);
+  const [assetPickerTarget, setAssetPickerTarget] = useState<
+    'evidence' | keyof VCTFrontCardElements | null
+  >(null);
 
   const display = currentVct.display[displayIndex];
   const cardElements = display?.card_elements;
@@ -137,13 +144,42 @@ export default function CardElementsForm({ displayIndex }: CardElementsFormProps
     setIsAddingEvidence(false);
   };
 
+  const openAssetPicker = (target: 'evidence' | keyof VCTFrontCardElements) => {
+    setAssetPickerTarget(target);
+    setAssetPickerOpen(true);
+  };
+
+  const handleAssetSelect = (uri: string) => {
+    if (assetPickerTarget === 'evidence') {
+      setNewEvidence({ ...newEvidence, logo_uri: uri });
+    } else if (assetPickerTarget) {
+      updateFrontElement(displayIndex, assetPickerTarget, {
+        logo_uri: uri,
+      });
+    }
+    setAssetPickerOpen(false);
+    setAssetPickerTarget(null);
+  };
+
   return (
     <div className="border border-gray-200 rounded-lg p-4 space-y-6">
-      <div>
-        <h4 className="font-medium text-gray-800">Card Elements (COPA Standard)</h4>
-        <p className="text-xs text-gray-500 mt-1">
-          Configure the elements that appear on the front and back of the credential card.
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h4 className="font-medium text-gray-800">Card Elements (COPA Standard)</h4>
+          <p className="text-xs text-gray-500 mt-1">
+            Configure the elements that appear on the front and back of the credential card.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setAssetPickerTarget(null);
+            setAssetPickerOpen(true);
+          }}
+          className="px-3 py-1.5 text-xs bg-slate-700 text-white rounded hover:bg-slate-800 flex items-center gap-1"
+        >
+          <span>📁</span> Asset Library
+        </button>
       </div>
 
       {/* Front of Card Elements */}
@@ -267,6 +303,60 @@ export default function CardElementsForm({ displayIndex }: CardElementsFormProps
                     placeholder="e.g., Property Address"
                     className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
                   />
+                </div>
+              )}
+
+              {/* Logo URI (for elements that support logos) */}
+              {elementConfig.supportsLogo && (
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">
+                    Logo / Icon Image
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={element?.logo_uri || ''}
+                      onChange={(e) =>
+                        updateFrontElement(displayIndex, elementConfig.key, {
+                          logo_uri: e.target.value || undefined,
+                        })
+                      }
+                      placeholder="https://example.com/logo.png"
+                      className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => openAssetPicker(elementConfig.key)}
+                      className="px-3 py-1.5 text-sm bg-gray-600 text-white rounded hover:bg-gray-700"
+                      title="Browse Asset Library"
+                    >
+                      Browse
+                    </button>
+                  </div>
+                  {element?.logo_uri && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <img
+                        src={element.logo_uri}
+                        alt="Logo preview"
+                        className="w-10 h-10 object-contain border rounded bg-gray-50"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                      <span className="text-xs text-gray-500 truncate flex-1">{element.logo_uri}</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateFrontElement(displayIndex, elementConfig.key, {
+                            logo_uri: undefined,
+                          })
+                        }
+                        className="text-xs text-red-500 hover:text-red-700"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -473,7 +563,7 @@ export default function CardElementsForm({ displayIndex }: CardElementsFormProps
                     />
                     <button
                       type="button"
-                      onClick={() => setAssetPickerOpen(true)}
+                      onClick={() => openAssetPicker('evidence')}
                       className="px-3 py-1.5 text-sm bg-gray-600 text-white rounded hover:bg-gray-700"
                       title="Browse Asset Library"
                     >
@@ -523,12 +613,22 @@ export default function CardElementsForm({ displayIndex }: CardElementsFormProps
       {/* Asset Library Modal */}
       <AssetLibrary
         isOpen={assetPickerOpen}
-        onClose={() => setAssetPickerOpen(false)}
-        onSelect={(uri) => {
-          setNewEvidence({ ...newEvidence, logo_uri: uri });
+        onClose={() => {
           setAssetPickerOpen(false);
+          setAssetPickerTarget(null);
         }}
-        title="Select Logo Image"
+        onSelect={handleAssetSelect}
+        title={
+          assetPickerTarget === 'evidence'
+            ? 'Select Evidence Source Logo'
+            : assetPickerTarget === 'portfolio_issuer'
+            ? 'Select Portfolio Issuer Logo'
+            : assetPickerTarget === 'network_mark'
+            ? 'Select Network Mark Logo'
+            : assetPickerTarget === 'credential_issuer'
+            ? 'Select Credential Issuer Logo'
+            : 'Select Image'
+        }
       />
     </div>
   );

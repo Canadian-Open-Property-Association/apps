@@ -132,8 +132,15 @@ export default function JsonPreview() {
           if (d.card_elements.front) {
             const front: Record<string, unknown> = {};
             for (const [key, element] of Object.entries(d.card_elements.front)) {
-              if (element && (element.claim_path || element.value)) {
-                front[key] = element;
+              if (element && (element.claim_path || element.value || element.logo_uri)) {
+                // Clean the element - only include non-empty fields
+                const cleanedElement: Record<string, unknown> = {};
+                if (element.position) cleanedElement.position = element.position;
+                if (element.claim_path) cleanedElement.claim_path = element.claim_path;
+                if (element.value) cleanedElement.value = element.value;
+                if (element.label) cleanedElement.label = element.label;
+                if (element.logo_uri) cleanedElement.logo_uri = element.logo_uri;
+                front[key] = cleanedElement;
               }
             }
             if (Object.keys(front).length > 0) {

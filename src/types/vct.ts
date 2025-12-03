@@ -59,6 +59,7 @@ export interface VCTFrontCardElement {
   claim_path?: string; // JSONPath like "$.property_address"
   value?: string; // Static value for fixed elements
   label?: string; // Optional display label
+  logo_uri?: string; // Logo/icon image URI (for portfolio_issuer, credential_issuer, network_mark)
 }
 
 // COPA Card Display Standard - Evidence Source Types

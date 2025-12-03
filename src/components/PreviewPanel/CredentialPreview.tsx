@@ -317,13 +317,38 @@ export default function CredentialPreview({ locale, mode, cardSide }: Credential
       >
         {/* Top Row: Portfolio Issuer + Network Mark */}
         <div className="p-4 flex items-start justify-between flex-shrink-0">
-          <div className="text-xs">
-            {cardElements?.portfolio_issuer?.value || (
-              <span className="opacity-50">Portfolio Issuer</span>
-            )}
+          <div className="flex items-center gap-2">
+            {cardElements?.portfolio_issuer?.logo_uri ? (
+              <img
+                src={cardElements.portfolio_issuer.logo_uri}
+                alt="Portfolio Issuer"
+                className="h-8 w-auto object-contain"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            ) : null}
+            <span className="text-xs">
+              {cardElements?.portfolio_issuer?.value || (
+                !cardElements?.portfolio_issuer?.logo_uri && <span className="opacity-50">Portfolio Issuer</span>
+              )}
+            </span>
           </div>
-          <div className="text-xs font-semibold opacity-75">
-            {cardElements?.network_mark?.value === 'cornerstone' ? '◆ CORNERSTONE' : 'Network'}
+          <div className="flex items-center gap-2">
+            {cardElements?.network_mark?.logo_uri ? (
+              <img
+                src={cardElements.network_mark.logo_uri}
+                alt="Network Mark"
+                className="h-6 w-auto object-contain"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            ) : (
+              <span className="text-xs font-semibold opacity-75">
+                {cardElements?.network_mark?.value === 'cornerstone' ? '◆ CORNERSTONE' : 'Network'}
+              </span>
+            )}
           </div>
         </div>
 
@@ -352,11 +377,23 @@ export default function CredentialPreview({ locale, mode, cardSide }: Credential
               <span className="opacity-50">Credential Name</span>
             )}
           </div>
-          <div className="text-right opacity-75">
-            {getClaimValue(cardElements?.credential_issuer?.claim_path) ||
-              cardElements?.credential_issuer?.value || (
-                <span className="opacity-50">Issuer</span>
-              )}
+          <div className="flex items-center gap-2">
+            {cardElements?.credential_issuer?.logo_uri ? (
+              <img
+                src={cardElements.credential_issuer.logo_uri}
+                alt="Credential Issuer"
+                className="h-6 w-auto object-contain"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            ) : null}
+            <span className="text-right opacity-75">
+              {getClaimValue(cardElements?.credential_issuer?.claim_path) ||
+                cardElements?.credential_issuer?.value || (
+                  !cardElements?.credential_issuer?.logo_uri && <span className="opacity-50">Issuer</span>
+                )}
+            </span>
           </div>
         </div>
       </div>
