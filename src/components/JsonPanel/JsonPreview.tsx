@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useVctStore } from '../../store/vctStore';
-import { isLegacyFormat, isFrontBackFormat, VCTSvgTemplate } from '../../types/vct';
+import { isFrontBackFormat, VCTSvgTemplate } from '../../types/vct';
 
 export default function JsonPreview() {
   const currentVct = useVctStore((state) => state.currentVct);
@@ -86,7 +86,7 @@ export default function JsonPreview() {
           }
         }
 
-        // Handle svg_templates (both legacy array and COPA front/back formats)
+        // Handle svg_templates (COPA front/back format, with backward compatibility for legacy arrays)
         if (d.rendering.svg_templates) {
           const cleanTemplate = (t: VCTSvgTemplate) => {
             const template: Record<string, unknown> = {
@@ -107,24 +107,30 @@ export default function JsonPreview() {
             return template;
           };
 
-          if (isLegacyFormat(d.rendering.svg_templates)) {
-            // Legacy array format
-            const filtered = d.rendering.svg_templates.filter((t: VCTSvgTemplate) => t.uri);
-            if (filtered.length > 0) {
-              rendering.svg_templates = filtered.map((t: VCTSvgTemplate) => cleanTemplate(t));
-            }
-          } else if (isFrontBackFormat(d.rendering.svg_templates)) {
-            // COPA front/back format
-            const templates: Record<string, unknown> = {};
+          // Always output COPA front/back format
+          const templates: Record<string, unknown> = {};
+
+          if (isFrontBackFormat(d.rendering.svg_templates)) {
+            // Already in COPA format
             if (d.rendering.svg_templates.front?.uri) {
               templates.front = cleanTemplate(d.rendering.svg_templates.front);
             }
             if (d.rendering.svg_templates.back?.uri) {
               templates.back = cleanTemplate(d.rendering.svg_templates.back);
             }
-            if (Object.keys(templates).length > 0) {
-              rendering.svg_templates = templates;
+          } else if (Array.isArray(d.rendering.svg_templates)) {
+            // Convert legacy array to COPA format
+            const filtered = d.rendering.svg_templates.filter((t: VCTSvgTemplate) => t.uri);
+            if (filtered[0]) {
+              templates.front = cleanTemplate(filtered[0]);
             }
+            if (filtered[1]) {
+              templates.back = cleanTemplate(filtered[1]);
+            }
+          }
+
+          if (Object.keys(templates).length > 0) {
+            rendering.svg_templates = templates;
           }
         }
 

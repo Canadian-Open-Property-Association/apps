@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useVctStore } from './store/vctStore';
-import { getLocaleName, detectDisplayMode } from './types/vct';
+import { getLocaleName } from './types/vct';
 import MetadataForm from './components/FormPanel/MetadataForm';
 import DisplayForm from './components/FormPanel/DisplayForm';
 import ClaimsForm from './components/FormPanel/ClaimsForm';
@@ -16,7 +16,6 @@ type FormSection = 'metadata' | 'display' | 'claims';
 function MainApp() {
   const [activeSection, setActiveSection] = useState<FormSection>('metadata');
   const [previewLocale, setPreviewLocale] = useState<string>('en-CA');
-  const [previewMode, setPreviewMode] = useState<'simple' | 'svg'>('simple');
   const [cardSide, setCardSide] = useState<'front' | 'back' | undefined>(undefined);
   const currentProjectName = useVctStore((state) => state.currentProjectName);
   const updateProjectName = useVctStore((state) => state.updateProjectName);
@@ -25,10 +24,6 @@ function MainApp() {
 
   // Get available locales from the current VCT display configuration
   const availableLocales = currentVct.display.map((d) => d.locale);
-
-  // Check if current display is in COPA mode
-  const currentDisplay = currentVct.display.find((d) => d.locale === previewLocale) || currentVct.display[0];
-  const isCopaMode = currentDisplay ? detectDisplayMode(currentDisplay) === 'copa' : false;
 
   return (
     <div className="flex flex-col h-screen bg-gray-100">
@@ -129,59 +124,46 @@ function MainApp() {
                 ))}
               </select>
             </div>
+            {/* Card Side Toggle */}
             <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-600">Mode:</label>
-              <select
-                value={previewMode}
-                onChange={(e) => setPreviewMode(e.target.value as 'simple' | 'svg')}
-                className="text-sm border border-gray-300 rounded px-2 py-1"
-              >
-                <option value="simple">Simple Card</option>
-                <option value="svg">SVG Template</option>
-              </select>
-            </div>
-            {/* Card Side Toggle - Only shown in COPA mode */}
-            {isCopaMode && (
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-600">Side:</label>
-                <div className="flex rounded-md shadow-sm">
-                  <button
-                    type="button"
-                    onClick={() => setCardSide(cardSide === 'front' ? undefined : 'front')}
-                    className={`px-2 py-1 text-xs font-medium rounded-l-md border ${
-                      cardSide === 'front'
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    Front
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCardSide(cardSide === 'back' ? undefined : 'back')}
-                    className={`px-2 py-1 text-xs font-medium rounded-r-md border-t border-r border-b -ml-px ${
-                      cardSide === 'back'
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    Back
-                  </button>
-                </div>
-                {cardSide && (
-                  <button
-                    type="button"
-                    onClick={() => setCardSide(undefined)}
-                    className="text-xs text-gray-500 hover:text-gray-700"
-                    title="Reset to interactive flip"
-                  >
-                    ✕
-                  </button>
-                )}
+              <label className="text-sm text-gray-600">Side:</label>
+              <div className="flex rounded-md shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setCardSide(cardSide === 'front' ? undefined : 'front')}
+                  className={`px-2 py-1 text-xs font-medium rounded-l-md border ${
+                    cardSide === 'front'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  Front
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCardSide(cardSide === 'back' ? undefined : 'back')}
+                  className={`px-2 py-1 text-xs font-medium rounded-r-md border-t border-r border-b -ml-px ${
+                    cardSide === 'back'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  Back
+                </button>
               </div>
-            )}
+              {cardSide && (
+                <button
+                  type="button"
+                  onClick={() => setCardSide(undefined)}
+                  className="text-xs text-gray-500 hover:text-gray-700"
+                  title="Reset to interactive flip"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
-          <CredentialPreview locale={previewLocale} mode={previewMode} cardSide={cardSide} />
+          <CredentialPreview locale={previewLocale} cardSide={cardSide} />
         </div>
       </main>
     </div>

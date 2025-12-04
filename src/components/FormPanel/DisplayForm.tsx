@@ -1,14 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useVctStore } from '../../store/vctStore';
 import {
   VCTRendering,
   AVAILABLE_LOCALES,
   getLocaleName,
-  DisplayMode,
-  detectDisplayMode,
   isFrontBackFormat,
-  isLegacyFormat,
-  VCTSvgTemplate,
   FONT_FAMILY_OPTIONS,
 } from '../../types/vct';
 import AssetLibrary from '../AssetLibrary/AssetLibrary';
@@ -19,47 +15,19 @@ export default function DisplayForm() {
   const updateDisplay = useVctStore((state) => state.updateDisplay);
   const addDisplay = useVctStore((state) => state.addDisplay);
   const removeDisplay = useVctStore((state) => state.removeDisplay);
-  const setDisplayMode = useVctStore((state) => state.setDisplayMode);
   const updateSvgTemplateByFace = useVctStore((state) => state.updateSvgTemplateByFace);
   const [activeTab, setActiveTab] = useState(0);
   const [assetPickerOpen, setAssetPickerOpen] = useState(false);
-  const [assetPickerTarget, setAssetPickerTarget] = useState<'logo' | 'background' | 'svg' | 'svg-front' | 'svg-back' | null>(null);
-  const [displayMode, setDisplayModeLocal] = useState<DisplayMode>('legacy');
+  const [assetPickerTarget, setAssetPickerTarget] = useState<'logo' | 'background' | 'svg-front' | 'svg-back' | null>(null);
 
   const display = currentVct.display[activeTab];
-
-  // Auto-detect display mode when display changes
-  useEffect(() => {
-    if (display) {
-      const detectedMode = detectDisplayMode(display);
-      setDisplayModeLocal(detectedMode);
-    }
-  }, [display]);
-
-  // Handle display mode toggle
-  const handleDisplayModeChange = (mode: DisplayMode) => {
-    setDisplayModeLocal(mode);
-    setDisplayMode(activeTab, mode);
-  };
-
-  // Get SVG templates based on current mode
-  const getSvgTemplatesArray = (): VCTSvgTemplate[] => {
-    const templates = display?.rendering?.svg_templates;
-    if (!templates) return [];
-    if (isLegacyFormat(templates)) return templates;
-    // Convert front/back to array for legacy display
-    const result: VCTSvgTemplate[] = [];
-    if (templates.front) result.push(templates.front);
-    if (templates.back) result.push(templates.back);
-    return result;
-  };
 
   // Get front/back templates for COPA mode
   const getFrontBackTemplates = () => {
     const templates = display?.rendering?.svg_templates;
     if (!templates) return { front: undefined, back: undefined };
     if (isFrontBackFormat(templates)) return templates;
-    // Convert array to front/back
+    // Convert array to front/back (for backward compatibility with imported files)
     if (Array.isArray(templates)) {
       return { front: templates[0], back: templates[1] };
     }
@@ -77,10 +45,10 @@ export default function DisplayForm() {
     });
   };
 
-  const generateHash = async (url: string, type: 'logo' | 'svg' | 'background') => {
+  const generateHash = async (url: string, type: 'logo' | 'background') => {
     try {
       const response = await fetch(
-        `http://localhost:5174/hash?url=${encodeURIComponent(url)}`
+        `/hash?url=${encodeURIComponent(url)}`
       );
       const data = await response.json();
       if (data.hash) {
@@ -105,32 +73,6 @@ export default function DisplayForm() {
               },
             },
           });
-        } else {
-          // SVG templates - add to array (legacy mode only)
-          const existingTemplates = display.rendering?.svg_templates;
-          if (existingTemplates && isLegacyFormat(existingTemplates)) {
-            const existingIndex = existingTemplates.findIndex((t: VCTSvgTemplate) => t.uri === url);
-            if (existingIndex >= 0) {
-              const updated = [...existingTemplates];
-              updated[existingIndex] = {
-                ...updated[existingIndex],
-                'uri#integrity': data.hash,
-              };
-              updateRendering({ svg_templates: updated });
-            } else {
-              updateRendering({
-                svg_templates: [
-                  ...existingTemplates,
-                  { uri: url, 'uri#integrity': data.hash },
-                ],
-              });
-            }
-          } else {
-            // No templates yet, create new array
-            updateRendering({
-              svg_templates: [{ uri: url, 'uri#integrity': data.hash }],
-            });
-          }
         }
       }
     } catch (error) {
@@ -156,7 +98,7 @@ export default function DisplayForm() {
     }
   };
 
-  const openAssetPicker = (target: 'logo' | 'background' | 'svg' | 'svg-front' | 'svg-back') => {
+  const openAssetPicker = (target: 'logo' | 'background' | 'svg-front' | 'svg-back') => {
     setAssetPickerTarget(target);
     setAssetPickerOpen(true);
   };
@@ -183,21 +125,6 @@ export default function DisplayForm() {
           },
         },
       });
-    } else if (assetPickerTarget === 'svg') {
-      // Legacy mode: add to array
-      const existingTemplates = display.rendering?.svg_templates;
-      if (existingTemplates && isLegacyFormat(existingTemplates)) {
-        updateRendering({
-          svg_templates: [
-            ...existingTemplates,
-            { uri, 'uri#integrity': hash },
-          ],
-        });
-      } else {
-        updateRendering({
-          svg_templates: [{ uri, 'uri#integrity': hash }],
-        });
-      }
     } else if (assetPickerTarget === 'svg-front') {
       updateSvgTemplateByFace(activeTab, 'front', { uri, 'uri#integrity': hash });
     } else if (assetPickerTarget === 'svg-back') {
@@ -293,35 +220,6 @@ export default function DisplayForm() {
               rows={2}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
             />
-          </div>
-
-          {/* Display Mode Toggle */}
-          <div className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-            <span className="text-sm font-medium text-gray-700">Display Mode:</span>
-            <div className="flex rounded-md shadow-sm">
-              <button
-                type="button"
-                onClick={() => handleDisplayModeChange('legacy')}
-                className={`px-4 py-2 text-sm font-medium rounded-l-md border ${
-                  displayMode === 'legacy'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                Legacy
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDisplayModeChange('copa')}
-                className={`px-4 py-2 text-sm font-medium rounded-r-md border-t border-r border-b -ml-px ${
-                  displayMode === 'copa'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                COPA Card Standard
-              </button>
-            </div>
           </div>
 
           {/* Simple Rendering */}
@@ -548,227 +446,76 @@ export default function DisplayForm() {
             </div>
           </div>
 
-          {/* SVG Template Rendering - Legacy Mode */}
-          {displayMode === 'legacy' && (
-            <div className="border border-gray-200 rounded-lg p-4 space-y-4">
-              <h4 className="font-medium text-gray-800">SVG Template Rendering</h4>
-              <p className="text-xs text-gray-500">
-                Recommended: SVG format, 400x250px, max 500KB. Use {'{{placeholder}}'} syntax for dynamic values.
-              </p>
+          {/* SVG Templates (Front/Back) */}
+          <div className="border border-gray-200 rounded-lg p-4 space-y-4">
+            <h4 className="font-medium text-gray-800">SVG Templates (Front/Back)</h4>
+            <p className="text-xs text-gray-500">
+              Configure separate SVG templates for the front and back of the credential card.
+            </p>
 
-              {/* SVG Templates List */}
-              {getSvgTemplatesArray().map((template, idx) => (
-                <div key={idx} className="border border-gray-100 rounded p-3 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500">Template {idx + 1}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const templates = getSvgTemplatesArray();
-                        const updated = templates.filter((_, i) => i !== idx);
-                        updateRendering({ svg_templates: updated });
-                      }}
-                      className="text-red-500 text-xs hover:text-red-700"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                  <input
-                    type="url"
-                    value={template.uri}
-                    onChange={(e) => {
-                      const templates = getSvgTemplatesArray();
-                      const updated = [...templates];
-                      updated[idx] = { ...updated[idx], uri: e.target.value };
-                      updateRendering({ svg_templates: updated });
-                    }}
-                    placeholder="https://example.com/template.svg"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
-                  />
-                  {template['uri#integrity'] && (
-                    <p className="text-xs text-green-600 font-mono truncate">
-                      {template['uri#integrity']}
-                    </p>
-                  )}
-                  {/* SVG Properties */}
-                  <div className="grid grid-cols-3 gap-2 mt-2">
-                    <select
-                      value={template.properties?.orientation || ''}
-                      onChange={(e) => {
-                        const templates = getSvgTemplatesArray();
-                        const updated = [...templates];
-                        updated[idx] = {
-                          ...updated[idx],
-                          properties: {
-                            ...updated[idx].properties,
-                            orientation: e.target.value as 'portrait' | 'landscape' | undefined,
-                          },
-                        };
-                        updateRendering({ svg_templates: updated });
-                      }}
-                      className="px-2 py-1 text-xs border border-gray-300 rounded"
-                    >
-                      <option value="">Orientation</option>
-                      <option value="portrait">Portrait</option>
-                      <option value="landscape">Landscape</option>
-                    </select>
-                    <select
-                      value={template.properties?.color_scheme || ''}
-                      onChange={(e) => {
-                        const templates = getSvgTemplatesArray();
-                        const updated = [...templates];
-                        updated[idx] = {
-                          ...updated[idx],
-                          properties: {
-                            ...updated[idx].properties,
-                            color_scheme: e.target.value as 'light' | 'dark' | undefined,
-                          },
-                        };
-                        updateRendering({ svg_templates: updated });
-                      }}
-                      className="px-2 py-1 text-xs border border-gray-300 rounded"
-                    >
-                      <option value="">Color Scheme</option>
-                      <option value="light">Light</option>
-                      <option value="dark">Dark</option>
-                    </select>
-                    <select
-                      value={template.properties?.contrast || ''}
-                      onChange={(e) => {
-                        const templates = getSvgTemplatesArray();
-                        const updated = [...templates];
-                        updated[idx] = {
-                          ...updated[idx],
-                          properties: {
-                            ...updated[idx].properties,
-                            contrast: e.target.value as 'normal' | 'high' | undefined,
-                          },
-                        };
-                        updateRendering({ svg_templates: updated });
-                      }}
-                      className="px-2 py-1 text-xs border border-gray-300 rounded"
-                    >
-                      <option value="">Contrast</option>
-                      <option value="normal">Normal</option>
-                      <option value="high">High</option>
-                    </select>
-                  </div>
-                </div>
-              ))}
-
-              {/* Add SVG Template */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Add SVG Template URL
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    id="new-svg-url"
-                    placeholder="https://example.com/template.svg"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => openAssetPicker('svg')}
-                    className="px-3 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700"
-                    title="Browse Asset Library"
-                  >
-                    Browse
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const input = document.getElementById('new-svg-url') as HTMLInputElement;
-                      const url = input.value.trim();
-                      if (url) {
-                        generateHash(url, 'svg');
-                        input.value = '';
-                      }
-                    }}
-                    className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
-                  >
-                    Add + Hash
-                  </button>
-                </div>
+            {/* Front SVG Template */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Front of Card
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={getFrontBackTemplates().front?.uri || ''}
+                  onChange={(e) =>
+                    updateSvgTemplateByFace(activeTab, 'front', { uri: e.target.value })
+                  }
+                  placeholder="https://example.com/card-front.svg"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => openAssetPicker('svg-front')}
+                  className="px-3 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700"
+                >
+                  Browse
+                </button>
               </div>
-            </div>
-          )}
-
-          {/* SVG Template Rendering - COPA Card Standard Mode */}
-          {displayMode === 'copa' && (
-            <>
-              <div className="border border-gray-200 rounded-lg p-4 space-y-4">
-                <h4 className="font-medium text-gray-800">SVG Templates (Front/Back)</h4>
-                <p className="text-xs text-gray-500">
-                  Configure separate SVG templates for the front and back of the credential card.
+              {getFrontBackTemplates().front?.['uri#integrity'] && (
+                <p className="text-xs text-green-600 font-mono truncate">
+                  {getFrontBackTemplates().front?.['uri#integrity']}
                 </p>
+              )}
+            </div>
 
-                {/* Front SVG Template */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Front of Card
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="url"
-                      value={getFrontBackTemplates().front?.uri || ''}
-                      onChange={(e) =>
-                        updateSvgTemplateByFace(activeTab, 'front', { uri: e.target.value })
-                      }
-                      placeholder="https://example.com/card-front.svg"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => openAssetPicker('svg-front')}
-                      className="px-3 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700"
-                    >
-                      Browse
-                    </button>
-                  </div>
-                  {getFrontBackTemplates().front?.['uri#integrity'] && (
-                    <p className="text-xs text-green-600 font-mono truncate">
-                      {getFrontBackTemplates().front?.['uri#integrity']}
-                    </p>
-                  )}
-                </div>
-
-                {/* Back SVG Template */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Back of Card
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="url"
-                      value={getFrontBackTemplates().back?.uri || ''}
-                      onChange={(e) =>
-                        updateSvgTemplateByFace(activeTab, 'back', { uri: e.target.value })
-                      }
-                      placeholder="https://example.com/card-back.svg"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => openAssetPicker('svg-back')}
-                      className="px-3 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700"
-                    >
-                      Browse
-                    </button>
-                  </div>
-                  {getFrontBackTemplates().back?.['uri#integrity'] && (
-                    <p className="text-xs text-green-600 font-mono truncate">
-                      {getFrontBackTemplates().back?.['uri#integrity']}
-                    </p>
-                  )}
-                </div>
+            {/* Back SVG Template */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Back of Card
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={getFrontBackTemplates().back?.uri || ''}
+                  onChange={(e) =>
+                    updateSvgTemplateByFace(activeTab, 'back', { uri: e.target.value })
+                  }
+                  placeholder="https://example.com/card-back.svg"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => openAssetPicker('svg-back')}
+                  className="px-3 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700"
+                >
+                  Browse
+                </button>
               </div>
+              {getFrontBackTemplates().back?.['uri#integrity'] && (
+                <p className="text-xs text-green-600 font-mono truncate">
+                  {getFrontBackTemplates().back?.['uri#integrity']}
+                </p>
+              )}
+            </div>
+          </div>
 
-              {/* Card Elements Configuration */}
-              <CardElementsForm displayIndex={activeTab} />
-            </>
-          )}
+          {/* Card Elements Configuration */}
+          <CardElementsForm displayIndex={activeTab} />
         </div>
       )}
 

@@ -9,6 +9,8 @@ const GITHUB_REPO_NAME = process.env.GITHUB_REPO_NAME || 'governance';
 const VCT_FOLDER_PATH = process.env.VCT_FOLDER_PATH || 'credentials/vct';
 const SCHEMA_FOLDER_PATH = process.env.SCHEMA_FOLDER_PATH || 'credentials/schemas';
 const BASE_URL = process.env.BASE_URL || 'https://openpropertyassociation.ca';
+// Base branch for PRs - if set, use this instead of repo's default branch
+const GITHUB_BASE_BRANCH = process.env.GITHUB_BASE_BRANCH || null;
 
 // Get configuration (base URLs for VCT and Schema)
 router.get('/config', requireAuth, (req, res) => {
@@ -23,11 +25,12 @@ router.get('/schema-library', requireAuth, async (req, res) => {
   try {
     const octokit = getOctokit(req);
 
-    // Get contents of the schemas folder
+    // Get contents of the schemas folder (from configured branch if set)
     const { data: contents } = await octokit.rest.repos.getContent({
       owner: GITHUB_REPO_OWNER,
       repo: GITHUB_REPO_NAME,
       path: SCHEMA_FOLDER_PATH,
+      ...(GITHUB_BASE_BRANCH && { ref: GITHUB_BASE_BRANCH }),
     });
 
     // Filter for JSON files only
@@ -66,6 +69,7 @@ router.get('/vct-available/:filename', requireAuth, async (req, res) => {
         owner: GITHUB_REPO_OWNER,
         repo: GITHUB_REPO_NAME,
         path: `${VCT_FOLDER_PATH}/${finalFilename}`,
+        ...(GITHUB_BASE_BRANCH && { ref: GITHUB_BASE_BRANCH }),
       });
       // File exists, so it's not available
       res.json({ available: false, filename: finalFilename });
@@ -88,11 +92,12 @@ router.get('/vct-library', requireAuth, async (req, res) => {
   try {
     const octokit = getOctokit(req);
 
-    // Get contents of the VCT folder
+    // Get contents of the VCT folder (from configured branch if set)
     const { data: contents } = await octokit.rest.repos.getContent({
       owner: GITHUB_REPO_OWNER,
       repo: GITHUB_REPO_NAME,
       path: VCT_FOLDER_PATH,
+      ...(GITHUB_BASE_BRANCH && { ref: GITHUB_BASE_BRANCH }),
     });
 
     // Filter for JSON files only
@@ -126,6 +131,7 @@ router.get('/vct/:filename', requireAuth, async (req, res) => {
       owner: GITHUB_REPO_OWNER,
       repo: GITHUB_REPO_NAME,
       path: `${VCT_FOLDER_PATH}/${filename}`,
+      ...(GITHUB_BASE_BRANCH && { ref: GITHUB_BASE_BRANCH }),
     });
 
     // Decode base64 content
@@ -161,18 +167,22 @@ router.post('/vct', requireAuth, async (req, res) => {
     const octokit = getOctokit(req);
     const user = req.session.user;
 
-    // Get the default branch (usually 'main')
-    const { data: repo } = await octokit.rest.repos.get({
-      owner: GITHUB_REPO_OWNER,
-      repo: GITHUB_REPO_NAME,
-    });
-    const defaultBranch = repo.default_branch;
+    // Determine the base branch for the PR
+    let baseBranch = GITHUB_BASE_BRANCH;
+    if (!baseBranch) {
+      // Fall back to repo's default branch if not configured
+      const { data: repo } = await octokit.rest.repos.get({
+        owner: GITHUB_REPO_OWNER,
+        repo: GITHUB_REPO_NAME,
+      });
+      baseBranch = repo.default_branch;
+    }
 
-    // Get the latest commit SHA of the default branch
+    // Get the latest commit SHA of the base branch
     const { data: ref } = await octokit.rest.git.getRef({
       owner: GITHUB_REPO_OWNER,
       repo: GITHUB_REPO_NAME,
-      ref: `heads/${defaultBranch}`,
+      ref: `heads/${baseBranch}`,
     });
     const baseSha = ref.object.sha;
 
@@ -213,7 +223,7 @@ Created by @${user.login} using the [VCT Builder](https://vct-builder-app.onrend
       title: prTitle,
       body: prBody,
       head: branchName,
-      base: defaultBranch,
+      base: baseBranch,
     });
 
     res.json({

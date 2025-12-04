@@ -120,9 +120,6 @@ export interface VCTCardElements {
   back?: VCTBackCardElements;
 }
 
-// Display mode for the VCT Builder
-export type DisplayMode = 'legacy' | 'copa';
-
 export interface VCTClaimDisplay {
   locale: string;
   label: string;
@@ -246,7 +243,6 @@ export interface VCTStore {
     face: 'front' | 'back',
     template: VCTSvgTemplate | null
   ) => void;
-  setDisplayMode: (displayIndex: number, mode: DisplayMode) => void;
 }
 
 // Default empty VCT - starts with only en-CA
@@ -295,34 +291,12 @@ export const isLegacyFormat = (
   return Array.isArray(templates);
 };
 
-// Detect display mode from VCT display configuration
-export const detectDisplayMode = (display: VCTDisplay): DisplayMode => {
-  // If card_elements exists, it's COPA mode
-  if (display.card_elements) return 'copa';
-
-  // If svg_templates is front/back object, it's COPA mode
-  if (display.rendering?.svg_templates && isFrontBackFormat(display.rendering.svg_templates)) {
-    return 'copa';
-  }
-
-  // Otherwise legacy mode
-  return 'legacy';
-};
-
-// Convert legacy array format to COPA front/back format
+// Convert legacy array format to COPA front/back format (for backward compatibility when importing)
 export const migrateToFrontBack = (templates: VCTSvgTemplate[]): VCTSvgTemplates => {
   return {
     front: templates[0] || undefined,
     back: templates[1] || undefined,
   };
-};
-
-// Convert COPA front/back format to legacy array format
-export const migrateToLegacy = (templates: VCTSvgTemplates): VCTSvgTemplate[] => {
-  const result: VCTSvgTemplate[] = [];
-  if (templates.front) result.push(templates.front);
-  if (templates.back) result.push(templates.back);
-  return result;
 };
 
 // Evidence source type labels
