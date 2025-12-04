@@ -89,7 +89,9 @@ const upload = multer({
 
 // CORS configuration
 app.use(cors({
-  origin: isProduction ? 'https://vct-builder-app.onrender.com' : 'http://localhost:5173',
+  origin: isProduction
+    ? ['https://credential-design-tools.openpropertyassociation.ca', 'https://vct-builder-app.onrender.com']
+    : 'http://localhost:5173',
   credentials: true,
 }));
 
