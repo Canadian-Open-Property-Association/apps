@@ -4,7 +4,6 @@ import {
   VCTRendering,
   AVAILABLE_LOCALES,
   getLocaleName,
-  isFrontBackFormat,
   FONT_FAMILY_OPTIONS,
 } from '../../types/vct';
 import AssetLibrary from '../AssetLibrary/AssetLibrary';
@@ -15,24 +14,11 @@ export default function DisplayForm() {
   const updateDisplay = useVctStore((state) => state.updateDisplay);
   const addDisplay = useVctStore((state) => state.addDisplay);
   const removeDisplay = useVctStore((state) => state.removeDisplay);
-  const updateSvgTemplateByFace = useVctStore((state) => state.updateSvgTemplateByFace);
   const [activeTab, setActiveTab] = useState(0);
   const [assetPickerOpen, setAssetPickerOpen] = useState(false);
-  const [assetPickerTarget, setAssetPickerTarget] = useState<'logo' | 'background' | 'svg-front' | 'svg-back' | null>(null);
+  const [assetPickerTarget, setAssetPickerTarget] = useState<'logo' | 'background' | null>(null);
 
   const display = currentVct.display[activeTab];
-
-  // Get front/back templates for COPA mode
-  const getFrontBackTemplates = () => {
-    const templates = display?.rendering?.svg_templates;
-    if (!templates) return { front: undefined, back: undefined };
-    if (isFrontBackFormat(templates)) return templates;
-    // Convert array to front/back (for backward compatibility with imported files)
-    if (Array.isArray(templates)) {
-      return { front: templates[0], back: templates[1] };
-    }
-    return { front: undefined, back: undefined };
-  };
 
   // Get locales that haven't been added yet
   const availableLocales = AVAILABLE_LOCALES.filter(
@@ -98,7 +84,7 @@ export default function DisplayForm() {
     }
   };
 
-  const openAssetPicker = (target: 'logo' | 'background' | 'svg-front' | 'svg-back') => {
+  const openAssetPicker = (target: 'logo' | 'background') => {
     setAssetPickerTarget(target);
     setAssetPickerOpen(true);
   };
@@ -125,10 +111,6 @@ export default function DisplayForm() {
           },
         },
       });
-    } else if (assetPickerTarget === 'svg-front') {
-      updateSvgTemplateByFace(activeTab, 'front', { uri, 'uri#integrity': hash });
-    } else if (assetPickerTarget === 'svg-back') {
-      updateSvgTemplateByFace(activeTab, 'back', { uri, 'uri#integrity': hash });
     }
     setAssetPickerOpen(false);
     setAssetPickerTarget(null);
@@ -446,74 +428,6 @@ export default function DisplayForm() {
             </div>
           </div>
 
-          {/* SVG Templates (Front/Back) */}
-          <div className="border border-gray-200 rounded-lg p-4 space-y-4">
-            <h4 className="font-medium text-gray-800">SVG Templates (Front/Back)</h4>
-            <p className="text-xs text-gray-500">
-              Configure separate SVG templates for the front and back of the credential card.
-            </p>
-
-            {/* Front SVG Template */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Front of Card
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  value={getFrontBackTemplates().front?.uri || ''}
-                  onChange={(e) =>
-                    updateSvgTemplateByFace(activeTab, 'front', { uri: e.target.value })
-                  }
-                  placeholder="https://example.com/card-front.svg"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-                <button
-                  type="button"
-                  onClick={() => openAssetPicker('svg-front')}
-                  className="px-3 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700"
-                >
-                  Browse
-                </button>
-              </div>
-              {getFrontBackTemplates().front?.['uri#integrity'] && (
-                <p className="text-xs text-green-600 font-mono truncate">
-                  {getFrontBackTemplates().front?.['uri#integrity']}
-                </p>
-              )}
-            </div>
-
-            {/* Back SVG Template */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Back of Card
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  value={getFrontBackTemplates().back?.uri || ''}
-                  onChange={(e) =>
-                    updateSvgTemplateByFace(activeTab, 'back', { uri: e.target.value })
-                  }
-                  placeholder="https://example.com/card-back.svg"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-                <button
-                  type="button"
-                  onClick={() => openAssetPicker('svg-back')}
-                  className="px-3 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700"
-                >
-                  Browse
-                </button>
-              </div>
-              {getFrontBackTemplates().back?.['uri#integrity'] && (
-                <p className="text-xs text-green-600 font-mono truncate">
-                  {getFrontBackTemplates().back?.['uri#integrity']}
-                </p>
-              )}
-            </div>
-          </div>
-
           {/* Card Elements Configuration */}
           <CardElementsForm displayIndex={activeTab} />
         </div>
@@ -527,13 +441,7 @@ export default function DisplayForm() {
           setAssetPickerTarget(null);
         }}
         onSelect={handleAssetSelect}
-        title={
-          assetPickerTarget === 'logo'
-            ? 'Select Logo Image'
-            : assetPickerTarget === 'background'
-            ? 'Select Background Image'
-            : 'Select SVG Template'
-        }
+        title={assetPickerTarget === 'logo' ? 'Select Logo Image' : 'Select Background Image'}
       />
     </div>
   );
