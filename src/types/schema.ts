@@ -150,10 +150,17 @@ export interface SchemaStore {
 // Base URL for schema hosting
 export const SCHEMA_BASE_URL = 'https://openpropertyassociation.ca/credentials/schemas';
 
-// Generate $id from filename
-export const generateSchemaId = (filename: string): string => {
-  const cleanName = filename.replace(/\.json$/, '').replace(/[^a-z0-9-]/gi, '-').toLowerCase();
-  return `${SCHEMA_BASE_URL}/${cleanName}.json`;
+// Generate $id from title (converts to kebab-case)
+export const generateSchemaId = (title: string): string => {
+  if (!title) return '';
+  const kebabCase = title
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special chars except spaces and hyphens
+    .replace(/\s+/g, '-')          // Replace spaces with hyphens
+    .replace(/-+/g, '-')           // Collapse multiple hyphens
+    .replace(/^-|-$/g, '');        // Remove leading/trailing hyphens
+  return `${SCHEMA_BASE_URL}/${kebabCase}.json`;
 };
 
 // Create default empty schema metadata
@@ -248,10 +255,13 @@ export const toJsonSchema = (metadata: SchemaMetadata, properties: SchemaPropert
     }
   }
 
+  // Auto-generate $id from title if not provided
+  const schemaId = metadata.schemaId || generateSchemaId(metadata.title);
+
   // Build full schema
   const schema: Record<string, unknown> = {
     $schema: 'https://json-schema.org/draft/2020-12/schema',
-    $id: metadata.schemaId,
+    $id: schemaId,
     title: metadata.title,
     description: metadata.description,
     type: 'object',

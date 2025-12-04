@@ -208,18 +208,6 @@ export default function PropertyTree() {
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">
-              Schema $id
-            </label>
-            <input
-              type="text"
-              value={metadata.schemaId}
-              onChange={(e) => updateMetadata({ schemaId: e.target.value })}
-              placeholder="e.g., https://openpropertyassociation.ca/credentials/schemas/home-credential.json"
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 font-mono text-xs"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
               Description
             </label>
             <textarea
