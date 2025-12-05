@@ -299,9 +299,18 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
       !cardElements?.secondary_attribute?.value;
     const isCredentialNamePlaceholder = !cardElements?.credential_name?.value && !display.name;
 
+    // Zone dimensions matching GridlinesOverlay
+    const ZONE = {
+      TOP_HEIGHT: 40,
+      BOTTOM_HEIGHT: 45,
+      CENTER_BELOW_HEIGHT: 40,
+      PADDING: 8, // Inner padding within zones
+      HALF_WIDTH: 170 - 8, // 50% of 340px minus padding
+    };
+
     return (
       <div
-        className="rounded-xl shadow-lg overflow-hidden flex flex-col"
+        className="rounded-xl shadow-lg overflow-hidden relative"
         style={{
           backgroundColor: simple?.background_color || '#1E3A5F',
           color: simple?.text_color || '#FFFFFF',
@@ -310,108 +319,170 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
           height: '214px',
         }}
       >
-        {/* Top Row: Portfolio Issuer + Network Mark */}
-        <div className="p-4 flex items-start justify-between flex-shrink-0">
-          <div className="flex items-center gap-2" style={{ maxWidth: '150px' }}>
-            {cardElements?.portfolio_issuer?.logo_uri ? (
-              <img
-                src={cardElements.portfolio_issuer.logo_uri}
-                alt="Portfolio Issuer"
-                className="h-8 w-auto object-contain flex-shrink-0"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
-            ) : null}
-            {getPortfolioIssuerText() ? (
-              <AutoSizeText
-                text={getPortfolioIssuerText()}
-                maxFontSize={12}
-                minFontSize={8}
-                maxWidth={cardElements?.portfolio_issuer?.logo_uri ? 100 : 150}
-              />
-            ) : (
-              !cardElements?.portfolio_issuer?.logo_uri && (
-                <span className="text-xs opacity-50">Portfolio Issuer</span>
-              )
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {cardElements?.network_mark?.logo_uri ? (
-              <img
-                src={cardElements.network_mark.logo_uri}
-                alt="Network Mark"
-                className="h-6 w-auto object-contain"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
-            ) : (
-              <span className="text-xs font-semibold opacity-75">
-                {cardElements?.network_mark?.value === 'cornerstone' ? '◆ CORNERSTONE' : 'Network'}
-              </span>
-            )}
-          </div>
+        {/* Top Left Zone: Portfolio Issuer */}
+        <div
+          className="absolute flex items-center gap-2"
+          style={{
+            top: 0,
+            left: 0,
+            width: '50%',
+            height: `${ZONE.TOP_HEIGHT}px`,
+            padding: `${ZONE.PADDING}px`,
+          }}
+        >
+          {cardElements?.portfolio_issuer?.logo_uri ? (
+            <img
+              src={cardElements.portfolio_issuer.logo_uri}
+              alt="Portfolio Issuer"
+              className="h-6 w-auto object-contain flex-shrink-0"
+              style={{ maxHeight: `${ZONE.TOP_HEIGHT - ZONE.PADDING * 2}px` }}
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          ) : null}
+          {getPortfolioIssuerText() ? (
+            <AutoSizeText
+              text={getPortfolioIssuerText()}
+              maxFontSize={12}
+              minFontSize={8}
+              maxWidth={cardElements?.portfolio_issuer?.logo_uri ? 90 : ZONE.HALF_WIDTH}
+            />
+          ) : (
+            !cardElements?.portfolio_issuer?.logo_uri && (
+              <span className="text-xs opacity-50">Portfolio Issuer</span>
+            )
+          )}
         </div>
 
-        {/* Center: Primary & Secondary Attributes */}
-        <div className="px-4 flex-grow flex flex-col justify-center">
+        {/* Top Right Zone: Network Mark */}
+        <div
+          className="absolute flex items-center justify-end gap-2"
+          style={{
+            top: 0,
+            right: 0,
+            width: '50%',
+            height: `${ZONE.TOP_HEIGHT}px`,
+            padding: `${ZONE.PADDING}px`,
+          }}
+        >
+          {cardElements?.network_mark?.logo_uri ? (
+            <img
+              src={cardElements.network_mark.logo_uri}
+              alt="Network Mark"
+              className="h-5 w-auto object-contain"
+              style={{ maxHeight: `${ZONE.TOP_HEIGHT - ZONE.PADDING * 2}px` }}
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          ) : (
+            <span className="text-xs font-semibold opacity-75">
+              {cardElements?.network_mark?.value === 'cornerstone' ? '◆ CORNERSTONE' : 'Network'}
+            </span>
+          )}
+        </div>
+
+        {/* Center Zone: Primary Attribute */}
+        <div
+          className="absolute flex items-center"
+          style={{
+            top: `${ZONE.TOP_HEIGHT}px`,
+            left: 0,
+            width: '100%',
+            height: `calc(100% - ${ZONE.TOP_HEIGHT + ZONE.BOTTOM_HEIGHT + ZONE.CENTER_BELOW_HEIGHT}px)`,
+            padding: `${ZONE.PADDING}px`,
+          }}
+        >
           <AutoSizeText
             text={getPrimaryText()}
-            maxFontSize={18}
+            maxFontSize={20}
             minFontSize={10}
             className="font-bold"
             style={{ opacity: isPrimaryPlaceholder ? 0.5 : 1 }}
-            maxWidth={308} // 340px - 32px padding
+            maxWidth={340 - ZONE.PADDING * 2}
           />
+        </div>
+
+        {/* Center Below Zone: Secondary Attribute */}
+        <div
+          className="absolute flex items-center"
+          style={{
+            bottom: `${ZONE.BOTTOM_HEIGHT}px`,
+            left: 0,
+            width: '100%',
+            height: `${ZONE.CENTER_BELOW_HEIGHT}px`,
+            padding: `${ZONE.PADDING}px`,
+          }}
+        >
           {cardElements?.secondary_attribute && (
             <AutoSizeText
               text={getSecondaryText()}
               maxFontSize={14}
               minFontSize={9}
-              className="mt-1"
               style={{ opacity: isSecondaryPlaceholder ? 0.5 : 0.8 }}
-              maxWidth={308}
+              maxWidth={340 - ZONE.PADDING * 2}
             />
           )}
         </div>
 
-        {/* Bottom Row: Credential Name + Issuer */}
-        <div className="px-4 py-3 flex justify-between items-end gap-2" style={{ backgroundColor: 'rgba(0,0,0,0.1)' }}>
-          <div style={{ maxWidth: '150px' }}>
+        {/* Bottom Left Zone: Credential Name */}
+        <div
+          className="absolute flex items-center"
+          style={{
+            bottom: 0,
+            left: 0,
+            width: '50%',
+            height: `${ZONE.BOTTOM_HEIGHT}px`,
+            padding: `${ZONE.PADDING}px`,
+            backgroundColor: 'rgba(0,0,0,0.1)',
+          }}
+        >
+          <AutoSizeText
+            text={getCredentialNameText()}
+            maxFontSize={12}
+            minFontSize={8}
+            style={{ opacity: isCredentialNamePlaceholder ? 0.5 : 1 }}
+            maxWidth={ZONE.HALF_WIDTH}
+          />
+        </div>
+
+        {/* Bottom Right Zone: Credential Issuer */}
+        <div
+          className="absolute flex items-center justify-end gap-2"
+          style={{
+            bottom: 0,
+            right: 0,
+            width: '50%',
+            height: `${ZONE.BOTTOM_HEIGHT}px`,
+            padding: `${ZONE.PADDING}px`,
+            backgroundColor: 'rgba(0,0,0,0.1)',
+          }}
+        >
+          {cardElements?.credential_issuer?.logo_uri ? (
+            <img
+              src={cardElements.credential_issuer.logo_uri}
+              alt="Credential Issuer"
+              className="h-5 w-auto object-contain flex-shrink-0"
+              style={{ maxHeight: `${ZONE.BOTTOM_HEIGHT - ZONE.PADDING * 2}px` }}
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          ) : null}
+          {getCredentialIssuerText() ? (
             <AutoSizeText
-              text={getCredentialNameText()}
+              text={getCredentialIssuerText()}
               maxFontSize={12}
               minFontSize={8}
-              style={{ opacity: isCredentialNamePlaceholder ? 0.5 : 1 }}
-              maxWidth={150}
+              style={{ opacity: 0.75 }}
+              maxWidth={cardElements?.credential_issuer?.logo_uri ? 90 : ZONE.HALF_WIDTH}
             />
-          </div>
-          <div className="flex items-center gap-2" style={{ maxWidth: '150px' }}>
-            {cardElements?.credential_issuer?.logo_uri ? (
-              <img
-                src={cardElements.credential_issuer.logo_uri}
-                alt="Credential Issuer"
-                className="h-6 w-auto object-contain flex-shrink-0"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
-            ) : null}
-            {getCredentialIssuerText() ? (
-              <AutoSizeText
-                text={getCredentialIssuerText()}
-                maxFontSize={12}
-                minFontSize={8}
-                style={{ opacity: 0.75, textAlign: 'right' }}
-                maxWidth={cardElements?.credential_issuer?.logo_uri ? 100 : 150}
-              />
-            ) : (
-              !cardElements?.credential_issuer?.logo_uri && (
-                <span className="text-xs opacity-50">Issuer</span>
-              )
-            )}
-          </div>
+          ) : (
+            !cardElements?.credential_issuer?.logo_uri && (
+              <span className="text-xs opacity-50">Issuer</span>
+            )
+          )}
         </div>
       </div>
     );

@@ -172,11 +172,14 @@ export const useVctStore = create<VCTStore>()(
       // Display actions
       addDisplay: (locale: string) =>
         set((state) => {
-          const newVct = {
-            ...state.currentVct,
-            display: [
-              ...state.currentVct.display,
-              {
+          // Copy settings from first display if available, otherwise use defaults
+          const sourceDisplay = state.currentVct.display[0];
+          const newDisplay = sourceDisplay
+            ? {
+                ...JSON.parse(JSON.stringify(sourceDisplay)), // Deep clone to avoid reference issues
+                locale, // Override with new locale
+              }
+            : {
                 locale,
                 name: '',
                 description: '',
@@ -186,8 +189,11 @@ export const useVctStore = create<VCTStore>()(
                     text_color: '#FFFFFF',
                   },
                 },
-              },
-            ],
+              };
+
+          const newVct = {
+            ...state.currentVct,
+            display: [...state.currentVct.display, newDisplay],
           };
           // Auto-sync claims to include new locale
           const updatedClaims = newVct.claims.map((claim) => {
