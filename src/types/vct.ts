@@ -120,6 +120,30 @@ export interface VCTCardElements {
   back?: VCTBackCardElements;
 }
 
+// ============================================
+// DYNAMIC ZONE-BASED ELEMENTS (Forward declarations)
+// ============================================
+
+// Content type for zone elements
+export type ZoneContentType = 'text' | 'image';
+
+// Dynamic element bound to a zone
+export interface DynamicCardElement {
+  zone_id: string; // Reference to zone in template
+  content_type: ZoneContentType; // text or image
+  claim_path?: string; // JSONPath for dynamic data
+  static_value?: string; // Static text/value
+  logo_uri?: string; // Image URL for image content
+  label?: string; // Optional display label
+}
+
+// Dynamic card elements using zone references
+export interface DynamicCardElements {
+  template_id: string; // Reference to zone template
+  front: DynamicCardElement[]; // Elements for front of card
+  back: DynamicCardElement[]; // Elements for back of card
+}
+
 export interface VCTClaimDisplay {
   locale: string;
   label: string;
@@ -139,7 +163,8 @@ export interface VCTDisplay {
   name: string;
   description?: string;
   rendering?: VCTRendering;
-  card_elements?: VCTCardElements; // COPA Card Display Standard
+  card_elements?: VCTCardElements; // COPA Card Display Standard (legacy)
+  dynamic_card_elements?: DynamicCardElements; // New dynamic zone-based elements
 }
 
 export interface VCT {
@@ -243,6 +268,15 @@ export interface VCTStore {
     face: 'front' | 'back',
     template: VCTSvgTemplate | null
   ) => void;
+
+  // Dynamic zone element actions
+  updateDynamicElement: (
+    displayIndex: number,
+    face: 'front' | 'back',
+    zoneId: string,
+    element: Partial<DynamicCardElement>
+  ) => void;
+  setDynamicCardElementsTemplate: (displayIndex: number, templateId: string) => void;
 }
 
 // Default empty VCT - starts with only en-CA
@@ -314,3 +348,203 @@ export const METADATA_FIELD_OPTIONS = [
   { id: 'expires_at', label: 'Expiry Date' },
   { id: 'status', label: 'Status' },
 ] as const;
+
+// ============================================
+// CUSTOMIZABLE ZONE TEMPLATE SYSTEM
+// ============================================
+
+// Zone positioning (percentages for responsive scaling)
+export interface ZonePosition {
+  x: number; // 0-100% of card width
+  y: number; // 0-100% of card height
+  width: number; // 0-100% of card width
+  height: number; // 0-100% of card height
+}
+
+// A single zone in a template
+export interface Zone {
+  id: string; // Unique zone identifier (UUID)
+  name: string; // Human-readable name (e.g., "Header Logo")
+  position: ZonePosition; // Positioning data
+  content_type: ZoneContentType; // What type of content this zone holds
+}
+
+// Zone template for front or back of card
+export interface ZoneFaceTemplate {
+  zones: Zone[];
+}
+
+// Complete zone template (front and back)
+export interface ZoneTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  front: ZoneFaceTemplate;
+  back: ZoneFaceTemplate;
+  card_width: number; // Reference width (default 340px)
+  card_height: number; // Reference height (default 214px)
+  createdAt: string;
+  updatedAt: string;
+  isBuiltIn?: boolean; // True for COPA standard template
+}
+
+// Built-in COPA template constant
+export const COPA_STANDARD_TEMPLATE_ID = 'copa-standard-v1';
+
+// Card dimensions (credit card ratio)
+export const CARD_WIDTH = 340;
+export const CARD_HEIGHT = 214;
+
+// Helper to create COPA standard template (matches current fixed zones)
+export const createCopaStandardTemplate = (): ZoneTemplate => ({
+  id: COPA_STANDARD_TEMPLATE_ID,
+  name: 'COPA Standard',
+  description: 'Standard COPA credential card layout with 6 fixed zones',
+  front: {
+    zones: [
+      {
+        id: 'portfolio_issuer',
+        name: 'Portfolio Issuer',
+        position: { x: 0, y: 0, width: 50, height: 18.7 },
+        content_type: 'image',
+      },
+      {
+        id: 'network_mark',
+        name: 'Network Mark',
+        position: { x: 50, y: 0, width: 50, height: 18.7 },
+        content_type: 'image',
+      },
+      {
+        id: 'primary_attribute',
+        name: 'Primary Attribute',
+        position: { x: 0, y: 18.7, width: 100, height: 42.5 },
+        content_type: 'text',
+      },
+      {
+        id: 'secondary_attribute',
+        name: 'Secondary Attribute',
+        position: { x: 0, y: 61.2, width: 100, height: 17.8 },
+        content_type: 'text',
+      },
+      {
+        id: 'credential_name',
+        name: 'Credential Name',
+        position: { x: 0, y: 79, width: 50, height: 21 },
+        content_type: 'text',
+      },
+      {
+        id: 'credential_issuer',
+        name: 'Credential Issuer',
+        position: { x: 50, y: 79, width: 50, height: 21 },
+        content_type: 'image',
+      },
+    ],
+  },
+  back: {
+    zones: [
+      {
+        id: 'metadata',
+        name: 'Metadata',
+        position: { x: 0, y: 0, width: 100, height: 40 },
+        content_type: 'text',
+      },
+      {
+        id: 'evidence',
+        name: 'Evidence Sources',
+        position: { x: 0, y: 40, width: 100, height: 60 },
+        content_type: 'image',
+      },
+    ],
+  },
+  card_width: CARD_WIDTH,
+  card_height: CARD_HEIGHT,
+  createdAt: '2024-01-01T00:00:00Z',
+  updatedAt: '2024-01-01T00:00:00Z',
+  isBuiltIn: true,
+});
+
+// Zone template store state interface
+export interface ZoneTemplateStore {
+  templates: ZoneTemplate[];
+  selectedTemplateId: string | null;
+  editingTemplate: ZoneTemplate | null;
+
+  // Template CRUD
+  addTemplate: (
+    template: Omit<ZoneTemplate, 'id' | 'createdAt' | 'updatedAt'>
+  ) => string;
+  updateTemplate: (id: string, updates: Partial<ZoneTemplate>) => void;
+  deleteTemplate: (id: string) => void;
+  duplicateTemplate: (id: string, newName: string) => string;
+
+  // Template selection
+  selectTemplate: (id: string | null) => void;
+  setEditingTemplate: (template: ZoneTemplate | null) => void;
+
+  // Zone management within editing template
+  addZone: (face: 'front' | 'back', zone: Omit<Zone, 'id'>) => void;
+  updateZone: (
+    face: 'front' | 'back',
+    zoneId: string,
+    updates: Partial<Zone>
+  ) => void;
+  deleteZone: (face: 'front' | 'back', zoneId: string) => void;
+
+  // Copy operations
+  copyFrontToBack: () => void;
+  copyBackToFront: () => void;
+
+  // Save editing template
+  saveEditingTemplate: () => void;
+
+  // Getters
+  getTemplate: (id: string) => ZoneTemplate | undefined;
+  getBuiltInTemplates: () => ZoneTemplate[];
+  getUserTemplates: () => ZoneTemplate[];
+}
+
+// Helper to check for zone overlaps
+export const zonesOverlap = (zone1: ZonePosition, zone2: ZonePosition): boolean => {
+  // Check if zones don't overlap (one is completely to the left, right, above, or below the other)
+  const noOverlap =
+    zone1.x + zone1.width <= zone2.x || // zone1 is to the left of zone2
+    zone2.x + zone2.width <= zone1.x || // zone2 is to the left of zone1
+    zone1.y + zone1.height <= zone2.y || // zone1 is above zone2
+    zone2.y + zone2.height <= zone1.y; // zone2 is above zone1
+
+  return !noOverlap;
+};
+
+// Helper to check if a zone array has any overlaps
+export const hasOverlappingZones = (zones: Zone[]): { hasOverlap: boolean; overlappingIds: string[] } => {
+  const overlappingIds: Set<string> = new Set();
+
+  for (let i = 0; i < zones.length; i++) {
+    for (let j = i + 1; j < zones.length; j++) {
+      if (zonesOverlap(zones[i].position, zones[j].position)) {
+        overlappingIds.add(zones[i].id);
+        overlappingIds.add(zones[j].id);
+      }
+    }
+  }
+
+  return {
+    hasOverlap: overlappingIds.size > 0,
+    overlappingIds: Array.from(overlappingIds),
+  };
+};
+
+// Generate a unique zone color for visual distinction
+export const getZoneColor = (index: number): string => {
+  const colors = [
+    'rgba(59, 130, 246, 0.3)', // blue
+    'rgba(168, 85, 247, 0.3)', // purple
+    'rgba(34, 197, 94, 0.3)', // green
+    'rgba(251, 191, 36, 0.3)', // yellow
+    'rgba(239, 68, 68, 0.3)', // red
+    'rgba(236, 72, 153, 0.3)', // pink
+    'rgba(20, 184, 166, 0.3)', // teal
+    'rgba(249, 115, 22, 0.3)', // orange
+  ];
+  return colors[index % colors.length];
+};

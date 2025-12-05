@@ -17,6 +17,8 @@ import {
   VCTStore,
   createDefaultVct,
   isFrontBackFormat,
+  DynamicCardElement,
+  DynamicCardElements,
 } from '../types/vct';
 import { getCurrentUserId, useAuthStore } from './authStore';
 
@@ -617,6 +619,74 @@ export const useVctStore = create<VCTStore>()(
             rendering: {
               ...currentRendering,
               svg_templates: newTemplates,
+            },
+          };
+
+          return {
+            currentVct: { ...state.currentVct, display: newDisplay },
+            isDirty: true,
+          };
+        }),
+
+      // Dynamic zone element actions
+      updateDynamicElement: (
+        displayIndex: number,
+        face: 'front' | 'back',
+        zoneId: string,
+        element: Partial<DynamicCardElement>
+      ) =>
+        set((state) => {
+          const newDisplay = [...state.currentVct.display];
+          const currentDynamic = newDisplay[displayIndex].dynamic_card_elements || {
+            template_id: '',
+            front: [],
+            back: [],
+          };
+
+          const elements = face === 'front' ? currentDynamic.front : currentDynamic.back;
+          const existingIndex = elements.findIndex((el) => el.zone_id === zoneId);
+
+          let newElements: DynamicCardElement[];
+          if (existingIndex >= 0) {
+            // Update existing element
+            newElements = elements.map((el, i) =>
+              i === existingIndex ? { ...el, ...element, zone_id: zoneId, content_type: el.content_type } : el
+            );
+          } else {
+            // Add new element
+            newElements = [...elements, { zone_id: zoneId, content_type: 'text', ...element } as DynamicCardElement];
+          }
+
+          const newDynamic: DynamicCardElements = {
+            ...currentDynamic,
+            [face]: newElements,
+          };
+
+          newDisplay[displayIndex] = {
+            ...newDisplay[displayIndex],
+            dynamic_card_elements: newDynamic,
+          };
+
+          return {
+            currentVct: { ...state.currentVct, display: newDisplay },
+            isDirty: true,
+          };
+        }),
+
+      setDynamicCardElementsTemplate: (displayIndex: number, templateId: string) =>
+        set((state) => {
+          const newDisplay = [...state.currentVct.display];
+          const currentDynamic = newDisplay[displayIndex].dynamic_card_elements || {
+            template_id: '',
+            front: [],
+            back: [],
+          };
+
+          newDisplay[displayIndex] = {
+            ...newDisplay[displayIndex],
+            dynamic_card_elements: {
+              ...currentDynamic,
+              template_id: templateId,
             },
           };
 

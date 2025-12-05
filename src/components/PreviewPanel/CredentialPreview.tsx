@@ -1,10 +1,14 @@
 import { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import { useVctStore } from '../../store/vctStore';
+import { useZoneTemplateStore } from '../../store/zoneTemplateStore';
 import {
   getLocaleName,
   isFrontBackFormat,
   VCTSvgTemplate,
   METADATA_FIELD_OPTIONS,
+  COPA_STANDARD_TEMPLATE_ID,
+  getZoneColor,
+  Zone,
 } from '../../types/vct';
 
 interface CredentialPreviewProps {
@@ -122,11 +126,56 @@ function GridlinesOverlay() {
   );
 }
 
+// Dynamic zones overlay for custom templates
+interface DynamicZonesOverlayProps {
+  zones: Zone[];
+}
+
+function DynamicZonesOverlay({ zones }: DynamicZonesOverlayProps) {
+  return (
+    <div className="absolute inset-0 pointer-events-none z-10">
+      {zones.map((zone, index) => {
+        const color = getZoneColor(index);
+        return (
+          <div
+            key={zone.id}
+            className="absolute flex items-center justify-center border border-dashed"
+            style={{
+              left: `${zone.position.x}%`,
+              top: `${zone.position.y}%`,
+              width: `${zone.position.width}%`,
+              height: `${zone.position.height}%`,
+              backgroundColor: `${color}30`,
+              borderColor: color,
+            }}
+          >
+            <span
+              className="text-[9px] font-mono font-semibold px-1 py-0.5 rounded truncate max-w-full"
+              style={{
+                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                color: '#fff',
+              }}
+            >
+              {zone.name}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function CredentialPreview({ locale, cardSide }: CredentialPreviewProps) {
   const currentVct = useVctStore((state) => state.currentVct);
   const sampleData = useVctStore((state) => state.sampleData);
   const [isFlipped, setIsFlipped] = useState(false);
   const [showGridlines, setShowGridlines] = useState(false);
+
+  // Zone template state
+  const selectedTemplateId = useZoneTemplateStore((state) => state.selectedTemplateId);
+  const getTemplate = useZoneTemplateStore((state) => state.getTemplate);
+  const selectedTemplate = selectedTemplateId ? getTemplate(selectedTemplateId) : null;
+  const isLegacyMode = selectedTemplateId === COPA_STANDARD_TEMPLATE_ID;
 
   // Sync flip state when cardSide prop changes from parent buttons
   useEffect(() => {
@@ -219,10 +268,17 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
           >
             {frontTemplate?.uri ? (
               renderSvgTemplate(frontTemplate, 'front')
-            ) : (
+            ) : isLegacyMode ? (
               <div className="relative">
                 {renderSimpleCardFront()}
                 {showGridlines && <GridlinesOverlay />}
+              </div>
+            ) : (
+              <div className="relative">
+                {renderDynamicCardFront()}
+                {showGridlines && selectedTemplate && (
+                  <DynamicZonesOverlay zones={selectedTemplate.front.zones} />
+                )}
               </div>
             )}
           </div>
@@ -237,10 +293,17 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
           >
             {backTemplate?.uri ? (
               renderSvgTemplate(backTemplate, 'back')
-            ) : (
+            ) : isLegacyMode ? (
               <div className="relative">
                 {renderSimpleCardBack()}
                 {showGridlines && <GridlinesOverlay />}
+              </div>
+            ) : (
+              <div className="relative">
+                {renderDynamicCardBack()}
+                {showGridlines && selectedTemplate && (
+                  <DynamicZonesOverlay zones={selectedTemplate.back.zones} />
+                )}
               </div>
             )}
           </div>
@@ -250,6 +313,7 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
         <div className="mt-4 flex items-center justify-center gap-4">
           <p className="text-xs text-gray-500">
             Click card to flip • Showing {currentSide}
+            {!isLegacyMode && selectedTemplate && ` • ${selectedTemplate.name}`}
           </p>
           <button
             onClick={() => setShowGridlines(!showGridlines)}
@@ -570,6 +634,164 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
     // Remove the $. prefix if present
     const normalizedPath = claimPath.startsWith('$.') ? claimPath.slice(2) : claimPath;
     return sampleData[normalizedPath];
+  };
+
+  // Dynamic card front for custom zone templates
+  const renderDynamicCardFront = () => {
+    const simple = display.rendering?.simple;
+    const dynamicElements = display.dynamic_card_elements?.front || [];
+
+    if (!selectedTemplate) {
+      return (
+        <div
+          className="rounded-xl shadow-lg overflow-hidden flex items-center justify-center"
+          style={{
+            backgroundColor: simple?.background_color || '#1E3A5F',
+            color: simple?.text_color || '#FFFFFF',
+            width: '340px',
+            height: '214px',
+          }}
+        >
+          <p className="text-sm opacity-50">No template selected</p>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className="rounded-xl shadow-lg overflow-hidden relative"
+        style={{
+          backgroundColor: simple?.background_color || '#1E3A5F',
+          color: simple?.text_color || '#FFFFFF',
+          fontFamily: simple?.font_family ? `"${simple.font_family}", sans-serif` : undefined,
+          width: '340px',
+          height: '214px',
+        }}
+      >
+        {selectedTemplate.front.zones.map((zone) => {
+          const element = dynamicElements.find((el) => el.zone_id === zone.id);
+          const content = element?.claim_path
+            ? getClaimValue(element.claim_path) || element.label || 'Claim'
+            : element?.static_value || element?.logo_uri || '';
+
+          return (
+            <div
+              key={zone.id}
+              className="absolute flex items-center justify-center p-1 overflow-hidden"
+              style={{
+                left: `${zone.position.x}%`,
+                top: `${zone.position.y}%`,
+                width: `${zone.position.width}%`,
+                height: `${zone.position.height}%`,
+              }}
+            >
+              {zone.content_type === 'image' && element?.logo_uri ? (
+                <img
+                  src={element.logo_uri}
+                  alt={zone.name}
+                  className="max-w-full max-h-full object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              ) : content ? (
+                <AutoSizeText
+                  text={content}
+                  maxFontSize={16}
+                  minFontSize={8}
+                  className="text-center"
+                  maxWidth={(340 * zone.position.width) / 100 - 8}
+                />
+              ) : (
+                <span className="text-xs opacity-30 truncate">{zone.name}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Dynamic card back for custom zone templates
+  const renderDynamicCardBack = () => {
+    const simple = display.rendering?.simple;
+    const dynamicElements = display.dynamic_card_elements?.back || [];
+
+    if (!selectedTemplate) {
+      return (
+        <div
+          className="rounded-xl shadow-lg overflow-hidden flex items-center justify-center"
+          style={{
+            backgroundColor: simple?.background_color || '#1E3A5F',
+            color: simple?.text_color || '#FFFFFF',
+            width: '340px',
+            height: '214px',
+          }}
+        >
+          <p className="text-sm opacity-50">No template selected</p>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        className="rounded-xl shadow-lg overflow-hidden relative"
+        style={{
+          backgroundColor: simple?.background_color || '#1E3A5F',
+          color: simple?.text_color || '#FFFFFF',
+          fontFamily: simple?.font_family ? `"${simple.font_family}", sans-serif` : undefined,
+          width: '340px',
+          height: '214px',
+        }}
+      >
+        {selectedTemplate.back.zones.length > 0 ? (
+          selectedTemplate.back.zones.map((zone) => {
+            const element = dynamicElements.find((el) => el.zone_id === zone.id);
+            const content = element?.claim_path
+              ? getClaimValue(element.claim_path) || element.label || 'Claim'
+              : element?.static_value || element?.logo_uri || '';
+
+            return (
+              <div
+                key={zone.id}
+                className="absolute flex items-center justify-center p-1 overflow-hidden"
+                style={{
+                  left: `${zone.position.x}%`,
+                  top: `${zone.position.y}%`,
+                  width: `${zone.position.width}%`,
+                  height: `${zone.position.height}%`,
+                }}
+              >
+                {zone.content_type === 'image' && element?.logo_uri ? (
+                  <img
+                    src={element.logo_uri}
+                    alt={zone.name}
+                    className="max-w-full max-h-full object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                ) : content ? (
+                  <AutoSizeText
+                    text={content}
+                    maxFontSize={16}
+                    minFontSize={8}
+                    className="text-center"
+                    maxWidth={(340 * zone.position.width) / 100 - 8}
+                  />
+                ) : (
+                  <span className="text-xs opacity-30 truncate">{zone.name}</span>
+                )}
+              </div>
+            );
+          })
+        ) : (
+          <div className="flex-grow flex items-center justify-center text-xs opacity-50">
+            No zones defined for back
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (

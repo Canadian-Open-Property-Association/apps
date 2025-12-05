@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useVctStore } from '../../store/vctStore';
+import { useZoneTemplateStore } from '../../store/zoneTemplateStore';
 import {
   VCTFrontCardElements,
   VCTEvidenceSource,
@@ -7,8 +8,14 @@ import {
   EVIDENCE_SOURCE_TYPE_LABELS,
   METADATA_FIELD_OPTIONS,
   CardElementPosition,
+  COPA_STANDARD_TEMPLATE_ID,
+  ZoneTemplate,
+  Zone,
+  getZoneColor,
 } from '../../types/vct';
 import AssetLibrary from '../AssetLibrary/AssetLibrary';
+import ZoneTemplateSelector from '../ZoneEditor/ZoneTemplateSelector';
+import ZoneTemplateLibrary from '../Library/ZoneTemplateLibrary';
 
 interface CardElementsFormProps {
   displayIndex: number;
@@ -83,6 +90,191 @@ const CARD_BRANDING: FrontElementConfig[] = [
     supportsLogo: true,
   },
 ];
+
+// Dynamic Zone Elements Form - for custom zone templates
+interface DynamicZoneElementsFormProps {
+  template: ZoneTemplate;
+  displayIndex: number;
+  claimPaths: { path: string; label: string }[];
+}
+
+function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: DynamicZoneElementsFormProps) {
+  const updateDynamicElement = useVctStore((state) => state.updateDynamicElement);
+  const currentVct = useVctStore((state) => state.currentVct);
+  const display = currentVct.display[displayIndex];
+  const dynamicElements = display?.dynamic_card_elements;
+
+  const [activeFace, setActiveFace] = useState<'front' | 'back'>('front');
+
+  const zones = activeFace === 'front' ? template.front.zones : template.back.zones;
+
+  // Get element for a zone
+  const getElementForZone = (zoneId: string) => {
+    const elements = activeFace === 'front' ? dynamicElements?.front : dynamicElements?.back;
+    return elements?.find((el) => el.zone_id === zoneId);
+  };
+
+  const handleElementChange = (
+    zoneId: string,
+    field: 'claim_path' | 'static_value' | 'logo_uri' | 'label',
+    value: string | undefined
+  ) => {
+    if (updateDynamicElement) {
+      updateDynamicElement(displayIndex, activeFace, zoneId, { [field]: value });
+    }
+  };
+
+  const renderZoneElement = (zone: Zone, index: number) => {
+    const element = getElementForZone(zone.id);
+    const zoneColor = getZoneColor(index);
+
+    return (
+      <div
+        key={zone.id}
+        className="border rounded p-3 space-y-2"
+        style={{ borderLeftColor: zoneColor, borderLeftWidth: '4px' }}
+      >
+        <div className="flex justify-between items-start">
+          <div>
+            <span className="text-sm font-medium text-gray-700">{zone.name}</span>
+            <span className="ml-2 text-xs text-gray-400 capitalize">({zone.content_type})</span>
+          </div>
+          <span
+            className="w-3 h-3 rounded-full"
+            style={{ backgroundColor: zoneColor }}
+            title={`Zone ${index + 1}`}
+          />
+        </div>
+
+        {zone.content_type === 'text' && (
+          <>
+            {/* Source selection */}
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Source</label>
+              <select
+                value={element?.claim_path || (element?.static_value ? '__static__' : '')}
+                onChange={(e) => {
+                  if (e.target.value === '__static__') {
+                    handleElementChange(zone.id, 'claim_path', undefined);
+                    handleElementChange(zone.id, 'static_value', '');
+                  } else {
+                    handleElementChange(zone.id, 'claim_path', e.target.value || undefined);
+                    handleElementChange(zone.id, 'static_value', undefined);
+                  }
+                }}
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+              >
+                <option value="">Select claim...</option>
+                {claimPaths.map((cp) => (
+                  <option key={cp.path} value={cp.path}>
+                    {cp.label} ({cp.path})
+                  </option>
+                ))}
+                <option value="__static__">Static value</option>
+              </select>
+            </div>
+
+            {/* Static value input */}
+            {!element?.claim_path && (
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Static Value</label>
+                <input
+                  type="text"
+                  value={element?.static_value || ''}
+                  onChange={(e) => handleElementChange(zone.id, 'static_value', e.target.value)}
+                  placeholder="Enter static value..."
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+                />
+              </div>
+            )}
+
+            {/* Label for claim-based */}
+            {element?.claim_path && (
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Display Label (optional)</label>
+                <input
+                  type="text"
+                  value={element?.label || ''}
+                  onChange={(e) => handleElementChange(zone.id, 'label', e.target.value)}
+                  placeholder="e.g., Property Address"
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+                />
+              </div>
+            )}
+          </>
+        )}
+
+        {zone.content_type === 'image' && (
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Image URI</label>
+            <input
+              type="url"
+              value={element?.logo_uri || ''}
+              onChange={(e) => handleElementChange(zone.id, 'logo_uri', e.target.value || undefined)}
+              placeholder="https://example.com/image.png"
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+            />
+            {element?.logo_uri && (
+              <div className="mt-2 flex items-center gap-2">
+                <img
+                  src={element.logo_uri}
+                  alt="Preview"
+                  className="w-10 h-10 object-contain border rounded bg-gray-50"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+                <span className="text-xs text-gray-500 truncate flex-1">{element.logo_uri}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Front/Back Toggle */}
+      <div className="flex rounded-md shadow-sm">
+        <button
+          type="button"
+          onClick={() => setActiveFace('front')}
+          className={`flex-1 px-4 py-2 text-sm font-medium rounded-l-md border ${
+            activeFace === 'front'
+              ? 'bg-blue-600 text-white border-blue-600'
+              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+          }`}
+        >
+          Front ({template.front.zones.length} zones)
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveFace('back')}
+          className={`flex-1 px-4 py-2 text-sm font-medium rounded-r-md border-t border-r border-b -ml-px ${
+            activeFace === 'back'
+              ? 'bg-blue-600 text-white border-blue-600'
+              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+          }`}
+        >
+          Back ({template.back.zones.length} zones)
+        </button>
+      </div>
+
+      {/* Zone Elements */}
+      {zones.length > 0 ? (
+        <div className="space-y-3">
+          {zones.map((zone, index) => renderZoneElement(zone, index))}
+        </div>
+      ) : (
+        <div className="text-center py-8 text-gray-400">
+          <p className="text-sm">No zones defined for the {activeFace} of this template.</p>
+          <p className="text-xs mt-1">Use the Zone Template Library to add zones.</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function CardElementsForm({ displayIndex }: CardElementsFormProps) {
   const currentVct = useVctStore((state) => state.currentVct);
@@ -168,15 +360,56 @@ export default function CardElementsForm({ displayIndex }: CardElementsFormProps
     setAssetPickerTarget(null);
   };
 
+  // Zone template state
+  const selectedTemplateId = useZoneTemplateStore((state) => state.selectedTemplateId);
+  const selectTemplate = useZoneTemplateStore((state) => state.selectTemplate);
+  const getTemplate = useZoneTemplateStore((state) => state.getTemplate);
+  const [showZoneLibrary, setShowZoneLibrary] = useState(false);
+
+  // Check if using legacy COPA format or dynamic zones
+  const isLegacyMode = selectedTemplateId === COPA_STANDARD_TEMPLATE_ID;
+
+  // Get the selected template for dynamic zone rendering
+  const selectedTemplate = selectedTemplateId ? getTemplate(selectedTemplateId) : null;
+
   return (
     <div className="border border-gray-200 rounded-lg p-4 space-y-6">
+      {/* Zone Template Selector */}
       <div>
-        <h4 className="font-medium text-gray-800">Card Elements (COPA Standard)</h4>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Zone Template
+        </label>
+        <ZoneTemplateSelector
+          selectedTemplateId={selectedTemplateId}
+          onSelect={selectTemplate}
+          onManageClick={() => setShowZoneLibrary(true)}
+        />
+      </div>
+
+      {/* Divider */}
+      <hr className="border-gray-200" />
+
+      <div>
+        <h4 className="font-medium text-gray-800">
+          {isLegacyMode ? 'Card Elements (COPA Standard)' : 'Card Elements'}
+        </h4>
         <p className="text-xs text-gray-500 mt-1">
           Configure the elements that appear on the front and back of the credential card.
         </p>
       </div>
 
+      {/* Dynamic Zone Elements Form - when using custom templates */}
+      {!isLegacyMode && selectedTemplate && (
+        <DynamicZoneElementsForm
+          template={selectedTemplate}
+          displayIndex={displayIndex}
+          claimPaths={claimPaths}
+        />
+      )}
+
+      {/* Legacy COPA Standard Form */}
+      {isLegacyMode && (
+        <>
       {/* Display Attributes Section */}
       <div className="space-y-4">
         <h5 className="text-sm font-semibold text-gray-700 border-b pb-2">
@@ -727,6 +960,15 @@ export default function CardElementsForm({ displayIndex }: CardElementsFormProps
           )}
         </div>
       </div>
+        </>
+      )}
+
+      {/* Zone Template Library Modal */}
+      <ZoneTemplateLibrary
+        isOpen={showZoneLibrary}
+        onClose={() => setShowZoneLibrary(false)}
+        onSelectTemplate={selectTemplate}
+      />
 
       {/* Asset Library Modal */}
       <AssetLibrary
