@@ -165,11 +165,12 @@ export default function VctBuilderApp() {
         {((mobileActivePanel === 'form') || showFormPanel) && (
           <div
             className={`
-              flex-col bg-white overflow-y-auto flex-shrink-0
+              flex-col bg-white overflow-y-auto
               ${mobileActivePanel === 'form' ? 'flex w-full' : 'hidden'}
               ${showFormPanel ? 'md:flex' : 'md:hidden'}
+              ${!showJsonPanel && !showPreviewPanel ? 'flex-1' : 'flex-shrink-0'}
             `}
-            style={{ width: mobileActivePanel === 'form' ? '100%' : `${formPanelWidth}px` }}
+            style={{ width: mobileActivePanel === 'form' ? '100%' : (!showJsonPanel && !showPreviewPanel ? undefined : `${formPanelWidth}px`) }}
           >
             {/* Section Tabs */}
             <div className="flex border-b border-gray-200 sticky top-0 bg-white z-10 flex-shrink-0">
@@ -223,11 +224,12 @@ export default function VctBuilderApp() {
         {((mobileActivePanel === 'json') || showJsonPanel) && (
           <div
             className={`
-              flex-col bg-gray-900 overflow-y-auto flex-shrink-0
+              flex-col bg-gray-900 overflow-y-auto
               ${mobileActivePanel === 'json' ? 'flex w-full' : 'hidden'}
               ${showJsonPanel ? 'md:flex' : 'md:hidden'}
+              ${!showPreviewPanel ? 'flex-1' : 'flex-shrink-0'}
             `}
-            style={{ width: mobileActivePanel === 'json' ? '100%' : `${jsonPanelWidth}px` }}
+            style={{ width: mobileActivePanel === 'json' ? '100%' : (!showPreviewPanel ? undefined : `${jsonPanelWidth}px`) }}
           >
             <div className="sticky top-0 bg-gray-800 px-4 py-2 border-b border-gray-700 flex-shrink-0">
               <h2 className="text-white font-medium">VCT JSON</h2>
