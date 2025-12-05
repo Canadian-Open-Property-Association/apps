@@ -8,7 +8,7 @@ export default function PlatformShell({ children }: PlatformShellProps) {
   return (
     <div className="flex flex-col h-screen">
       <PlatformBar />
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-auto">
         {children}
       </div>
     </div>
