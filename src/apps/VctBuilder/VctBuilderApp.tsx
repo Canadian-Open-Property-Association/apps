@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useVctStore } from '../../store/vctStore';
 import { getLocaleName } from '../../types/vct';
 import MetadataForm from '../../components/FormPanel/MetadataForm';
@@ -11,6 +11,51 @@ import Toolbar from '../../components/Toolbar/Toolbar';
 type FormSection = 'metadata' | 'display' | 'claims';
 type MobilePanel = 'form' | 'json' | 'preview';
 
+// Resizable divider component
+function ResizableDivider({ onDrag }: { onDrag: (delta: number) => void }) {
+  const [isDragging, setIsDragging] = useState(false);
+  const startXRef = useRef(0);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    startXRef.current = e.clientX;
+  }, []);
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = e.clientX - startXRef.current;
+      startXRef.current = e.clientX;
+      onDrag(delta);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, onDrag]);
+
+  return (
+    <div
+      className={`hidden md:flex w-1 bg-gray-300 hover:bg-blue-400 cursor-col-resize flex-shrink-0 items-center justify-center transition-colors ${
+        isDragging ? 'bg-blue-500' : ''
+      }`}
+      onMouseDown={handleMouseDown}
+    >
+      <div className="w-0.5 h-8 bg-gray-400 rounded" />
+    </div>
+  );
+}
+
 export default function VctBuilderApp() {
   const [activeSection, setActiveSection] = useState<FormSection>('metadata');
   const [previewLocale, setPreviewLocale] = useState<string>('en-CA');
@@ -20,6 +65,22 @@ export default function VctBuilderApp() {
   const [showFormPanel, setShowFormPanel] = useState(true);
   const [showJsonPanel, setShowJsonPanel] = useState(true);
   const [mobileActivePanel, setMobileActivePanel] = useState<MobilePanel>('preview');
+
+  // Panel widths for resizable panels (in pixels)
+  const [formPanelWidth, setFormPanelWidth] = useState(384); // 24rem = 384px
+  const [jsonPanelWidth, setJsonPanelWidth] = useState(384);
+
+  // Minimum and maximum panel widths
+  const MIN_PANEL_WIDTH = 200;
+  const MAX_PANEL_WIDTH = 600;
+
+  const handleFormDividerDrag = useCallback((delta: number) => {
+    setFormPanelWidth((prev) => Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, prev + delta)));
+  }, []);
+
+  const handleJsonDividerDrag = useCallback((delta: number) => {
+    setJsonPanelWidth((prev) => Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, prev + delta)));
+  }, []);
 
   const currentProjectName = useVctStore((state) => state.currentProjectName);
   const updateProjectName = useVctStore((state) => state.updateProjectName);
@@ -120,10 +181,11 @@ export default function VctBuilderApp() {
         {((mobileActivePanel === 'form') || showFormPanel) && (
           <div
             className={`
-              flex-col border-r border-gray-300 bg-white overflow-y-auto transition-all duration-300
+              flex-col bg-white overflow-y-auto flex-shrink-0
               ${mobileActivePanel === 'form' ? 'flex w-full' : 'hidden'}
-              ${showFormPanel ? 'md:flex md:w-80 lg:w-96' : 'md:hidden'}
+              ${showFormPanel ? 'md:flex' : 'md:hidden'}
             `}
+            style={{ width: mobileActivePanel === 'form' ? '100%' : `${formPanelWidth}px` }}
           >
             {/* Section Tabs */}
             <div className="flex border-b border-gray-200 sticky top-0 bg-white z-10 flex-shrink-0">
@@ -168,20 +230,31 @@ export default function VctBuilderApp() {
           </div>
         )}
 
+        {/* Resizable divider between Form and JSON panels */}
+        {showFormPanel && showJsonPanel && (
+          <ResizableDivider onDrag={handleFormDividerDrag} />
+        )}
+
         {/* Middle Panel - JSON Preview */}
         {((mobileActivePanel === 'json') || showJsonPanel) && (
           <div
             className={`
-              flex-col border-r border-gray-300 bg-gray-900 overflow-y-auto transition-all duration-300
+              flex-col bg-gray-900 overflow-y-auto flex-shrink-0
               ${mobileActivePanel === 'json' ? 'flex w-full' : 'hidden'}
-              ${showJsonPanel ? 'md:flex md:w-80 lg:w-96' : 'md:hidden'}
+              ${showJsonPanel ? 'md:flex' : 'md:hidden'}
             `}
+            style={{ width: mobileActivePanel === 'json' ? '100%' : `${jsonPanelWidth}px` }}
           >
             <div className="sticky top-0 bg-gray-800 px-4 py-2 border-b border-gray-700 flex-shrink-0">
               <h2 className="text-white font-medium">VCT JSON</h2>
             </div>
             <JsonPreview />
           </div>
+        )}
+
+        {/* Resizable divider between JSON and Preview panels */}
+        {showJsonPanel && (
+          <ResizableDivider onDrag={handleJsonDividerDrag} />
         )}
 
         {/* Right Panel - Credential Preview */}
