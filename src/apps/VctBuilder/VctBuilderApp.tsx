@@ -115,31 +115,12 @@ export default function VctBuilderApp() {
       </header>
 
       {/* Toolbar */}
-      <Toolbar />
-
-      {/* Panel Toggle Bar - visible on md+ screens */}
-      <div className="hidden md:flex bg-gray-200 px-4 py-1 gap-2 border-b border-gray-300">
-        <button
-          onClick={() => setShowFormPanel(!showFormPanel)}
-          className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-            showFormPanel
-              ? 'bg-blue-600 text-white'
-              : 'bg-white text-gray-600 hover:bg-gray-100'
-          }`}
-        >
-          {showFormPanel ? '◂ Form' : '▸ Form'}
-        </button>
-        <button
-          onClick={() => setShowJsonPanel(!showJsonPanel)}
-          className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-            showJsonPanel
-              ? 'bg-blue-600 text-white'
-              : 'bg-white text-gray-600 hover:bg-gray-100'
-          }`}
-        >
-          {showJsonPanel ? '◂ JSON' : '▸ JSON'}
-        </button>
-      </div>
+      <Toolbar
+        showFormPanel={showFormPanel}
+        setShowFormPanel={setShowFormPanel}
+        showJsonPanel={showJsonPanel}
+        setShowJsonPanel={setShowJsonPanel}
+      />
 
       {/* Mobile Panel Tabs - visible on small screens only */}
       <div className="md:hidden flex bg-gray-100 border-b border-gray-300">
