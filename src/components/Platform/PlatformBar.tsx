@@ -2,7 +2,12 @@ import { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 
-export default function PlatformBar() {
+interface PlatformBarProps {
+  appName?: string;
+  appIcon?: React.ReactNode;
+}
+
+export default function PlatformBar({ appName, appIcon }: PlatformBarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuthStore();
@@ -36,14 +41,25 @@ export default function PlatformBar() {
 
   return (
     <div className="bg-gray-50 text-gray-800 px-4 py-2 flex items-center justify-between shadow-sm border-b border-gray-200">
-      {/* Left: Logo and Platform Name */}
-      <div className="flex items-center gap-2">
-        <img
-          src="/favicon.png"
-          alt="COPA"
-          className="w-8 h-8"
-        />
-        <span className="font-semibold text-lg">COPA Apps</span>
+      {/* Left: App Name (if in app) | COPA Apps Logo */}
+      <div className="flex items-center gap-3">
+        {appName && (
+          <>
+            <div className="flex items-center gap-2">
+              {appIcon && <span className="text-gray-600">{appIcon}</span>}
+              <span className="font-semibold text-lg text-gray-800">{appName}</span>
+            </div>
+            <span className="text-gray-300">|</span>
+          </>
+        )}
+        <div className="flex items-center gap-2">
+          <img
+            src="/favicon.png"
+            alt="COPA"
+            className="w-6 h-6"
+          />
+          <span className={`font-medium ${appName ? 'text-sm text-gray-500' : 'text-lg text-gray-800 font-semibold'}`}>COPA Apps</span>
+        </div>
       </div>
 
       {/* Right: User Dropdown */}

@@ -103,22 +103,6 @@ export default function VctBuilderApp() {
 
   return (
     <div className="flex flex-col h-full bg-gray-100">
-      {/* Header */}
-      <header className="bg-slate-800 text-white px-6 py-4 shadow-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">VCT Builder</h1>
-            <p className="text-slate-300 text-sm">
-              Build Verifiable Credential Type files for COPA
-            </p>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-slate-300">
-            <span>{currentProjectName || 'Untitled'}</span>
-            {isDirty && <span className="text-yellow-400" title="Unsaved changes">*</span>}
-          </div>
-        </div>
-      </header>
-
       {/* Toolbar */}
       <Toolbar
         showFormPanel={showFormPanel}

@@ -8,6 +8,25 @@ import VctBuilderApp from './apps/VctBuilder/VctBuilderApp';
 import SchemaBuilderApp from './apps/SchemaBuilder/SchemaBuilderApp';
 import AdminLogsApp from './apps/AdminLogs/AdminLogsApp';
 
+// App icons for the platform bar
+const VctBuilderIcon = (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+  </svg>
+);
+
+const SchemaBuilderIcon = (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+  </svg>
+);
+
+const AdminLogsIcon = (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+);
+
 function App() {
   return (
     <BrowserRouter>
@@ -31,7 +50,7 @@ function App() {
           path="/apps/vct-builder/*"
           element={
             <AuthGuard>
-              <PlatformShell>
+              <PlatformShell appName="VCT Builder" appIcon={VctBuilderIcon}>
                 <VctBuilderApp />
               </PlatformShell>
             </AuthGuard>
@@ -42,7 +61,7 @@ function App() {
           path="/apps/schema-builder/*"
           element={
             <AuthGuard>
-              <PlatformShell>
+              <PlatformShell appName="Schema Builder" appIcon={SchemaBuilderIcon}>
                 <SchemaBuilderApp />
               </PlatformShell>
             </AuthGuard>
@@ -54,7 +73,7 @@ function App() {
           element={
             <AuthGuard>
               <AdminGuard>
-                <PlatformShell>
+                <PlatformShell appName="Access Logs" appIcon={AdminLogsIcon}>
                   <AdminLogsApp />
                 </PlatformShell>
               </AdminGuard>

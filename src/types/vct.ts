@@ -127,8 +127,11 @@ export interface VCTCardElements {
 // Content type for zone elements
 export type ZoneContentType = 'text' | 'image';
 
-// Alignment options for zone content
+// Horizontal alignment options for zone content
 export type ZoneAlignment = 'left' | 'center' | 'right';
+
+// Vertical alignment options for zone content
+export type ZoneVerticalAlignment = 'top' | 'middle' | 'bottom';
 
 // Dynamic element bound to a zone
 export interface DynamicCardElement {
@@ -138,8 +141,10 @@ export interface DynamicCardElement {
   static_value?: string; // Static text/value
   logo_uri?: string; // Image URL for image content
   label?: string; // Optional display label
-  alignment?: ZoneAlignment; // Content alignment within zone (default: center)
+  alignment?: ZoneAlignment; // Horizontal alignment within zone (default: center)
+  verticalAlignment?: ZoneVerticalAlignment; // Vertical alignment within zone (default: middle)
   scale?: number; // Content scale factor (0.5 to 2.0, default: 1.0)
+  textWrap?: boolean; // If true, text wraps to multiple lines; if false, text shrinks to fit (default: false)
 }
 
 // Dynamic card elements using zone references

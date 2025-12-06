@@ -644,11 +644,20 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
     return sampleData[normalizedPath];
   };
 
-  // Helper to get alignment CSS justify-content value
+  // Helper to get horizontal alignment CSS justify-content value
   const getAlignmentStyle = (alignment: string | undefined) => {
     switch (alignment) {
       case 'left': return 'flex-start';
       case 'right': return 'flex-end';
+      default: return 'center';
+    }
+  };
+
+  // Helper to get vertical alignment CSS align-items value
+  const getVerticalAlignmentStyle = (verticalAlignment: string | undefined) => {
+    switch (verticalAlignment) {
+      case 'top': return 'flex-start';
+      case 'bottom': return 'flex-end';
       default: return 'center';
     }
   };
@@ -691,18 +700,21 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
             ? getClaimValue(element.claim_path) || element.label || 'Claim'
             : element?.static_value || element?.logo_uri || '';
           const alignment = element?.alignment || 'center';
+          const verticalAlignment = element?.verticalAlignment || 'middle';
           const scale = element?.scale || 1.0;
+          const textWrap = element?.textWrap || false;
 
           return (
             <div
               key={zone.id}
-              className="absolute flex items-center p-1 overflow-hidden"
+              className="absolute flex p-1 overflow-hidden"
               style={{
                 left: `${zone.position.x}%`,
                 top: `${zone.position.y}%`,
                 width: `${zone.position.width}%`,
                 height: `${zone.position.height}%`,
                 justifyContent: getAlignmentStyle(alignment),
+                alignItems: getVerticalAlignmentStyle(verticalAlignment),
               }}
             >
               {element?.content_type === 'image' && element?.logo_uri ? (
@@ -721,14 +733,30 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
                   }}
                 />
               ) : content ? (
-                <AutoSizeText
-                  text={content}
-                  maxFontSize={16 * scale}
-                  minFontSize={8}
-                  className={alignment === 'left' ? 'text-left' : alignment === 'right' ? 'text-right' : 'text-center'}
-                  maxWidth={(340 * zone.position.width) / 100 - 8}
-                  style={{ width: '100%' }}
-                />
+                textWrap ? (
+                  // Wrapped text - allows multiple lines
+                  <div
+                    className={`overflow-hidden ${alignment === 'left' ? 'text-left' : alignment === 'right' ? 'text-right' : 'text-center'}`}
+                    style={{
+                      width: '100%',
+                      fontSize: `${Math.min(16 * scale, 16)}px`,
+                      lineHeight: 1.2,
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {content}
+                  </div>
+                ) : (
+                  // Auto-shrink text - single line that shrinks to fit
+                  <AutoSizeText
+                    text={content}
+                    maxFontSize={16 * scale}
+                    minFontSize={8}
+                    className={alignment === 'left' ? 'text-left' : alignment === 'right' ? 'text-right' : 'text-center'}
+                    maxWidth={(340 * zone.position.width) / 100 - 8}
+                    style={{ width: '100%' }}
+                  />
+                )
               ) : (
                 <span className="text-xs opacity-30 truncate">{zone.name}</span>
               )}
@@ -778,18 +806,21 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
               ? getClaimValue(element.claim_path) || element.label || 'Claim'
               : element?.static_value || element?.logo_uri || '';
             const alignment = element?.alignment || 'center';
+            const verticalAlignment = element?.verticalAlignment || 'middle';
             const scale = element?.scale || 1.0;
+            const textWrap = element?.textWrap || false;
 
             return (
               <div
                 key={zone.id}
-                className="absolute flex items-center p-1 overflow-hidden"
+                className="absolute flex p-1 overflow-hidden"
                 style={{
                   left: `${zone.position.x}%`,
                   top: `${zone.position.y}%`,
                   width: `${zone.position.width}%`,
                   height: `${zone.position.height}%`,
                   justifyContent: getAlignmentStyle(alignment),
+                  alignItems: getVerticalAlignmentStyle(verticalAlignment),
                 }}
               >
                 {element?.content_type === 'image' && element?.logo_uri ? (
@@ -808,14 +839,30 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
                     }}
                   />
                 ) : content ? (
-                  <AutoSizeText
-                    text={content}
-                    maxFontSize={16 * scale}
-                    minFontSize={8}
-                    className={alignment === 'left' ? 'text-left' : alignment === 'right' ? 'text-right' : 'text-center'}
-                    maxWidth={(340 * zone.position.width) / 100 - 8}
-                    style={{ width: '100%' }}
-                  />
+                  textWrap ? (
+                    // Wrapped text - allows multiple lines
+                    <div
+                      className={`overflow-hidden ${alignment === 'left' ? 'text-left' : alignment === 'right' ? 'text-right' : 'text-center'}`}
+                      style={{
+                        width: '100%',
+                        fontSize: `${Math.min(16 * scale, 16)}px`,
+                        lineHeight: 1.2,
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {content}
+                    </div>
+                  ) : (
+                    // Auto-shrink text - single line that shrinks to fit
+                    <AutoSizeText
+                      text={content}
+                      maxFontSize={16 * scale}
+                      minFontSize={8}
+                      className={alignment === 'left' ? 'text-left' : alignment === 'right' ? 'text-right' : 'text-center'}
+                      maxWidth={(340 * zone.position.width) / 100 - 8}
+                      style={{ width: '100%' }}
+                    />
+                  )
                 ) : (
                   <span className="text-xs opacity-30 truncate">{zone.name}</span>
                 )}

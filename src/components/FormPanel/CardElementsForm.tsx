@@ -123,8 +123,8 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
   const handleElementChange = (
     face: 'front' | 'back',
     zoneId: string,
-    field: 'claim_path' | 'static_value' | 'logo_uri' | 'label' | 'content_type' | 'alignment' | 'scale',
-    value: string | number | undefined
+    field: 'claim_path' | 'static_value' | 'logo_uri' | 'label' | 'content_type' | 'alignment' | 'verticalAlignment' | 'scale' | 'textWrap',
+    value: string | number | boolean | undefined
   ) => {
     if (updateDynamicElement) {
       updateDynamicElement(displayIndex, face, zoneId, { [field]: value });
@@ -169,7 +169,9 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
     const zoneColor = getZoneColor(index);
     const contentType = element?.content_type || 'text';
     const alignment = element?.alignment || 'center';
+    const verticalAlignment = element?.verticalAlignment || 'middle';
     const scale = element?.scale || 1.0;
+    const textWrap = element?.textWrap || false;
 
     return (
       <div
@@ -322,72 +324,182 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
         )}
 
         {/* Alignment and Size Controls */}
-        <div className="flex gap-3 pt-2 border-t border-gray-100">
-          {/* Alignment */}
-          <div className="flex-1">
-            <label className="block text-xs text-gray-500 mb-1">Alignment</label>
-            <div className="flex rounded-md shadow-sm">
-              <button
-                type="button"
-                onClick={() => handleElementChange(face, zone.id, 'alignment', 'left')}
-                className={`flex-1 px-2 py-1 text-xs font-medium rounded-l-md border ${
-                  alignment === 'left'
-                    ? 'bg-gray-700 text-white border-gray-700'
-                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                }`}
-                title="Left align"
-              >
-                L
-              </button>
-              <button
-                type="button"
-                onClick={() => handleElementChange(face, zone.id, 'alignment', 'center')}
-                className={`flex-1 px-2 py-1 text-xs font-medium border-t border-b -ml-px ${
-                  alignment === 'center'
-                    ? 'bg-gray-700 text-white border-gray-700'
-                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                }`}
-                title="Center align"
-              >
-                C
-              </button>
-              <button
-                type="button"
-                onClick={() => handleElementChange(face, zone.id, 'alignment', 'right')}
-                className={`flex-1 px-2 py-1 text-xs font-medium rounded-r-md border -ml-px ${
-                  alignment === 'right'
-                    ? 'bg-gray-700 text-white border-gray-700'
-                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                }`}
-                title="Right align"
-              >
-                R
-              </button>
+        <div className="space-y-2 pt-2 border-t border-gray-100">
+          {/* Horizontal & Vertical Alignment Row */}
+          <div className="flex gap-3">
+            {/* Horizontal Alignment */}
+            <div className="flex-1">
+              <label className="block text-xs text-gray-500 mb-1">Horizontal</label>
+              <div className="flex rounded-md shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => handleElementChange(face, zone.id, 'alignment', 'left')}
+                  className={`flex-1 px-2 py-1.5 rounded-l-md border ${
+                    alignment === 'left'
+                      ? 'bg-gray-700 text-white border-gray-700'
+                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                  }`}
+                  title="Align left"
+                >
+                  <svg className="w-4 h-4 mx-auto" viewBox="0 0 16 16" fill="currentColor">
+                    <rect x="2" y="3" width="10" height="2" />
+                    <rect x="2" y="7" width="6" height="2" />
+                    <rect x="2" y="11" width="8" height="2" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleElementChange(face, zone.id, 'alignment', 'center')}
+                  className={`flex-1 px-2 py-1.5 border-t border-b -ml-px ${
+                    alignment === 'center'
+                      ? 'bg-gray-700 text-white border-gray-700'
+                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                  }`}
+                  title="Align center"
+                >
+                  <svg className="w-4 h-4 mx-auto" viewBox="0 0 16 16" fill="currentColor">
+                    <rect x="3" y="3" width="10" height="2" />
+                    <rect x="5" y="7" width="6" height="2" />
+                    <rect x="4" y="11" width="8" height="2" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleElementChange(face, zone.id, 'alignment', 'right')}
+                  className={`flex-1 px-2 py-1.5 rounded-r-md border -ml-px ${
+                    alignment === 'right'
+                      ? 'bg-gray-700 text-white border-gray-700'
+                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                  }`}
+                  title="Align right"
+                >
+                  <svg className="w-4 h-4 mx-auto" viewBox="0 0 16 16" fill="currentColor">
+                    <rect x="4" y="3" width="10" height="2" />
+                    <rect x="8" y="7" width="6" height="2" />
+                    <rect x="6" y="11" width="8" height="2" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Vertical Alignment */}
+            <div className="flex-1">
+              <label className="block text-xs text-gray-500 mb-1">Vertical</label>
+              <div className="flex rounded-md shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => handleElementChange(face, zone.id, 'verticalAlignment', 'top')}
+                  className={`flex-1 px-2 py-1.5 rounded-l-md border ${
+                    verticalAlignment === 'top'
+                      ? 'bg-gray-700 text-white border-gray-700'
+                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                  }`}
+                  title="Align top"
+                >
+                  <svg className="w-4 h-4 mx-auto" viewBox="0 0 16 16" fill="currentColor">
+                    <rect x="3" y="2" width="10" height="2" />
+                    <rect x="6" y="6" width="4" height="8" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleElementChange(face, zone.id, 'verticalAlignment', 'middle')}
+                  className={`flex-1 px-2 py-1.5 border-t border-b -ml-px ${
+                    verticalAlignment === 'middle'
+                      ? 'bg-gray-700 text-white border-gray-700'
+                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                  }`}
+                  title="Align middle"
+                >
+                  <svg className="w-4 h-4 mx-auto" viewBox="0 0 16 16" fill="currentColor">
+                    <rect x="3" y="7" width="10" height="2" />
+                    <rect x="6" y="3" width="4" height="10" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleElementChange(face, zone.id, 'verticalAlignment', 'bottom')}
+                  className={`flex-1 px-2 py-1.5 rounded-r-md border -ml-px ${
+                    verticalAlignment === 'bottom'
+                      ? 'bg-gray-700 text-white border-gray-700'
+                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                  }`}
+                  title="Align bottom"
+                >
+                  <svg className="w-4 h-4 mx-auto" viewBox="0 0 16 16" fill="currentColor">
+                    <rect x="6" y="2" width="4" height="8" />
+                    <rect x="3" y="12" width="10" height="2" />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Size */}
-          <div className="flex-1">
-            <label className="block text-xs text-gray-500 mb-1">Size</label>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => handleElementChange(face, zone.id, 'scale', Math.max(0.5, scale - 0.1))}
-                className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                disabled={scale <= 0.5}
-              >
-                -
-              </button>
-              <span className="text-xs text-gray-600 w-12 text-center">{scale.toFixed(1)}x</span>
-              <button
-                type="button"
-                onClick={() => handleElementChange(face, zone.id, 'scale', Math.min(2.0, scale + 0.1))}
-                className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                disabled={scale >= 2.0}
-              >
-                +
-              </button>
+          {/* Size and Text Wrap Row */}
+          <div className="flex gap-3">
+            {/* Size */}
+            <div className="flex-1">
+              <label className="block text-xs text-gray-500 mb-1">Size</label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleElementChange(face, zone.id, 'scale', Math.max(0.5, scale - 0.1))}
+                  className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50"
+                  disabled={scale <= 0.5}
+                >
+                  -
+                </button>
+                <span className="text-xs text-gray-600 w-12 text-center">{scale.toFixed(1)}x</span>
+                <button
+                  type="button"
+                  onClick={() => handleElementChange(face, zone.id, 'scale', Math.min(2.0, scale + 0.1))}
+                  className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 disabled:opacity-50"
+                  disabled={scale >= 2.0}
+                >
+                  +
+                </button>
+              </div>
             </div>
+
+            {/* Text Wrap - only for text content */}
+            {contentType === 'text' && (
+              <div className="flex-1">
+                <label className="block text-xs text-gray-500 mb-1">Text Wrap</label>
+                <div className="flex rounded-md shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => handleElementChange(face, zone.id, 'textWrap', false)}
+                    className={`flex-1 px-2 py-1.5 rounded-l-md border text-xs ${
+                      !textWrap
+                        ? 'bg-gray-700 text-white border-gray-700'
+                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                    }`}
+                    title="Auto-shrink: text shrinks to fit on one line"
+                  >
+                    <svg className="w-4 h-4 mx-auto" viewBox="0 0 16 16" fill="currentColor">
+                      <rect x="2" y="7" width="12" height="2" />
+                      <path d="M12 5l2 2-2 2V5z" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleElementChange(face, zone.id, 'textWrap', true)}
+                    className={`flex-1 px-2 py-1.5 rounded-r-md border -ml-px text-xs ${
+                      textWrap
+                        ? 'bg-gray-700 text-white border-gray-700'
+                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                    }`}
+                    title="Wrap: text wraps to multiple lines"
+                  >
+                    <svg className="w-4 h-4 mx-auto" viewBox="0 0 16 16" fill="currentColor">
+                      <rect x="2" y="3" width="12" height="2" />
+                      <rect x="2" y="7" width="8" height="2" />
+                      <rect x="2" y="11" width="10" height="2" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

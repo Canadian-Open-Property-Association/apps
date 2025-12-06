@@ -165,6 +165,14 @@ app.get('/debug', (req, res) => {
   });
 });
 
+// Middleware: Require authentication for protected routes
+const requireProjectAuth = (req, res, next) => {
+  if (!req.session.user?.id) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  next();
+};
+
 // List all assets
 app.get('/api/assets', (req, res) => {
   const meta = loadAssetsMeta();
@@ -307,14 +315,6 @@ const loadUserProjects = (userId) => {
 const saveUserProjects = (userId, data) => {
   const filePath = getUserProjectsFile(userId);
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-};
-
-// Middleware: Require authentication for projects
-const requireProjectAuth = (req, res, next) => {
-  if (!req.session.user?.id) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-  next();
 };
 
 // List all projects for current user
