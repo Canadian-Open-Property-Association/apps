@@ -105,38 +105,42 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
   const display = currentVct.display[displayIndex];
   const dynamicElements = display?.dynamic_card_elements;
 
-  const [activeFace, setActiveFace] = useState<'front' | 'back'>('front');
+  const [frontExpanded, setFrontExpanded] = useState(true);
+  const [backExpanded, setBackExpanded] = useState(!template.frontOnly);
   const [assetPickerOpen, setAssetPickerOpen] = useState(false);
   const [assetPickerZoneId, setAssetPickerZoneId] = useState<string | null>(null);
+  const [assetPickerFace, setAssetPickerFace] = useState<'front' | 'back'>('front');
 
-  const zones = activeFace === 'front' ? template.front.zones : template.back.zones;
+  const frontZones = template.front.zones;
+  const backZones = template.back.zones;
 
   // Get element for a zone
-  const getElementForZone = (zoneId: string) => {
-    const elements = activeFace === 'front' ? dynamicElements?.front : dynamicElements?.back;
+  const getElementForZone = (face: 'front' | 'back', zoneId: string) => {
+    const elements = face === 'front' ? dynamicElements?.front : dynamicElements?.back;
     return elements?.find((el) => el.zone_id === zoneId);
   };
 
   const handleElementChange = (
+    face: 'front' | 'back',
     zoneId: string,
-    field: 'claim_path' | 'static_value' | 'logo_uri' | 'label' | 'content_type',
-    value: string | undefined
+    field: 'claim_path' | 'static_value' | 'logo_uri' | 'label' | 'content_type' | 'alignment' | 'scale',
+    value: string | number | undefined
   ) => {
     if (updateDynamicElement) {
-      updateDynamicElement(displayIndex, activeFace, zoneId, { [field]: value });
+      updateDynamicElement(displayIndex, face, zoneId, { [field]: value });
     }
   };
 
-  const handleContentTypeChange = (zoneId: string, contentType: ZoneContentType) => {
+  const handleContentTypeChange = (face: 'front' | 'back', zoneId: string, contentType: ZoneContentType) => {
     if (updateDynamicElement) {
       // When changing content type, clear the values from the previous type
       if (contentType === 'text') {
-        updateDynamicElement(displayIndex, activeFace, zoneId, {
+        updateDynamicElement(displayIndex, face, zoneId, {
           content_type: contentType,
           logo_uri: undefined,
         });
       } else {
-        updateDynamicElement(displayIndex, activeFace, zoneId, {
+        updateDynamicElement(displayIndex, face, zoneId, {
           content_type: contentType,
           claim_path: undefined,
           static_value: undefined,
@@ -146,23 +150,26 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
     }
   };
 
-  const openAssetPicker = (zoneId: string) => {
+  const openAssetPicker = (face: 'front' | 'back', zoneId: string) => {
+    setAssetPickerFace(face);
     setAssetPickerZoneId(zoneId);
     setAssetPickerOpen(true);
   };
 
   const handleAssetSelect = (uri: string) => {
     if (assetPickerZoneId) {
-      handleElementChange(assetPickerZoneId, 'logo_uri', uri);
+      handleElementChange(assetPickerFace, assetPickerZoneId, 'logo_uri', uri);
     }
     setAssetPickerOpen(false);
     setAssetPickerZoneId(null);
   };
 
-  const renderZoneElement = (zone: Zone, index: number) => {
-    const element = getElementForZone(zone.id);
+  const renderZoneElement = (face: 'front' | 'back', zone: Zone, index: number) => {
+    const element = getElementForZone(face, zone.id);
     const zoneColor = getZoneColor(index);
     const contentType = element?.content_type || 'text';
+    const alignment = element?.alignment || 'center';
+    const scale = element?.scale || 1.0;
 
     return (
       <div
@@ -172,12 +179,15 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
       >
         <div className="flex justify-between items-start">
           <div>
-            <span className="text-sm font-medium text-gray-700">{zone.name}</span>
+            <span className="text-sm font-medium text-gray-700">Zone {index + 1}</span>
+            {zone.subtitle && (
+              <span className="ml-2 text-xs text-gray-500">{zone.subtitle}</span>
+            )}
           </div>
           <span
             className="w-3 h-3 rounded-full"
             style={{ backgroundColor: zoneColor }}
-            title={`Zone ${index + 1}`}
+            title={zone.name}
           />
         </div>
 
@@ -187,7 +197,7 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
           <div className="flex rounded-md shadow-sm">
             <button
               type="button"
-              onClick={() => handleContentTypeChange(zone.id, 'text')}
+              onClick={() => handleContentTypeChange(face, zone.id, 'text')}
               className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-l-md border ${
                 contentType === 'text'
                   ? 'bg-blue-600 text-white border-blue-600'
@@ -198,7 +208,7 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
             </button>
             <button
               type="button"
-              onClick={() => handleContentTypeChange(zone.id, 'image')}
+              onClick={() => handleContentTypeChange(face, zone.id, 'image')}
               className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-r-md border-t border-r border-b -ml-px ${
                 contentType === 'image'
                   ? 'bg-blue-600 text-white border-blue-600'
@@ -219,11 +229,11 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
                 value={element?.claim_path || (element?.static_value ? '__static__' : '')}
                 onChange={(e) => {
                   if (e.target.value === '__static__') {
-                    handleElementChange(zone.id, 'claim_path', undefined);
-                    handleElementChange(zone.id, 'static_value', '');
+                    handleElementChange(face, zone.id, 'claim_path', undefined);
+                    handleElementChange(face, zone.id, 'static_value', '');
                   } else {
-                    handleElementChange(zone.id, 'claim_path', e.target.value || undefined);
-                    handleElementChange(zone.id, 'static_value', undefined);
+                    handleElementChange(face, zone.id, 'claim_path', e.target.value || undefined);
+                    handleElementChange(face, zone.id, 'static_value', undefined);
                   }
                 }}
                 className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
@@ -245,7 +255,7 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
                 <input
                   type="text"
                   value={element?.static_value || ''}
-                  onChange={(e) => handleElementChange(zone.id, 'static_value', e.target.value)}
+                  onChange={(e) => handleElementChange(face, zone.id, 'static_value', e.target.value)}
                   placeholder="Enter static value..."
                   className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
                 />
@@ -259,7 +269,7 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
                 <input
                   type="text"
                   value={element?.label || ''}
-                  onChange={(e) => handleElementChange(zone.id, 'label', e.target.value)}
+                  onChange={(e) => handleElementChange(face, zone.id, 'label', e.target.value)}
                   placeholder="e.g., Property Address"
                   className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
                 />
@@ -275,13 +285,13 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
               <input
                 type="url"
                 value={element?.logo_uri || ''}
-                onChange={(e) => handleElementChange(zone.id, 'logo_uri', e.target.value || undefined)}
+                onChange={(e) => handleElementChange(face, zone.id, 'logo_uri', e.target.value || undefined)}
                 placeholder="https://example.com/image.png"
                 className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded"
               />
               <button
                 type="button"
-                onClick={() => openAssetPicker(zone.id)}
+                onClick={() => openAssetPicker(face, zone.id)}
                 className="px-3 py-1.5 text-sm bg-gray-600 text-white rounded hover:bg-gray-700"
                 title="Browse Asset Library"
               >
@@ -301,7 +311,7 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
                 <span className="text-xs text-gray-500 truncate flex-1">{element.logo_uri}</span>
                 <button
                   type="button"
-                  onClick={() => handleElementChange(zone.id, 'logo_uri', undefined)}
+                  onClick={() => handleElementChange(face, zone.id, 'logo_uri', undefined)}
                   className="text-xs text-red-500 hover:text-red-700"
                 >
                   Remove
@@ -310,47 +320,137 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
             )}
           </div>
         )}
+
+        {/* Alignment and Size Controls */}
+        <div className="flex gap-3 pt-2 border-t border-gray-100">
+          {/* Alignment */}
+          <div className="flex-1">
+            <label className="block text-xs text-gray-500 mb-1">Alignment</label>
+            <div className="flex rounded-md shadow-sm">
+              <button
+                type="button"
+                onClick={() => handleElementChange(face, zone.id, 'alignment', 'left')}
+                className={`flex-1 px-2 py-1 text-xs font-medium rounded-l-md border ${
+                  alignment === 'left'
+                    ? 'bg-gray-700 text-white border-gray-700'
+                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                }`}
+                title="Left align"
+              >
+                L
+              </button>
+              <button
+                type="button"
+                onClick={() => handleElementChange(face, zone.id, 'alignment', 'center')}
+                className={`flex-1 px-2 py-1 text-xs font-medium border-t border-b -ml-px ${
+                  alignment === 'center'
+                    ? 'bg-gray-700 text-white border-gray-700'
+                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                }`}
+                title="Center align"
+              >
+                C
+              </button>
+              <button
+                type="button"
+                onClick={() => handleElementChange(face, zone.id, 'alignment', 'right')}
+                className={`flex-1 px-2 py-1 text-xs font-medium rounded-r-md border -ml-px ${
+                  alignment === 'right'
+                    ? 'bg-gray-700 text-white border-gray-700'
+                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                }`}
+                title="Right align"
+              >
+                R
+              </button>
+            </div>
+          </div>
+
+          {/* Size */}
+          <div className="flex-1">
+            <label className="block text-xs text-gray-500 mb-1">Size</label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleElementChange(face, zone.id, 'scale', Math.max(0.5, scale - 0.1))}
+                className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                disabled={scale <= 0.5}
+              >
+                -
+              </button>
+              <span className="text-xs text-gray-600 w-12 text-center">{scale.toFixed(1)}x</span>
+              <button
+                type="button"
+                onClick={() => handleElementChange(face, zone.id, 'scale', Math.min(2.0, scale + 0.1))}
+                className="px-2 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                disabled={scale >= 2.0}
+              >
+                +
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   };
 
   return (
     <div className="space-y-4">
-      {/* Front/Back Toggle */}
-      <div className="flex rounded-md shadow-sm">
+      {/* Front of Card - Collapsible */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden">
         <button
           type="button"
-          onClick={() => setActiveFace('front')}
-          className={`flex-1 px-4 py-2 text-sm font-medium rounded-l-md border ${
-            activeFace === 'front'
-              ? 'bg-blue-600 text-white border-blue-600'
-              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-          }`}
+          onClick={() => setFrontExpanded(!frontExpanded)}
+          className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
         >
-          Front ({template.front.zones.length} zones)
+          <span className="text-sm font-medium text-gray-700">
+            Front of Card ({frontZones.length} zone{frontZones.length !== 1 ? 's' : ''})
+          </span>
+          <span className={`transform transition-transform ${frontExpanded ? 'rotate-180' : ''}`}>
+            ▼
+          </span>
         </button>
-        <button
-          type="button"
-          onClick={() => setActiveFace('back')}
-          className={`flex-1 px-4 py-2 text-sm font-medium rounded-r-md border-t border-r border-b -ml-px ${
-            activeFace === 'back'
-              ? 'bg-blue-600 text-white border-blue-600'
-              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-          }`}
-        >
-          Back ({template.back.zones.length} zones)
-        </button>
+        {frontExpanded && (
+          <div className="p-4 space-y-3 bg-white">
+            {frontZones.length > 0 ? (
+              frontZones.map((zone, index) => renderZoneElement('front', zone, index))
+            ) : (
+              <div className="text-center py-6 text-gray-400">
+                <p className="text-sm">No zones defined for the front of this template.</p>
+                <p className="text-xs mt-1">Use the Zone Template Library to add zones.</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Zone Elements */}
-      {zones.length > 0 ? (
-        <div className="space-y-3">
-          {zones.map((zone, index) => renderZoneElement(zone, index))}
-        </div>
-      ) : (
-        <div className="text-center py-8 text-gray-400">
-          <p className="text-sm">No zones defined for the {activeFace} of this template.</p>
-          <p className="text-xs mt-1">Use the Zone Template Library to add zones.</p>
+      {/* Back of Card - Collapsible (hidden for front-only templates) */}
+      {!template.frontOnly && (
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setBackExpanded(!backExpanded)}
+            className="w-full px-4 py-3 flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors"
+          >
+            <span className="text-sm font-medium text-gray-700">
+              Back of Card ({backZones.length} zone{backZones.length !== 1 ? 's' : ''})
+            </span>
+            <span className={`transform transition-transform ${backExpanded ? 'rotate-180' : ''}`}>
+              ▼
+            </span>
+          </button>
+          {backExpanded && (
+            <div className="p-4 space-y-3 bg-white">
+              {backZones.length > 0 ? (
+                backZones.map((zone, index) => renderZoneElement('back', zone, index))
+              ) : (
+                <div className="text-center py-6 text-gray-400">
+                  <p className="text-sm">No zones defined for the back of this template.</p>
+                  <p className="text-xs mt-1">Use the Zone Template Library to add zones.</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -489,9 +589,7 @@ export default function CardElementsForm({ displayIndex }: CardElementsFormProps
       <hr className="border-gray-200" />
 
       <div>
-        <h4 className="font-medium text-gray-800">
-          {isLegacyMode ? 'Card Elements (COPA Standard)' : 'Card Elements'}
-        </h4>
+        <h4 className="font-medium text-gray-800">Card Elements</h4>
         <p className="text-xs text-gray-500 mt-1">
           Configure the elements that appear on the front and back of the credential card.
         </p>

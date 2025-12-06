@@ -573,6 +573,167 @@ app.delete('/api/schema-projects/:id', requireProjectAuth, (req, res) => {
 });
 
 // ============================================
+// Zone Templates API (shared across all users)
+// ============================================
+
+// Zone templates file (shared globally)
+const ZONE_TEMPLATES_FILE = path.join(ASSETS_DIR, 'zone-templates.json');
+
+// Helper: Load zone templates
+const loadZoneTemplates = () => {
+  try {
+    if (fs.existsSync(ZONE_TEMPLATES_FILE)) {
+      return JSON.parse(fs.readFileSync(ZONE_TEMPLATES_FILE, 'utf-8'));
+    }
+  } catch (e) {
+    console.error('Error loading zone templates:', e);
+  }
+  return { templates: [] };
+};
+
+// Helper: Save zone templates
+const saveZoneTemplates = (data) => {
+  fs.writeFileSync(ZONE_TEMPLATES_FILE, JSON.stringify(data, null, 2));
+};
+
+// List all zone templates (publicly readable, no auth required)
+app.get('/api/zone-templates', (req, res) => {
+  try {
+    const data = loadZoneTemplates();
+    res.json(data.templates);
+  } catch (error) {
+    console.error('Error listing zone templates:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get a specific zone template
+app.get('/api/zone-templates/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const data = loadZoneTemplates();
+    const template = data.templates.find(t => t.id === id);
+
+    if (!template) {
+      return res.status(404).json({ error: 'Zone template not found' });
+    }
+
+    res.json(template);
+  } catch (error) {
+    console.error('Error getting zone template:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create a new zone template (requires auth)
+app.post('/api/zone-templates', requireProjectAuth, (req, res) => {
+  try {
+    const template = req.body;
+
+    if (!template.id || !template.name) {
+      return res.status(400).json({ error: 'id and name are required' });
+    }
+
+    const data = loadZoneTemplates();
+    const now = new Date().toISOString();
+
+    // Add author information from session
+    const newTemplate = {
+      ...template,
+      author: {
+        id: String(req.session.user.id),
+        login: req.session.user.login,
+        name: req.session.user.name || undefined,
+      },
+      createdAt: template.createdAt || now,
+      updatedAt: now,
+    };
+
+    // Check if template with this ID already exists
+    const existingIndex = data.templates.findIndex(t => t.id === template.id);
+    if (existingIndex >= 0) {
+      return res.status(409).json({ error: 'Template with this ID already exists' });
+    }
+
+    data.templates.push(newTemplate);
+    saveZoneTemplates(data);
+
+    res.json(newTemplate);
+  } catch (error) {
+    console.error('Error creating zone template:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update an existing zone template (requires auth, only author can update)
+app.put('/api/zone-templates/:id', requireProjectAuth, (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    const data = loadZoneTemplates();
+    const templateIndex = data.templates.findIndex(t => t.id === id);
+
+    if (templateIndex === -1) {
+      return res.status(404).json({ error: 'Zone template not found' });
+    }
+
+    const existingTemplate = data.templates[templateIndex];
+
+    // Only the author can update their template
+    if (existingTemplate.author?.id !== String(req.session.user.id)) {
+      return res.status(403).json({ error: 'You can only update your own templates' });
+    }
+
+    const updatedTemplate = {
+      ...existingTemplate,
+      ...updates,
+      id, // Ensure ID doesn't change
+      author: existingTemplate.author, // Preserve original author
+      createdAt: existingTemplate.createdAt, // Preserve creation date
+      updatedAt: new Date().toISOString(),
+    };
+
+    data.templates[templateIndex] = updatedTemplate;
+    saveZoneTemplates(data);
+
+    res.json(updatedTemplate);
+  } catch (error) {
+    console.error('Error updating zone template:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a zone template (requires auth, only author can delete)
+app.delete('/api/zone-templates/:id', requireProjectAuth, (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const data = loadZoneTemplates();
+    const templateIndex = data.templates.findIndex(t => t.id === id);
+
+    if (templateIndex === -1) {
+      return res.status(404).json({ error: 'Zone template not found' });
+    }
+
+    const template = data.templates[templateIndex];
+
+    // Only the author can delete their template
+    if (template.author?.id !== String(req.session.user.id)) {
+      return res.status(403).json({ error: 'You can only delete your own templates' });
+    }
+
+    data.templates.splice(templateIndex, 1);
+    saveZoneTemplates(data);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting zone template:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
 // Admin API (access logs)
 // ============================================
 

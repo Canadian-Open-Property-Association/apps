@@ -1,12 +1,6 @@
 import { useState } from 'react';
 import { useVctStore } from '../../store/vctStore';
-import {
-  VCTRendering,
-  AVAILABLE_LOCALES,
-  getLocaleName,
-  FONT_FAMILY_OPTIONS,
-} from '../../types/vct';
-import AssetLibrary from '../AssetLibrary/AssetLibrary';
+import { AVAILABLE_LOCALES, getLocaleName } from '../../types/vct';
 import CardElementsForm from './CardElementsForm';
 
 export default function DisplayForm() {
@@ -15,8 +9,6 @@ export default function DisplayForm() {
   const addDisplay = useVctStore((state) => state.addDisplay);
   const removeDisplay = useVctStore((state) => state.removeDisplay);
   const [activeTab, setActiveTab] = useState(0);
-  const [assetPickerOpen, setAssetPickerOpen] = useState(false);
-  const [assetPickerTarget, setAssetPickerTarget] = useState<'logo' | 'background' | null>(null);
 
   const display = currentVct.display[activeTab];
 
@@ -24,48 +16,6 @@ export default function DisplayForm() {
   const availableLocales = AVAILABLE_LOCALES.filter(
     (locale) => !currentVct.display.some((d) => d.locale === locale.code)
   );
-
-  const updateRendering = (rendering: Partial<VCTRendering>) => {
-    updateDisplay(activeTab, {
-      rendering: { ...display.rendering, ...rendering },
-    });
-  };
-
-  const generateHash = async (url: string, type: 'logo' | 'background') => {
-    try {
-      const response = await fetch(
-        `/hash?url=${encodeURIComponent(url)}`
-      );
-      const data = await response.json();
-      if (data.hash) {
-        if (type === 'logo') {
-          updateRendering({
-            simple: {
-              ...display.rendering?.simple,
-              logo: {
-                ...display.rendering?.simple?.logo,
-                uri: url,
-                'uri#integrity': data.hash,
-              },
-            },
-          });
-        } else if (type === 'background') {
-          updateRendering({
-            simple: {
-              ...display.rendering?.simple,
-              background_image: {
-                uri: url,
-                'uri#integrity': data.hash,
-              },
-            },
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Failed to generate hash:', error);
-      alert('Failed to generate hash. Make sure the proxy server is running.');
-    }
-  };
 
   const handleAddLocale = (localeCode: string) => {
     addDisplay(localeCode);
@@ -82,38 +32,6 @@ export default function DisplayForm() {
     if (activeTab >= index && activeTab > 0) {
       setActiveTab(activeTab - 1);
     }
-  };
-
-  const openAssetPicker = (target: 'logo' | 'background') => {
-    setAssetPickerTarget(target);
-    setAssetPickerOpen(true);
-  };
-
-  const handleAssetSelect = (uri: string, hash?: string) => {
-    if (assetPickerTarget === 'logo') {
-      updateRendering({
-        simple: {
-          ...display.rendering?.simple,
-          logo: {
-            ...display.rendering?.simple?.logo,
-            uri,
-            'uri#integrity': hash,
-          },
-        },
-      });
-    } else if (assetPickerTarget === 'background') {
-      updateRendering({
-        simple: {
-          ...display.rendering?.simple,
-          background_image: {
-            uri,
-            'uri#integrity': hash,
-          },
-        },
-      });
-    }
-    setAssetPickerOpen(false);
-    setAssetPickerTarget(null);
   };
 
   return (
@@ -204,171 +122,10 @@ export default function DisplayForm() {
             />
           </div>
 
-          {/* Card Styling */}
-          <div className="border border-gray-200 rounded-lg p-4 space-y-4">
-            <h4 className="font-medium text-gray-800">Card Styling</h4>
-
-            {/* Background Color */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Background Color
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="color"
-                  value={display.rendering?.simple?.background_color || '#1E3A5F'}
-                  onChange={(e) =>
-                    updateRendering({
-                      simple: {
-                        ...display.rendering?.simple,
-                        background_color: e.target.value,
-                      },
-                    })
-                  }
-                  className="w-10 h-10 border border-gray-300 rounded cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={display.rendering?.simple?.background_color || '#1E3A5F'}
-                  onChange={(e) =>
-                    updateRendering({
-                      simple: {
-                        ...display.rendering?.simple,
-                        background_color: e.target.value,
-                      },
-                    })
-                  }
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm font-mono"
-                />
-              </div>
-            </div>
-
-            {/* Text Color */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Text Color
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="color"
-                  value={display.rendering?.simple?.text_color || '#FFFFFF'}
-                  onChange={(e) =>
-                    updateRendering({
-                      simple: {
-                        ...display.rendering?.simple,
-                        text_color: e.target.value,
-                      },
-                    })
-                  }
-                  className="w-10 h-10 border border-gray-300 rounded cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={display.rendering?.simple?.text_color || '#FFFFFF'}
-                  onChange={(e) =>
-                    updateRendering({
-                      simple: {
-                        ...display.rendering?.simple,
-                        text_color: e.target.value,
-                      },
-                    })
-                  }
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm font-mono"
-                />
-              </div>
-            </div>
-
-            {/* Font Family */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Font Family
-              </label>
-              <select
-                value={display.rendering?.simple?.font_family || ''}
-                onChange={(e) =>
-                  updateRendering({
-                    simple: {
-                      ...display.rendering?.simple,
-                      font_family: e.target.value || undefined,
-                    },
-                  })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
-              >
-                <option value="">Default (System)</option>
-                {FONT_FAMILY_OPTIONS.map((font) => (
-                  <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
-                    {font.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Background Image URL */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Background Image URL (optional)
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  value={display.rendering?.simple?.background_image?.uri || ''}
-                  onChange={(e) =>
-                    updateRendering({
-                      simple: {
-                        ...display.rendering?.simple,
-                        background_image: {
-                          ...display.rendering?.simple?.background_image,
-                          uri: e.target.value,
-                        },
-                      },
-                    })
-                  }
-                  placeholder="https://example.com/background.png"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-                <button
-                  type="button"
-                  onClick={() => openAssetPicker('background')}
-                  className="px-3 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700"
-                  title="Browse Asset Library"
-                >
-                  Browse
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const url = display.rendering?.simple?.background_image?.uri;
-                    if (url) generateHash(url, 'background');
-                  }}
-                  className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
-                >
-                  Hash
-                </button>
-              </div>
-              {display.rendering?.simple?.background_image?.['uri#integrity'] && (
-                <p className="mt-1 text-xs text-green-600 font-mono truncate">
-                  {display.rendering.simple.background_image['uri#integrity']}
-                </p>
-              )}
-            </div>
-          </div>
-
           {/* Card Elements Configuration */}
           <CardElementsForm displayIndex={activeTab} />
         </div>
       )}
-
-      {/* Asset Library Modal */}
-      <AssetLibrary
-        isOpen={assetPickerOpen}
-        onClose={() => {
-          setAssetPickerOpen(false);
-          setAssetPickerTarget(null);
-        }}
-        onSelect={handleAssetSelect}
-        title={assetPickerTarget === 'logo' ? 'Select Logo Image' : 'Select Background Image'}
-      />
     </div>
   );
 }

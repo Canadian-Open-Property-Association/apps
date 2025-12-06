@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useVctStore } from '../../store/vctStore';
+import { useZoneTemplateStore } from '../../store/zoneTemplateStore';
 import { getLocaleName } from '../../types/vct';
 import { useAppTracking } from '../../hooks/useAppTracking';
 import MetadataForm from '../../components/FormPanel/MetadataForm';
@@ -60,6 +61,12 @@ function ResizableDivider({ onDrag }: { onDrag: (delta: number) => void }) {
 export default function VctBuilderApp() {
   // Track app access
   useAppTracking('vct-builder', 'VCT Builder');
+
+  // Load zone templates from server on mount
+  const loadTemplates = useZoneTemplateStore((state) => state.loadTemplates);
+  useEffect(() => {
+    loadTemplates();
+  }, [loadTemplates]);
 
   const [activeSection, setActiveSection] = useState<FormSection>('metadata');
   const [previewLocale, setPreviewLocale] = useState<string>('en-CA');

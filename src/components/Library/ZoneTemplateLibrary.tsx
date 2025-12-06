@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useZoneTemplateStore } from '../../store/zoneTemplateStore';
+import { useAuthStore } from '../../store/authStore';
 import { ZoneTemplate } from '../../types/vct';
 import ZoneEditor from '../ZoneEditor/ZoneEditor';
 
@@ -22,8 +23,14 @@ export default function ZoneTemplateLibrary({
   const selectedTemplateId = useZoneTemplateStore((state) => state.selectedTemplateId);
   const selectTemplate = useZoneTemplateStore((state) => state.selectTemplate);
 
+  // Get current user for author tracking
+  const currentUser = useAuthStore((state) => state.user);
+
   const [showZoneEditor, setShowZoneEditor] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState('');
+  const [newTemplateFrontOnly, setNewTemplateFrontOnly] = useState(false);
 
   if (!isOpen) return null;
 
@@ -31,9 +38,15 @@ export default function ZoneTemplateLibrary({
   const userTemplates = templates.filter((t) => !t.isBuiltIn);
 
   const handleCreateNew = () => {
+    setNewTemplateName('');
+    setNewTemplateFrontOnly(false);
+    setShowCreateDialog(true);
+  };
+
+  const handleConfirmCreate = () => {
     const newTemplate: ZoneTemplate = {
       id: crypto.randomUUID(),
-      name: 'New Template',
+      name: newTemplateName || 'New Template',
       description: '',
       front: { zones: [] },
       back: { zones: [] },
@@ -42,9 +55,16 @@ export default function ZoneTemplateLibrary({
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       isBuiltIn: false,
+      frontOnly: newTemplateFrontOnly,
+      author: currentUser ? {
+        id: currentUser.id.toString(),
+        login: currentUser.login,
+        name: currentUser.name || undefined,
+      } : undefined,
     };
     addTemplate(newTemplate);
     setEditingTemplate(newTemplate);
+    setShowCreateDialog(false);
     setShowZoneEditor(true);
   };
 
@@ -84,6 +104,8 @@ export default function ZoneTemplateLibrary({
     const isSelected = selectedTemplateId === template.id;
     const frontZones = template.front.zones.length;
     const backZones = template.back.zones.length;
+    // Check if current user is the author of this template
+    const isAuthor = currentUser && template.author?.id === currentUser.id.toString();
 
     return (
       <div
@@ -100,22 +122,35 @@ export default function ZoneTemplateLibrary({
             {template.description && (
               <p className="text-xs text-gray-500 mt-0.5">{template.description}</p>
             )}
+            {template.author && (
+              <p className="text-xs text-gray-400 mt-0.5">by {template.author.name || template.author.login}</p>
+            )}
           </div>
-          {template.isBuiltIn && (
-            <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">
-              Built-in
-            </span>
-          )}
+          <div className="flex gap-1">
+            {template.frontOnly && (
+              <span className="text-xs px-2 py-0.5 bg-purple-100 text-purple-600 rounded">
+                Front only
+              </span>
+            )}
+            {template.isBuiltIn && (
+              <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">
+                Built-in
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="text-xs text-gray-500 mb-3">
-          Front: {frontZones} zone{frontZones !== 1 ? 's' : ''} · Back: {backZones} zone
-          {backZones !== 1 ? 's' : ''}
+          {template.frontOnly ? (
+            <>Front: {frontZones} zone{frontZones !== 1 ? 's' : ''}</>
+          ) : (
+            <>Front: {frontZones} zone{frontZones !== 1 ? 's' : ''} · Back: {backZones} zone{backZones !== 1 ? 's' : ''}</>
+          )}
         </div>
 
         {/* Mini preview of zones */}
         <div className="flex gap-2 mb-3">
-          <div className="flex-1">
+          <div className={template.frontOnly ? 'w-full' : 'flex-1'}>
             <div className="text-[10px] text-gray-400 mb-1">Front</div>
             <div
               className="relative bg-gray-100 rounded border border-gray-200"
@@ -135,26 +170,28 @@ export default function ZoneTemplateLibrary({
               ))}
             </div>
           </div>
-          <div className="flex-1">
-            <div className="text-[10px] text-gray-400 mb-1">Back</div>
-            <div
-              className="relative bg-gray-100 rounded border border-gray-200"
-              style={{ aspectRatio: '340/214' }}
-            >
-              {template.back.zones.slice(0, 6).map((zone) => (
-                <div
-                  key={zone.id}
-                  className="absolute bg-green-300/50 border border-green-400 rounded-sm"
-                  style={{
-                    left: `${zone.position.x}%`,
-                    top: `${zone.position.y}%`,
-                    width: `${zone.position.width}%`,
-                    height: `${zone.position.height}%`,
-                  }}
-                />
-              ))}
+          {!template.frontOnly && (
+            <div className="flex-1">
+              <div className="text-[10px] text-gray-400 mb-1">Back</div>
+              <div
+                className="relative bg-gray-100 rounded border border-gray-200"
+                style={{ aspectRatio: '340/214' }}
+              >
+                {template.back.zones.slice(0, 6).map((zone) => (
+                  <div
+                    key={zone.id}
+                    className="absolute bg-green-300/50 border border-green-400 rounded-sm"
+                    style={{
+                      left: `${zone.position.x}%`,
+                      top: `${zone.position.y}%`,
+                      width: `${zone.position.width}%`,
+                      height: `${zone.position.height}%`,
+                    }}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Actions */}
@@ -170,7 +207,17 @@ export default function ZoneTemplateLibrary({
             {isSelected ? 'Selected' : 'Use Template'}
           </button>
 
-          {!template.isBuiltIn ? (
+          {/* Duplicate button - available for all templates */}
+          <button
+            onClick={() => handleDuplicate(template)}
+            className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+            title="Duplicate as custom template"
+          >
+            Duplicate
+          </button>
+
+          {/* Edit/Delete - only for templates the current user authored */}
+          {isAuthor && (
             <>
               <button
                 onClick={() => handleEdit(template)}
@@ -204,14 +251,6 @@ export default function ZoneTemplateLibrary({
                 </button>
               )}
             </>
-          ) : (
-            <button
-              onClick={() => handleDuplicate(template)}
-              className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-              title="Duplicate as custom template"
-            >
-              Duplicate
-            </button>
           )}
         </div>
       </div>
@@ -260,10 +299,10 @@ export default function ZoneTemplateLibrary({
               </div>
             )}
 
-            {/* User Templates */}
+            {/* Community Templates */}
             <div>
               <h4 className="text-sm font-semibold text-gray-700 mb-3">
-                My Templates ({userTemplates.length})
+                Community Templates ({userTemplates.length})
               </h4>
               {userTemplates.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -271,9 +310,9 @@ export default function ZoneTemplateLibrary({
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-400">
-                  <p className="text-sm">No custom templates yet.</p>
+                  <p className="text-sm">No community templates yet.</p>
                   <p className="text-xs mt-1">
-                    Create a new template or duplicate a built-in one to get started.
+                    Create a new template or duplicate a built-in one to share with the team.
                   </p>
                 </div>
               )}
@@ -294,6 +333,62 @@ export default function ZoneTemplateLibrary({
 
       {/* Zone Editor Modal */}
       {showZoneEditor && <ZoneEditor onClose={handleEditorClose} />}
+
+      {/* Create Template Dialog */}
+      {showCreateDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Create New Template</h3>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Template Name
+                </label>
+                <input
+                  type="text"
+                  value={newTemplateName}
+                  onChange={(e) => setNewTemplateName(e.target.value)}
+                  placeholder="My Template"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="frontOnly"
+                  checked={newTemplateFrontOnly}
+                  onChange={(e) => setNewTemplateFrontOnly(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="frontOnly" className="text-sm text-gray-700">
+                  Front only (no back)
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 -mt-2 ml-6">
+                When enabled, the card will not be flippable in preview
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                onClick={() => setShowCreateDialog(false)}
+                className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmCreate}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Create Template
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -361,6 +361,10 @@ export default function ZoneEditor({ onClose }: ZoneEditorProps) {
     updateZone(activeFace, zoneId, { name });
   };
 
+  const handleZoneSubtitleChange = (zoneId: string, subtitle: string) => {
+    updateZone(activeFace, zoneId, { subtitle });
+  };
+
   const handleSave = () => {
     saveEditingTemplate();
     onClose();
@@ -407,45 +411,58 @@ export default function ZoneEditor({ onClose }: ZoneEditorProps) {
 
         {/* Face Tabs and Copy Buttons */}
         <div className="px-6 py-3 border-b border-gray-200 flex items-center gap-4">
-          <div className="flex rounded-md shadow-sm">
-            <button
-              onClick={() => setActiveFace('front')}
-              className={`px-4 py-2 text-sm font-medium rounded-l-md border ${
-                activeFace === 'front'
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              Front ({editingTemplate.front.zones.length})
-            </button>
-            <button
-              onClick={() => setActiveFace('back')}
-              className={`px-4 py-2 text-sm font-medium rounded-r-md border-t border-r border-b -ml-px ${
-                activeFace === 'back'
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              Back ({editingTemplate.back.zones.length})
-            </button>
-          </div>
+          {editingTemplate.frontOnly ? (
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">
+                Front ({editingTemplate.front.zones.length} zones)
+              </span>
+              <span className="text-xs px-2 py-0.5 bg-purple-100 text-purple-600 rounded">
+                Front only
+              </span>
+            </div>
+          ) : (
+            <>
+              <div className="flex rounded-md shadow-sm">
+                <button
+                  onClick={() => setActiveFace('front')}
+                  className={`px-4 py-2 text-sm font-medium rounded-l-md border ${
+                    activeFace === 'front'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  Front ({editingTemplate.front.zones.length})
+                </button>
+                <button
+                  onClick={() => setActiveFace('back')}
+                  className={`px-4 py-2 text-sm font-medium rounded-r-md border-t border-r border-b -ml-px ${
+                    activeFace === 'back'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  Back ({editingTemplate.back.zones.length})
+                </button>
+              </div>
 
-          <div className="flex gap-2">
-            <button
-              onClick={copyFrontToBack}
-              className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-              title="Copy front zones to back"
-            >
-              Front → Back
-            </button>
-            <button
-              onClick={copyBackToFront}
-              className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-              title="Copy back zones to front"
-            >
-              Back → Front
-            </button>
-          </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={copyFrontToBack}
+                  className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                  title="Copy front zones to back"
+                >
+                  Front → Back
+                </button>
+                <button
+                  onClick={copyBackToFront}
+                  className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                  title="Copy back zones to front"
+                >
+                  Back → Front
+                </button>
+              </div>
+            </>
+          )}
 
           <div className="ml-auto text-xs text-gray-500">
             Click and drag on the canvas to create a new zone
@@ -665,7 +682,17 @@ export default function ZoneEditor({ onClose }: ZoneEditorProps) {
                         </div>
 
                         {isSelected && (
-                          <div className="mt-2 pt-2 border-t border-gray-100">
+                          <div className="mt-2 pt-2 border-t border-gray-100 space-y-2">
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Subtitle (optional)</label>
+                              <input
+                                type="text"
+                                value={zone.subtitle || ''}
+                                onChange={(e) => handleZoneSubtitleChange(zone.id, e.target.value)}
+                                placeholder="e.g., Issuer Logo, Card Title..."
+                                className="w-full text-xs px-2 py-1 border border-gray-200 rounded"
+                              />
+                            </div>
                             <div className="text-xs text-gray-400">
                               Position: {Math.round(zone.position.x)}%, {Math.round(zone.position.y)}%
                               <br />

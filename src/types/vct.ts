@@ -127,6 +127,9 @@ export interface VCTCardElements {
 // Content type for zone elements
 export type ZoneContentType = 'text' | 'image';
 
+// Alignment options for zone content
+export type ZoneAlignment = 'left' | 'center' | 'right';
+
 // Dynamic element bound to a zone
 export interface DynamicCardElement {
   zone_id: string; // Reference to zone in template
@@ -135,6 +138,8 @@ export interface DynamicCardElement {
   static_value?: string; // Static text/value
   logo_uri?: string; // Image URL for image content
   label?: string; // Optional display label
+  alignment?: ZoneAlignment; // Content alignment within zone (default: center)
+  scale?: number; // Content scale factor (0.5 to 2.0, default: 1.0)
 }
 
 // Dynamic card elements using zone references
@@ -365,12 +370,20 @@ export interface ZonePosition {
 export interface Zone {
   id: string; // Unique zone identifier (UUID)
   name: string; // Human-readable name (e.g., "Header Logo")
+  subtitle?: string; // User-friendly description shown in card elements form
   position: ZonePosition; // Positioning data
 }
 
 // Zone template for front or back of card
 export interface ZoneFaceTemplate {
   zones: Zone[];
+}
+
+// Author information for zone templates
+export interface ZoneTemplateAuthor {
+  id: string; // GitHub user ID
+  login: string; // GitHub username
+  name?: string; // Display name
 }
 
 // Complete zone template (front and back)
@@ -385,6 +398,8 @@ export interface ZoneTemplate {
   createdAt: string;
   updatedAt: string;
   isBuiltIn?: boolean; // True for COPA standard template
+  frontOnly?: boolean; // If true, template only has front face (no back)
+  author?: ZoneTemplateAuthor; // Who created this template
 }
 
 // Built-in COPA template constant
@@ -462,7 +477,7 @@ export interface ZoneTemplateStore {
 
   // Template CRUD
   addTemplate: (
-    template: Omit<ZoneTemplate, 'id' | 'createdAt' | 'updatedAt'>
+    template: ZoneTemplate | Omit<ZoneTemplate, 'id' | 'createdAt' | 'updatedAt'>
   ) => string;
   updateTemplate: (id: string, updates: Partial<ZoneTemplate>) => void;
   deleteTemplate: (id: string) => void;

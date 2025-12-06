@@ -177,6 +177,10 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
   const selectedTemplate = selectedTemplateId ? getTemplate(selectedTemplateId) : null;
   const isLegacyMode = selectedTemplateId === COPA_STANDARD_TEMPLATE_ID;
 
+  // Check if the card can be flipped (has back zones or is legacy mode)
+  const canFlip = isLegacyMode ||
+    (selectedTemplate && !selectedTemplate.frontOnly && selectedTemplate.back.zones.length > 0);
+
   // Sync flip state when cardSide prop changes from parent buttons
   useEffect(() => {
     if (cardSide === 'back') {
@@ -252,9 +256,9 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
       <div className="flex flex-col items-center">
         {/* Card Container with Flip Animation */}
         <div
-          className="relative cursor-pointer perspective-1000"
+          className={`relative perspective-1000 ${canFlip ? 'cursor-pointer' : 'cursor-default'}`}
           style={{ width: '340px', height: '214px' }}
-          onClick={() => setIsFlipped(!isFlipped)}
+          onClick={() => canFlip && setIsFlipped(!isFlipped)}
         >
           {/* Front Side */}
           <div
@@ -312,7 +316,11 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
         {/* Controls */}
         <div className="mt-4 flex items-center justify-center gap-4">
           <p className="text-xs text-gray-500">
-            Click card to flip • Showing {currentSide}
+            {canFlip ? (
+              <>Click card to flip • Showing {currentSide}</>
+            ) : (
+              <>Front only (no flip)</>
+            )}
             {!isLegacyMode && selectedTemplate && ` • ${selectedTemplate.name}`}
           </p>
           <button

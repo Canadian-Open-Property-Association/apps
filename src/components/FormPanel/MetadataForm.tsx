@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useVctStore } from '../../store/vctStore';
+import { VCTRendering, FONT_FAMILY_OPTIONS } from '../../types/vct';
+import AssetLibrary from '../AssetLibrary/AssetLibrary';
 
 interface SchemaFile {
   name: string;
@@ -22,6 +24,52 @@ export default function MetadataForm() {
   const currentProjectName = useVctStore((state) => state.currentProjectName);
   const updateProjectName = useVctStore((state) => state.updateProjectName);
   const isDirty = useVctStore((state) => state.isDirty);
+  const updateDisplay = useVctStore((state) => state.updateDisplay);
+
+  // Get the primary display (index 0) for global styling
+  const primaryDisplay = currentVct.display[0];
+
+  const updateRendering = (rendering: Partial<VCTRendering>) => {
+    updateDisplay(0, {
+      rendering: { ...primaryDisplay.rendering, ...rendering },
+    });
+  };
+
+  const generateHash = async (url: string) => {
+    try {
+      const response = await fetch(
+        `${API_BASE}/hash?url=${encodeURIComponent(url)}`
+      );
+      const data = await response.json();
+      if (data.hash) {
+        updateRendering({
+          simple: {
+            ...primaryDisplay.rendering?.simple,
+            background_image: {
+              uri: url,
+              'uri#integrity': data.hash,
+            },
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Failed to generate hash:', error);
+      alert('Failed to generate hash. Make sure the proxy server is running.');
+    }
+  };
+
+  const handleAssetSelect = (uri: string, hash?: string) => {
+    updateRendering({
+      simple: {
+        ...primaryDisplay.rendering?.simple,
+        background_image: {
+          uri,
+          'uri#integrity': hash,
+        },
+      },
+    });
+    setAssetPickerOpen(false);
+  };
 
   const [config, setConfig] = useState<Config | null>(null);
   const [schemas, setSchemas] = useState<SchemaFile[]>([]);
@@ -30,6 +78,7 @@ export default function MetadataForm() {
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [isAvailable, setIsAvailable] = useState<boolean | null>(null);
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
+  const [assetPickerOpen, setAssetPickerOpen] = useState(false);
 
   // Fetch config on mount
   useEffect(() => {
@@ -170,7 +219,7 @@ export default function MetadataForm() {
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold text-gray-800 mb-4">
-        Credential Metadata
+        General
       </h3>
 
       {/* Project Name */}
@@ -314,6 +363,164 @@ export default function MetadataForm() {
           </p>
         </div>
       )}
+
+      {/* Card Styling */}
+      <div className="border border-gray-200 rounded-lg p-4 space-y-4 mt-6">
+        <h4 className="font-medium text-gray-800">Card Styling</h4>
+
+        {/* Background Color */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Background Color
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="color"
+              value={primaryDisplay?.rendering?.simple?.background_color || '#1E3A5F'}
+              onChange={(e) =>
+                updateRendering({
+                  simple: {
+                    ...primaryDisplay.rendering?.simple,
+                    background_color: e.target.value,
+                  },
+                })
+              }
+              className="w-10 h-10 border border-gray-300 rounded cursor-pointer"
+            />
+            <input
+              type="text"
+              value={primaryDisplay?.rendering?.simple?.background_color || '#1E3A5F'}
+              onChange={(e) =>
+                updateRendering({
+                  simple: {
+                    ...primaryDisplay.rendering?.simple,
+                    background_color: e.target.value,
+                  },
+                })
+              }
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm font-mono"
+            />
+          </div>
+        </div>
+
+        {/* Text Color */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Text Color
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="color"
+              value={primaryDisplay?.rendering?.simple?.text_color || '#FFFFFF'}
+              onChange={(e) =>
+                updateRendering({
+                  simple: {
+                    ...primaryDisplay.rendering?.simple,
+                    text_color: e.target.value,
+                  },
+                })
+              }
+              className="w-10 h-10 border border-gray-300 rounded cursor-pointer"
+            />
+            <input
+              type="text"
+              value={primaryDisplay?.rendering?.simple?.text_color || '#FFFFFF'}
+              onChange={(e) =>
+                updateRendering({
+                  simple: {
+                    ...primaryDisplay.rendering?.simple,
+                    text_color: e.target.value,
+                  },
+                })
+              }
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm font-mono"
+            />
+          </div>
+        </div>
+
+        {/* Font Family */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Font Family
+          </label>
+          <select
+            value={primaryDisplay?.rendering?.simple?.font_family || ''}
+            onChange={(e) =>
+              updateRendering({
+                simple: {
+                  ...primaryDisplay.rendering?.simple,
+                  font_family: e.target.value || undefined,
+                },
+              })
+            }
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+          >
+            <option value="">Default (System)</option>
+            {FONT_FAMILY_OPTIONS.map((font) => (
+              <option key={font.value} value={font.value} style={{ fontFamily: font.value }}>
+                {font.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Background Image URL */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Background Image URL (optional)
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="url"
+              value={primaryDisplay?.rendering?.simple?.background_image?.uri || ''}
+              onChange={(e) =>
+                updateRendering({
+                  simple: {
+                    ...primaryDisplay.rendering?.simple,
+                    background_image: {
+                      ...primaryDisplay.rendering?.simple?.background_image,
+                      uri: e.target.value,
+                    },
+                  },
+                })
+              }
+              placeholder="https://example.com/background.png"
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => setAssetPickerOpen(true)}
+              className="px-3 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700"
+              title="Browse Asset Library"
+            >
+              Browse
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const url = primaryDisplay?.rendering?.simple?.background_image?.uri;
+                if (url) generateHash(url);
+              }}
+              className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+            >
+              Hash
+            </button>
+          </div>
+          {primaryDisplay?.rendering?.simple?.background_image?.['uri#integrity'] && (
+            <p className="mt-1 text-xs text-green-600 font-mono truncate">
+              {primaryDisplay.rendering.simple.background_image['uri#integrity']}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Asset Library Modal */}
+      <AssetLibrary
+        isOpen={assetPickerOpen}
+        onClose={() => setAssetPickerOpen(false)}
+        onSelect={handleAssetSelect}
+        title="Select Background Image"
+      />
     </div>
   );
 }
