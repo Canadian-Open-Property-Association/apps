@@ -11,6 +11,7 @@ import {
   COPA_STANDARD_TEMPLATE_ID,
   ZoneTemplate,
   Zone,
+  ZoneContentType,
   getZoneColor,
 } from '../../types/vct';
 import AssetLibrary from '../AssetLibrary/AssetLibrary';
@@ -105,6 +106,8 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
   const dynamicElements = display?.dynamic_card_elements;
 
   const [activeFace, setActiveFace] = useState<'front' | 'back'>('front');
+  const [assetPickerOpen, setAssetPickerOpen] = useState(false);
+  const [assetPickerZoneId, setAssetPickerZoneId] = useState<string | null>(null);
 
   const zones = activeFace === 'front' ? template.front.zones : template.back.zones;
 
@@ -116,7 +119,7 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
 
   const handleElementChange = (
     zoneId: string,
-    field: 'claim_path' | 'static_value' | 'logo_uri' | 'label',
+    field: 'claim_path' | 'static_value' | 'logo_uri' | 'label' | 'content_type',
     value: string | undefined
   ) => {
     if (updateDynamicElement) {
@@ -124,9 +127,42 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
     }
   };
 
+  const handleContentTypeChange = (zoneId: string, contentType: ZoneContentType) => {
+    if (updateDynamicElement) {
+      // When changing content type, clear the values from the previous type
+      if (contentType === 'text') {
+        updateDynamicElement(displayIndex, activeFace, zoneId, {
+          content_type: contentType,
+          logo_uri: undefined,
+        });
+      } else {
+        updateDynamicElement(displayIndex, activeFace, zoneId, {
+          content_type: contentType,
+          claim_path: undefined,
+          static_value: undefined,
+          label: undefined,
+        });
+      }
+    }
+  };
+
+  const openAssetPicker = (zoneId: string) => {
+    setAssetPickerZoneId(zoneId);
+    setAssetPickerOpen(true);
+  };
+
+  const handleAssetSelect = (uri: string) => {
+    if (assetPickerZoneId) {
+      handleElementChange(assetPickerZoneId, 'logo_uri', uri);
+    }
+    setAssetPickerOpen(false);
+    setAssetPickerZoneId(null);
+  };
+
   const renderZoneElement = (zone: Zone, index: number) => {
     const element = getElementForZone(zone.id);
     const zoneColor = getZoneColor(index);
+    const contentType = element?.content_type || 'text';
 
     return (
       <div
@@ -137,7 +173,6 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
         <div className="flex justify-between items-start">
           <div>
             <span className="text-sm font-medium text-gray-700">{zone.name}</span>
-            <span className="ml-2 text-xs text-gray-400 capitalize">({zone.content_type})</span>
           </div>
           <span
             className="w-3 h-3 rounded-full"
@@ -146,7 +181,36 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
           />
         </div>
 
-        {zone.content_type === 'text' && (
+        {/* Content Type Selector */}
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Content Type</label>
+          <div className="flex rounded-md shadow-sm">
+            <button
+              type="button"
+              onClick={() => handleContentTypeChange(zone.id, 'text')}
+              className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-l-md border ${
+                contentType === 'text'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              Text
+            </button>
+            <button
+              type="button"
+              onClick={() => handleContentTypeChange(zone.id, 'image')}
+              className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-r-md border-t border-r border-b -ml-px ${
+                contentType === 'image'
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              Image
+            </button>
+          </div>
+        </div>
+
+        {contentType === 'text' && (
           <>
             {/* Source selection */}
             <div>
@@ -204,16 +268,26 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
           </>
         )}
 
-        {zone.content_type === 'image' && (
+        {contentType === 'image' && (
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Image URI</label>
-            <input
-              type="url"
-              value={element?.logo_uri || ''}
-              onChange={(e) => handleElementChange(zone.id, 'logo_uri', e.target.value || undefined)}
-              placeholder="https://example.com/image.png"
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
-            />
+            <label className="block text-xs text-gray-500 mb-1">Image</label>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={element?.logo_uri || ''}
+                onChange={(e) => handleElementChange(zone.id, 'logo_uri', e.target.value || undefined)}
+                placeholder="https://example.com/image.png"
+                className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded"
+              />
+              <button
+                type="button"
+                onClick={() => openAssetPicker(zone.id)}
+                className="px-3 py-1.5 text-sm bg-gray-600 text-white rounded hover:bg-gray-700"
+                title="Browse Asset Library"
+              >
+                Browse
+              </button>
+            </div>
             {element?.logo_uri && (
               <div className="mt-2 flex items-center gap-2">
                 <img
@@ -225,6 +299,13 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
                   }}
                 />
                 <span className="text-xs text-gray-500 truncate flex-1">{element.logo_uri}</span>
+                <button
+                  type="button"
+                  onClick={() => handleElementChange(zone.id, 'logo_uri', undefined)}
+                  className="text-xs text-red-500 hover:text-red-700"
+                >
+                  Remove
+                </button>
               </div>
             )}
           </div>
@@ -272,6 +353,17 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
           <p className="text-xs mt-1">Use the Zone Template Library to add zones.</p>
         </div>
       )}
+
+      {/* Asset Library Modal for Zone Images */}
+      <AssetLibrary
+        isOpen={assetPickerOpen}
+        onClose={() => {
+          setAssetPickerOpen(false);
+          setAssetPickerZoneId(null);
+        }}
+        onSelect={handleAssetSelect}
+        title="Select Zone Image"
+      />
     </div>
   );
 }
@@ -364,7 +456,14 @@ export default function CardElementsForm({ displayIndex }: CardElementsFormProps
   const selectedTemplateId = useZoneTemplateStore((state) => state.selectedTemplateId);
   const selectTemplate = useZoneTemplateStore((state) => state.selectTemplate);
   const getTemplate = useZoneTemplateStore((state) => state.getTemplate);
+  const setDynamicCardElementsTemplate = useVctStore((state) => state.setDynamicCardElementsTemplate);
   const [showZoneLibrary, setShowZoneLibrary] = useState(false);
+
+  // Handle template selection - update both zone template store and VCT
+  const handleTemplateSelect = (templateId: string) => {
+    selectTemplate(templateId);
+    setDynamicCardElementsTemplate(displayIndex, templateId);
+  };
 
   // Check if using legacy COPA format or dynamic zones
   const isLegacyMode = selectedTemplateId === COPA_STANDARD_TEMPLATE_ID;
@@ -381,7 +480,7 @@ export default function CardElementsForm({ displayIndex }: CardElementsFormProps
         </label>
         <ZoneTemplateSelector
           selectedTemplateId={selectedTemplateId}
-          onSelect={selectTemplate}
+          onSelect={handleTemplateSelect}
           onManageClick={() => setShowZoneLibrary(true)}
         />
       </div>

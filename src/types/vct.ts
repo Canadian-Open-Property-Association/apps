@@ -361,12 +361,11 @@ export interface ZonePosition {
   height: number; // 0-100% of card height
 }
 
-// A single zone in a template
+// A single zone in a template (layout only - content type is set when designing the card)
 export interface Zone {
   id: string; // Unique zone identifier (UUID)
   name: string; // Human-readable name (e.g., "Header Logo")
   position: ZonePosition; // Positioning data
-  content_type: ZoneContentType; // What type of content this zone holds
 }
 
 // Zone template for front or back of card
@@ -406,37 +405,31 @@ export const createCopaStandardTemplate = (): ZoneTemplate => ({
         id: 'portfolio_issuer',
         name: 'Portfolio Issuer',
         position: { x: 0, y: 0, width: 50, height: 18.7 },
-        content_type: 'image',
       },
       {
         id: 'network_mark',
         name: 'Network Mark',
         position: { x: 50, y: 0, width: 50, height: 18.7 },
-        content_type: 'image',
       },
       {
         id: 'primary_attribute',
         name: 'Primary Attribute',
         position: { x: 0, y: 18.7, width: 100, height: 42.5 },
-        content_type: 'text',
       },
       {
         id: 'secondary_attribute',
         name: 'Secondary Attribute',
         position: { x: 0, y: 61.2, width: 100, height: 17.8 },
-        content_type: 'text',
       },
       {
         id: 'credential_name',
         name: 'Credential Name',
         position: { x: 0, y: 79, width: 50, height: 21 },
-        content_type: 'text',
       },
       {
         id: 'credential_issuer',
         name: 'Credential Issuer',
         position: { x: 50, y: 79, width: 50, height: 21 },
-        content_type: 'image',
       },
     ],
   },
@@ -446,13 +439,11 @@ export const createCopaStandardTemplate = (): ZoneTemplate => ({
         id: 'metadata',
         name: 'Metadata',
         position: { x: 0, y: 0, width: 100, height: 40 },
-        content_type: 'text',
       },
       {
         id: 'evidence',
         name: 'Evidence Sources',
         position: { x: 0, y: 40, width: 100, height: 60 },
-        content_type: 'image',
       },
     ],
   },

@@ -25,7 +25,14 @@ export default function ZoneTemplateSelector({
           value={selectedTemplateId || COPA_STANDARD_TEMPLATE_ID}
           onChange={(e) => onSelect(e.target.value)}
           disabled={disabled}
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 text-sm bg-white disabled:bg-gray-100 disabled:text-gray-500"
+          className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white disabled:bg-gray-100 disabled:text-gray-500 appearance-none cursor-pointer"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
+            backgroundPosition: 'right 0.5rem center',
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: '1.5em 1.5em',
+            paddingRight: '2.5rem',
+          }}
         >
           {/* Built-in templates */}
           <optgroup label="Built-in Templates">
@@ -54,7 +61,7 @@ export default function ZoneTemplateSelector({
             type="button"
             onClick={onManageClick}
             disabled={disabled}
-            className="px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-colors disabled:text-gray-400 disabled:hover:bg-transparent"
+            className="px-3 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md border border-blue-200 transition-colors disabled:text-gray-400 disabled:border-gray-200 disabled:hover:bg-transparent shrink-0"
           >
             Manage
           </button>

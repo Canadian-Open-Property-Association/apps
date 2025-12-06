@@ -21,6 +21,7 @@ import {
   DynamicCardElements,
 } from '../types/vct';
 import { getCurrentUserId, useAuthStore } from './authStore';
+import { useZoneTemplateStore } from './zoneTemplateStore';
 
 const generateId = () => crypto.randomUUID();
 
@@ -127,6 +128,9 @@ const normalizeVct = (vct: VCT): VCT => {
           simple: legacyRendering?.simple,
           svg_templates: svgTemplates,
         } : undefined,
+        // Preserve dynamic_card_elements and card_elements
+        dynamic_card_elements: d.dynamic_card_elements,
+        card_elements: d.card_elements,
       };
     }),
     claims: (vct.claims || []).map((c) => ({
@@ -400,13 +404,20 @@ export const useVctStore = create<VCTStore>()(
       loadProject: (id: string) => {
         const project = get().savedProjects.find((p) => p.id === id);
         if (project) {
+          const normalizedVct = normalizeVct(project.vct);
           set({
-            currentVct: normalizeVct(project.vct),
+            currentVct: normalizedVct,
             sampleData: project.sampleData,
             currentProjectId: project.id,
             currentProjectName: project.name,
             isDirty: false,
           });
+
+          // Restore zone template selection from the VCT's dynamic_card_elements
+          const templateId = normalizedVct.display[0]?.dynamic_card_elements?.template_id;
+          if (templateId) {
+            useZoneTemplateStore.getState().selectTemplate(templateId);
+          }
         }
       },
 
@@ -441,12 +452,19 @@ export const useVctStore = create<VCTStore>()(
       importVct: (json: string) => {
         try {
           const vct = JSON.parse(json) as VCT;
+          const normalizedVct = normalizeVct(vct);
           set({
-            currentVct: normalizeVct(vct),
+            currentVct: normalizedVct,
             currentProjectId: null,
             currentProjectName: 'Imported',
             isDirty: true,
           });
+
+          // Restore zone template selection from the VCT's dynamic_card_elements
+          const templateId = normalizedVct.display[0]?.dynamic_card_elements?.template_id;
+          if (templateId) {
+            useZoneTemplateStore.getState().selectTemplate(templateId);
+          }
         } catch (e) {
           console.error('Failed to import VCT:', e);
           throw new Error('Invalid VCT JSON');
@@ -648,12 +666,12 @@ export const useVctStore = create<VCTStore>()(
 
           let newElements: DynamicCardElement[];
           if (existingIndex >= 0) {
-            // Update existing element
+            // Update existing element (allow content_type to be changed)
             newElements = elements.map((el, i) =>
-              i === existingIndex ? { ...el, ...element, zone_id: zoneId, content_type: el.content_type } : el
+              i === existingIndex ? { ...el, ...element, zone_id: zoneId } : el
             );
           } else {
-            // Add new element
+            // Add new element with default content_type of 'text'
             newElements = [...elements, { zone_id: zoneId, content_type: 'text', ...element } as DynamicCardElement];
           }
 

@@ -7,7 +7,6 @@ import {
   CARD_HEIGHT,
   getZoneColor,
   zonesOverlap,
-  ZoneContentType,
 } from '../../types/vct';
 
 interface ZoneEditorProps {
@@ -321,7 +320,6 @@ export default function ZoneEditor({ onClose }: ZoneEditorProps) {
               id: crypto.randomUUID(),
               name: `Zone ${zones.length + 1}`,
               position: newZonePosition,
-              content_type: 'text',
             };
             addZone(activeFace, newZone);
             setSelectedZoneId(newZone.id);
@@ -361,10 +359,6 @@ export default function ZoneEditor({ onClose }: ZoneEditorProps) {
 
   const handleZoneNameChange = (zoneId: string, name: string) => {
     updateZone(activeFace, zoneId, { name });
-  };
-
-  const handleContentTypeChange = (zoneId: string, contentType: ZoneContentType) => {
-    updateZone(activeFace, zoneId, { content_type: contentType });
   };
 
   const handleSave = () => {
@@ -529,11 +523,6 @@ export default function ZoneEditor({ onClose }: ZoneEditorProps) {
                       {zone.name}
                     </div>
 
-                    {/* Content type indicator */}
-                    <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 pointer-events-none">
-                      {zone.content_type === 'image' ? '🖼️' : '📝'}
-                    </div>
-
                     {/* Resize handles (only for selected zone) */}
                     {isSelected && (
                       <>
@@ -676,25 +665,9 @@ export default function ZoneEditor({ onClose }: ZoneEditorProps) {
                         </div>
 
                         {isSelected && (
-                          <div className="mt-2 space-y-2 pt-2 border-t border-gray-100">
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">
-                                Content Type
-                              </label>
-                              <select
-                                value={zone.content_type}
-                                onChange={(e) =>
-                                  handleContentTypeChange(zone.id, e.target.value as ZoneContentType)
-                                }
-                                className="w-full text-xs px-2 py-1 border border-gray-300 rounded"
-                              >
-                                <option value="text">Text</option>
-                                <option value="image">Image</option>
-                              </select>
-                            </div>
+                          <div className="mt-2 pt-2 border-t border-gray-100">
                             <div className="text-xs text-gray-400">
-                              Position: {Math.round(zone.position.x)}%, {Math.round(zone.position.y)}
-                              %
+                              Position: {Math.round(zone.position.x)}%, {Math.round(zone.position.y)}%
                               <br />
                               Size: {Math.round(zone.position.width)}% × {Math.round(zone.position.height)}%
                             </div>

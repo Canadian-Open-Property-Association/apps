@@ -685,7 +685,7 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
                 height: `${zone.position.height}%`,
               }}
             >
-              {zone.content_type === 'image' && element?.logo_uri ? (
+              {element?.content_type === 'image' && element?.logo_uri ? (
                 <img
                   src={element.logo_uri}
                   alt={zone.name}
@@ -762,7 +762,7 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
                   height: `${zone.position.height}%`,
                 }}
               >
-                {zone.content_type === 'image' && element?.logo_uri ? (
+                {element?.content_type === 'image' && element?.logo_uri ? (
                   <img
                     src={element.logo_uri}
                     alt={zone.name}
