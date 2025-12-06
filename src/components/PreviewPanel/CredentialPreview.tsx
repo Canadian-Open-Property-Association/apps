@@ -644,6 +644,15 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
     return sampleData[normalizedPath];
   };
 
+  // Helper to get alignment CSS justify-content value
+  const getAlignmentStyle = (alignment: string | undefined) => {
+    switch (alignment) {
+      case 'left': return 'flex-start';
+      case 'right': return 'flex-end';
+      default: return 'center';
+    }
+  };
+
   // Dynamic card front for custom zone templates
   const renderDynamicCardFront = () => {
     const simple = display.rendering?.simple;
@@ -681,23 +690,32 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
           const content = element?.claim_path
             ? getClaimValue(element.claim_path) || element.label || 'Claim'
             : element?.static_value || element?.logo_uri || '';
+          const alignment = element?.alignment || 'center';
+          const scale = element?.scale || 1.0;
 
           return (
             <div
               key={zone.id}
-              className="absolute flex items-center justify-center p-1 overflow-hidden"
+              className="absolute flex items-center p-1 overflow-hidden"
               style={{
                 left: `${zone.position.x}%`,
                 top: `${zone.position.y}%`,
                 width: `${zone.position.width}%`,
                 height: `${zone.position.height}%`,
+                justifyContent: getAlignmentStyle(alignment),
               }}
             >
               {element?.content_type === 'image' && element?.logo_uri ? (
                 <img
                   src={element.logo_uri}
                   alt={zone.name}
-                  className="max-w-full max-h-full object-contain"
+                  className="object-contain"
+                  style={{
+                    maxWidth: `${100 * scale}%`,
+                    maxHeight: `${100 * scale}%`,
+                    transform: scale !== 1.0 ? `scale(${scale})` : undefined,
+                    transformOrigin: alignment === 'left' ? 'left center' : alignment === 'right' ? 'right center' : 'center center',
+                  }}
                   onError={(e) => {
                     (e.target as HTMLImageElement).style.display = 'none';
                   }}
@@ -705,10 +723,11 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
               ) : content ? (
                 <AutoSizeText
                   text={content}
-                  maxFontSize={16}
+                  maxFontSize={16 * scale}
                   minFontSize={8}
-                  className="text-center"
+                  className={alignment === 'left' ? 'text-left' : alignment === 'right' ? 'text-right' : 'text-center'}
                   maxWidth={(340 * zone.position.width) / 100 - 8}
+                  style={{ width: '100%' }}
                 />
               ) : (
                 <span className="text-xs opacity-30 truncate">{zone.name}</span>
@@ -758,23 +777,32 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
             const content = element?.claim_path
               ? getClaimValue(element.claim_path) || element.label || 'Claim'
               : element?.static_value || element?.logo_uri || '';
+            const alignment = element?.alignment || 'center';
+            const scale = element?.scale || 1.0;
 
             return (
               <div
                 key={zone.id}
-                className="absolute flex items-center justify-center p-1 overflow-hidden"
+                className="absolute flex items-center p-1 overflow-hidden"
                 style={{
                   left: `${zone.position.x}%`,
                   top: `${zone.position.y}%`,
                   width: `${zone.position.width}%`,
                   height: `${zone.position.height}%`,
+                  justifyContent: getAlignmentStyle(alignment),
                 }}
               >
                 {element?.content_type === 'image' && element?.logo_uri ? (
                   <img
                     src={element.logo_uri}
                     alt={zone.name}
-                    className="max-w-full max-h-full object-contain"
+                    className="object-contain"
+                    style={{
+                      maxWidth: `${100 * scale}%`,
+                      maxHeight: `${100 * scale}%`,
+                      transform: scale !== 1.0 ? `scale(${scale})` : undefined,
+                      transformOrigin: alignment === 'left' ? 'left center' : alignment === 'right' ? 'right center' : 'center center',
+                    }}
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}
@@ -782,10 +810,11 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
                 ) : content ? (
                   <AutoSizeText
                     text={content}
-                    maxFontSize={16}
+                    maxFontSize={16 * scale}
                     minFontSize={8}
-                    className="text-center"
+                    className={alignment === 'left' ? 'text-left' : alignment === 'right' ? 'text-right' : 'text-center'}
                     maxWidth={(340 * zone.position.width) / 100 - 8}
+                    style={{ width: '100%' }}
                   />
                 ) : (
                   <span className="text-xs opacity-30 truncate">{zone.name}</span>
