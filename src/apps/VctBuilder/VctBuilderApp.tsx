@@ -94,8 +94,6 @@ export default function VctBuilderApp() {
     setJsonPanelWidth((prev) => Math.max(MIN_PANEL_WIDTH, Math.min(MAX_PANEL_WIDTH, prev + delta)));
   }, []);
 
-  const currentProjectName = useVctStore((state) => state.currentProjectName);
-  const isDirty = useVctStore((state) => state.isDirty);
   const currentVct = useVctStore((state) => state.currentVct);
 
   // Get available locales from the current VCT display configuration

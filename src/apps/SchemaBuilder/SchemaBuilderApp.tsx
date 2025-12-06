@@ -11,8 +11,6 @@ export default function SchemaBuilderApp() {
   // Track app access
   useAppTracking('schema-builder', 'Schema Builder');
 
-  const currentProjectName = useSchemaStore((state) => state.currentProjectName);
-  const isDirty = useSchemaStore((state) => state.isDirty);
   const fetchGovernanceDocs = useSchemaStore((state) => state.fetchGovernanceDocs);
 
   // Fetch governance docs on mount
@@ -22,28 +20,6 @@ export default function SchemaBuilderApp() {
 
   return (
     <div className="flex flex-col h-full bg-gray-100">
-      {/* Header */}
-      <header className="bg-slate-800 text-white px-6 py-4 shadow-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Schema Builder</h1>
-            <p className="text-slate-300 text-sm">
-              Create JSON Schemas for credential data validation
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-lg font-medium text-white">
-              {currentProjectName}
-            </span>
-            {isDirty && (
-              <span className="text-yellow-400 text-lg" title="Unsaved changes">
-                *
-              </span>
-            )}
-          </div>
-        </div>
-      </header>
-
       {/* Toolbar */}
       <SchemaToolbar />
 
