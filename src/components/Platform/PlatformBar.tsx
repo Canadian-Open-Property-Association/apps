@@ -35,7 +35,7 @@ export default function PlatformBar() {
   };
 
   return (
-    <div className="bg-red-700 text-white px-4 py-2 flex items-center justify-between shadow-md">
+    <div className="bg-gray-50 text-gray-800 px-4 py-2 flex items-center justify-between shadow-sm border-b border-gray-200">
       {/* Left: Logo and Platform Name */}
       <div className="flex items-center gap-2">
         <img
@@ -51,16 +51,16 @@ export default function PlatformBar() {
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-red-800 transition-colors"
+            className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-gray-200 transition-colors"
           >
             <img
               src={user.avatar_url}
               alt={user.login}
-              className="w-7 h-7 rounded-full border-2 border-red-600"
+              className="w-7 h-7 rounded-full border-2 border-gray-300"
             />
-            <span className="text-sm text-red-100">{user.name || user.login}</span>
+            <span className="text-sm text-gray-600">{user.name || user.login}</span>
             <svg
-              className={`w-4 h-4 text-red-200 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
+              className={`w-4 h-4 text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
