@@ -7,10 +7,12 @@ import AttributeDetail from './components/AttributeDetail';
 import FurnisherForm from './components/FurnisherForm';
 import ImportModal from './components/ImportModal';
 import CatalogueToolbar from './components/CatalogueToolbar';
+import DataTypeLibrary from './components/DataTypeLibrary';
 
 export default function DataCatalogueApp() {
   const {
     fetchFurnishers,
+    fetchDataTypeConfigs,
     selectedFurnisher,
     selection,
     isLoading,
@@ -21,10 +23,12 @@ export default function DataCatalogueApp() {
   const [showFurnisherForm, setShowFurnisherForm] = useState(false);
   const [editingFurnisherId, setEditingFurnisherId] = useState<string | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showDataTypeLibrary, setShowDataTypeLibrary] = useState(false);
 
   useEffect(() => {
     fetchFurnishers();
-  }, [fetchFurnishers]);
+    fetchDataTypeConfigs();
+  }, [fetchFurnishers, fetchDataTypeConfigs]);
 
   const handleAddFurnisher = () => {
     setEditingFurnisherId(null);
@@ -140,6 +144,7 @@ export default function DataCatalogueApp() {
         onAddFurnisher={handleAddFurnisher}
         onImport={() => setShowImportModal(true)}
         onExport={handleExport}
+        onOpenDataTypeLibrary={() => setShowDataTypeLibrary(true)}
       />
 
       {/* Main 3-panel layout */}
@@ -175,6 +180,12 @@ export default function DataCatalogueApp() {
       {showImportModal && (
         <ImportModal onClose={() => setShowImportModal(false)} />
       )}
+
+      {/* Data Type Library Modal */}
+      <DataTypeLibrary
+        isOpen={showDataTypeLibrary}
+        onClose={() => setShowDataTypeLibrary(false)}
+      />
     </div>
   );
 }

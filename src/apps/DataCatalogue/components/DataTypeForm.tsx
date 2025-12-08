@@ -11,23 +11,57 @@ interface DataTypeFormProps {
 export default function DataTypeForm({ furnisherId, dataType, onClose }: DataTypeFormProps) {
   const createDataType = useDataCatalogueStore((state) => state.createDataType);
   const updateDataType = useDataCatalogueStore((state) => state.updateDataType);
+  const dataTypeConfigs = useDataCatalogueStore((state) => state.dataTypeConfigs);
+  const dataTypeCategories = useDataCatalogueStore((state) => state.dataTypeCategories);
+  const fetchDataTypeConfigs = useDataCatalogueStore((state) => state.fetchDataTypeConfigs);
 
+  const [selectedConfigId, setSelectedConfigId] = useState<string>('');
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    configId: '',
   });
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Load data type configs on mount
+  useEffect(() => {
+    if (dataTypeConfigs.length === 0) {
+      fetchDataTypeConfigs();
+    }
+  }, [dataTypeConfigs.length, fetchDataTypeConfigs]);
 
   useEffect(() => {
     if (dataType) {
       setFormData({
         name: dataType.name || '',
         description: dataType.description || '',
+        configId: dataType.configId || '',
       });
+      setSelectedConfigId(dataType.configId || '');
     }
   }, [dataType]);
+
+  // When a config is selected, populate name and description
+  const handleConfigSelect = (configId: string) => {
+    setSelectedConfigId(configId);
+    const config = dataTypeConfigs.find((c) => c.id === configId);
+    if (config) {
+      setFormData({
+        name: config.name,
+        description: config.description || '',
+        configId: config.id,
+      });
+    } else {
+      // Custom - clear fields but keep configId empty
+      setFormData({
+        name: '',
+        description: '',
+        configId: '',
+      });
+    }
+  };
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -38,7 +72,7 @@ export default function DataTypeForm({ furnisherId, dataType, onClose }: DataTyp
     setError(null);
 
     if (!formData.name.trim()) {
-      setError('Name is required');
+      setError('Please select a data type or enter a custom name');
       return;
     }
 
@@ -59,6 +93,24 @@ export default function DataTypeForm({ furnisherId, dataType, onClose }: DataTyp
       setSaving(false);
     }
   };
+
+  // Group configs by category for the dropdown
+  const configsByCategory = dataTypeConfigs.reduce(
+    (acc, config) => {
+      const cat = config.category || 'Other';
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(config);
+      return acc;
+    },
+    {} as Record<string, typeof dataTypeConfigs>
+  );
+
+  // Sort categories
+  const sortedCategories = Object.keys(configsByCategory).sort((a, b) => {
+    const orderA = dataTypeCategories.find((c) => c.name === a)?.order || 999;
+    const orderB = dataTypeCategories.find((c) => c.name === b)?.order || 999;
+    return orderA - orderB;
+  });
 
   return (
     <div
@@ -93,32 +145,59 @@ export default function DataTypeForm({ furnisherId, dataType, onClose }: DataTyp
           )}
 
           <div className="space-y-4">
+            {/* Data Type Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name <span className="text-red-500">*</span>
+                Select Data Type <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => handleChange('name', e.target.value)}
-                placeholder="e.g., Property Details, Mortgage Data"
+              <select
+                value={selectedConfigId}
+                onChange={(e) => handleConfigSelect(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 autoFocus
-              />
+              >
+                <option value="">-- Select a standard data type --</option>
+                {sortedCategories.map((category) => (
+                  <optgroup key={category} label={category}>
+                    {configsByCategory[category]?.map((config) => (
+                      <option key={config.id} value={config.id}>
+                        {config.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Choose from standardized data type definitions
+              </p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => handleChange('description', e.target.value)}
-                placeholder="Brief description of this data type..."
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
+            {/* Selected Type Info */}
+            {selectedConfigId && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <p className="text-sm font-medium text-blue-800">{formData.name}</p>
+                {formData.description && (
+                  <p className="text-xs text-blue-600 mt-1">{formData.description}</p>
+                )}
+              </div>
+            )}
+
+            {/* Custom Description Override (optional) */}
+            {selectedConfigId && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Custom Description
+                  <span className="text-xs font-normal text-gray-400 ml-1">(optional override)</span>
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => handleChange('description', e.target.value)}
+                  placeholder="Override the default description for this furnisher..."
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
+                />
+              </div>
+            )}
           </div>
 
           {/* Footer */}
@@ -132,10 +211,10 @@ export default function DataTypeForm({ furnisherId, dataType, onClose }: DataTyp
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || !selectedConfigId}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
             >
-              {saving ? 'Saving...' : dataType ? 'Save Changes' : 'Create Data Type'}
+              {saving ? 'Saving...' : dataType ? 'Save Changes' : 'Add Data Type'}
             </button>
           </div>
         </form>

@@ -1,5 +1,21 @@
 // Data Catalogue Types
 
+// Data Type Config - standardized data type definitions
+export interface DataTypeConfig {
+  id: string;
+  name: string;
+  description?: string;
+  category: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DataTypeCategory {
+  id: string;
+  name: string;
+  order: number;
+}
+
 export interface UserRef {
   id: string;
   login: string;
@@ -31,6 +47,7 @@ export interface Furnisher {
 export interface DataType {
   id: string;
   furnisherId: string;
+  configId?: string; // Reference to DataTypeConfig for standardization
   name: string;
   description?: string;
   createdAt: string;

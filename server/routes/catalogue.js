@@ -20,11 +20,14 @@ const getDataDir = () => {
 
 // Load seed data if catalogue is empty
 const getSeedDataPath = () => path.join(__dirname, '../data/seed-furnishers.json');
+const getSeedDataTypeConfigsPath = () => path.join(__dirname, '../data/seed-data-type-configs.json');
 
 // Data file paths
 const getFurnishersFile = () => path.join(getDataDir(), 'furnishers.json');
 const getDataTypesFile = () => path.join(getDataDir(), 'data-types.json');
 const getAttributesFile = () => path.join(getDataDir(), 'attributes.json');
+const getDataTypeConfigsFile = () => path.join(getDataDir(), 'data-type-configs.json');
+const getCategoriesFile = () => path.join(getDataDir(), 'categories.json');
 
 // Initialize data files if they don't exist
 const initializeData = () => {
@@ -135,6 +138,46 @@ const loadAttributes = () => {
 
 const saveAttributes = (attributes) => {
   fs.writeFileSync(getAttributesFile(), JSON.stringify({ attributes }, null, 2));
+};
+
+// Data Type Configs (standardized data type definitions)
+const initializeDataTypeConfigs = () => {
+  const configsFile = getDataTypeConfigsFile();
+  const categoriesFile = getCategoriesFile();
+
+  if (!fs.existsSync(configsFile)) {
+    const seedPath = getSeedDataTypeConfigsPath();
+    if (fs.existsSync(seedPath)) {
+      console.log('Initializing data type configs from seed data...');
+      const seedData = JSON.parse(fs.readFileSync(seedPath, 'utf-8'));
+      fs.writeFileSync(configsFile, JSON.stringify({ dataTypeConfigs: seedData.dataTypeConfigs || [] }, null, 2));
+      fs.writeFileSync(categoriesFile, JSON.stringify({ categories: seedData.categories || [] }, null, 2));
+      console.log(`Data type configs initialized with ${seedData.dataTypeConfigs?.length || 0} configs`);
+    } else {
+      fs.writeFileSync(configsFile, JSON.stringify({ dataTypeConfigs: [] }, null, 2));
+      fs.writeFileSync(categoriesFile, JSON.stringify({ categories: [] }, null, 2));
+    }
+  }
+};
+
+const loadDataTypeConfigs = () => {
+  initializeDataTypeConfigs();
+  const data = JSON.parse(fs.readFileSync(getDataTypeConfigsFile(), 'utf-8'));
+  return data.dataTypeConfigs || [];
+};
+
+const saveDataTypeConfigs = (dataTypeConfigs) => {
+  fs.writeFileSync(getDataTypeConfigsFile(), JSON.stringify({ dataTypeConfigs }, null, 2));
+};
+
+const loadCategories = () => {
+  initializeDataTypeConfigs();
+  const data = JSON.parse(fs.readFileSync(getCategoriesFile(), 'utf-8'));
+  return data.categories || [];
+};
+
+const saveCategories = (categories) => {
+  fs.writeFileSync(getCategoriesFile(), JSON.stringify({ categories }, null, 2));
 };
 
 // Middleware: Require authentication
@@ -671,6 +714,193 @@ router.get('/search', (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// ============================================
+// Data Type Configs API (Standardized Types)
+// ============================================
+
+// List all data type configs with categories
+router.get('/data-type-configs', (req, res) => {
+  try {
+    const configs = loadDataTypeConfigs();
+    const categories = loadCategories();
+    res.json({ configs, categories });
+  } catch (error) {
+    console.error('Error loading data type configs:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get a single data type config
+router.get('/data-type-configs/:id', (req, res) => {
+  try {
+    const configs = loadDataTypeConfigs();
+    const config = configs.find(c => c.id === req.params.id);
+    if (!config) {
+      return res.status(404).json({ error: 'Data type config not found' });
+    }
+    res.json(config);
+  } catch (error) {
+    console.error('Error loading data type config:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create a new data type config
+router.post('/data-type-configs', requireAuth, (req, res) => {
+  try {
+    const { name, description, category } = req.body;
+
+    if (!name?.trim()) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+
+    const configs = loadDataTypeConfigs();
+
+    // Check for duplicate name
+    if (configs.some(c => c.name.toLowerCase() === name.trim().toLowerCase())) {
+      return res.status(400).json({ error: 'A data type config with this name already exists' });
+    }
+
+    const now = new Date().toISOString();
+    const newConfig = {
+      id: name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+      name: name.trim(),
+      description: description?.trim() || '',
+      category: category || 'Other',
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    // Ensure unique ID
+    let uniqueId = newConfig.id;
+    let counter = 1;
+    while (configs.some(c => c.id === uniqueId)) {
+      uniqueId = `${newConfig.id}-${counter}`;
+      counter++;
+    }
+    newConfig.id = uniqueId;
+
+    configs.push(newConfig);
+    saveDataTypeConfigs(configs);
+
+    res.status(201).json(newConfig);
+  } catch (error) {
+    console.error('Error creating data type config:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update a data type config
+router.put('/data-type-configs/:id', requireAuth, (req, res) => {
+  try {
+    const { name, description, category } = req.body;
+    const configs = loadDataTypeConfigs();
+    const index = configs.findIndex(c => c.id === req.params.id);
+
+    if (index === -1) {
+      return res.status(404).json({ error: 'Data type config not found' });
+    }
+
+    // Check for duplicate name (excluding self)
+    if (name && configs.some(c => c.id !== req.params.id && c.name.toLowerCase() === name.trim().toLowerCase())) {
+      return res.status(400).json({ error: 'A data type config with this name already exists' });
+    }
+
+    configs[index] = {
+      ...configs[index],
+      ...(name && { name: name.trim() }),
+      ...(description !== undefined && { description: description.trim() }),
+      ...(category && { category }),
+      updatedAt: new Date().toISOString(),
+    };
+
+    saveDataTypeConfigs(configs);
+    res.json(configs[index]);
+  } catch (error) {
+    console.error('Error updating data type config:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a data type config
+router.delete('/data-type-configs/:id', requireAuth, (req, res) => {
+  try {
+    const configs = loadDataTypeConfigs();
+    const index = configs.findIndex(c => c.id === req.params.id);
+
+    if (index === -1) {
+      return res.status(404).json({ error: 'Data type config not found' });
+    }
+
+    // Check if any data types are using this config
+    const dataTypes = loadDataTypes();
+    const inUse = dataTypes.filter(dt => dt.configId === req.params.id);
+    if (inUse.length > 0) {
+      return res.status(400).json({
+        error: `This data type config is in use by ${inUse.length} data type(s). Remove references first.`,
+      });
+    }
+
+    configs.splice(index, 1);
+    saveDataTypeConfigs(configs);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error deleting data type config:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// Categories API
+// ============================================
+
+// List all categories
+router.get('/categories', (req, res) => {
+  try {
+    const categories = loadCategories();
+    res.json(categories);
+  } catch (error) {
+    console.error('Error loading categories:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create a new category
+router.post('/categories', requireAuth, (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name?.trim()) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+
+    const categories = loadCategories();
+
+    if (categories.some(c => c.name.toLowerCase() === name.trim().toLowerCase())) {
+      return res.status(400).json({ error: 'This category already exists' });
+    }
+
+    const maxOrder = Math.max(0, ...categories.map(c => c.order || 0));
+    const newCategory = {
+      id: name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+      name: name.trim(),
+      order: maxOrder + 1,
+    };
+
+    categories.push(newCategory);
+    saveCategories(categories);
+
+    res.status(201).json(newCategory);
+  } catch (error) {
+    console.error('Error creating category:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// Export API
+// ============================================
 
 // Export all data
 router.get('/export', (req, res) => {

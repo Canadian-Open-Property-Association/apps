@@ -6,6 +6,8 @@ import type {
   FurnisherWithDataTypes,
   Selection,
   FurnisherStats,
+  DataTypeConfig,
+  DataTypeCategory,
 } from '../types/catalogue';
 
 const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:5174';
@@ -165,12 +167,76 @@ const catalogueApi = {
     if (!response.ok) throw new Error('Failed to export');
     return response.json();
   },
+
+  // Data Type Configs
+  async listDataTypeConfigs(): Promise<{ configs: DataTypeConfig[]; categories: DataTypeCategory[] }> {
+    const response = await fetch(`${API_BASE}/api/catalogue/data-type-configs`, {
+      credentials: 'include',
+    });
+    if (!response.ok) throw new Error('Failed to fetch data type configs');
+    return response.json();
+  },
+
+  async createDataTypeConfig(config: Partial<DataTypeConfig>): Promise<DataTypeConfig> {
+    const response = await fetch(`${API_BASE}/api/catalogue/data-type-configs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(config),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to create data type config');
+    }
+    return response.json();
+  },
+
+  async updateDataTypeConfig(id: string, updates: Partial<DataTypeConfig>): Promise<DataTypeConfig> {
+    const response = await fetch(`${API_BASE}/api/catalogue/data-type-configs/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(updates),
+    });
+    if (!response.ok) throw new Error('Failed to update data type config');
+    return response.json();
+  },
+
+  async deleteDataTypeConfig(id: string): Promise<void> {
+    const response = await fetch(`${API_BASE}/api/catalogue/data-type-configs/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to delete data type config');
+    }
+  },
+
+  async createCategory(name: string): Promise<DataTypeCategory> {
+    const response = await fetch(`${API_BASE}/api/catalogue/categories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ name }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to create category');
+    }
+    return response.json();
+  },
 };
 
 interface DataCatalogueState {
   // Data
   furnishers: (Furnisher & { stats: FurnisherStats })[];
   selectedFurnisher: FurnisherWithDataTypes | null;
+
+  // Data Type Configs (standardized data types)
+  dataTypeConfigs: DataTypeConfig[];
+  dataTypeCategories: DataTypeCategory[];
+  isConfigsLoading: boolean;
 
   // Selection state
   selection: Selection | null;
@@ -208,6 +274,13 @@ interface DataCatalogueState {
   updateAttribute: (id: string, updates: Partial<DataAttribute>) => Promise<void>;
   deleteAttribute: (id: string) => Promise<void>;
 
+  // Data Type Configs actions
+  fetchDataTypeConfigs: () => Promise<void>;
+  createDataTypeConfig: (config: Partial<DataTypeConfig>) => Promise<DataTypeConfig>;
+  updateDataTypeConfig: (id: string, updates: Partial<DataTypeConfig>) => Promise<void>;
+  deleteDataTypeConfig: (id: string) => Promise<void>;
+  createCategory: (name: string) => Promise<DataTypeCategory>;
+
   // Search
   setSearchQuery: (query: string) => void;
   search: (query: string) => Promise<void>;
@@ -221,6 +294,9 @@ export const useDataCatalogueStore = create<DataCatalogueState>((set, get) => ({
   // Initial state
   furnishers: [],
   selectedFurnisher: null,
+  dataTypeConfigs: [],
+  dataTypeCategories: [],
+  isConfigsLoading: false,
   selection: null,
   isLoading: false,
   isFurnisherLoading: false,
@@ -391,5 +467,43 @@ export const useDataCatalogueStore = create<DataCatalogueState>((set, get) => ({
   // Export
   exportAll: async () => {
     return catalogueApi.exportAll();
+  },
+
+  // Data Type Configs
+  fetchDataTypeConfigs: async () => {
+    set({ isConfigsLoading: true });
+    try {
+      const { configs, categories } = await catalogueApi.listDataTypeConfigs();
+      set({
+        dataTypeConfigs: configs,
+        dataTypeCategories: categories,
+        isConfigsLoading: false,
+      });
+    } catch (error) {
+      console.error('Error fetching data type configs:', error);
+      set({ isConfigsLoading: false });
+    }
+  },
+
+  createDataTypeConfig: async (config) => {
+    const result = await catalogueApi.createDataTypeConfig(config);
+    await get().fetchDataTypeConfigs();
+    return result;
+  },
+
+  updateDataTypeConfig: async (id, updates) => {
+    await catalogueApi.updateDataTypeConfig(id, updates);
+    await get().fetchDataTypeConfigs();
+  },
+
+  deleteDataTypeConfig: async (id) => {
+    await catalogueApi.deleteDataTypeConfig(id);
+    await get().fetchDataTypeConfigs();
+  },
+
+  createCategory: async (name) => {
+    const result = await catalogueApi.createCategory(name);
+    await get().fetchDataTypeConfigs();
+    return result;
   },
 }));
