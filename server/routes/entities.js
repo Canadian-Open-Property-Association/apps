@@ -73,15 +73,16 @@ const requireAuth = (req, res, next) => {
 // Entities API
 // ============================================
 
-// List all entities (with optional type filter)
+// List all entities (with optional type filter - supports multiple types)
 router.get('/', (req, res) => {
   try {
-    const { type, search } = req.query;
+    const { types, search } = req.query;
     let entities = loadEntities();
 
-    // Filter by type if provided
-    if (type) {
-      entities = entities.filter((e) => e.type === type);
+    // Filter by types if provided (comma-separated list)
+    if (types) {
+      const typeList = types.split(',').map((t) => t.trim());
+      entities = entities.filter((e) => typeList.includes(e.type));
     }
 
     // Filter by search query if provided
@@ -126,12 +127,16 @@ router.post('/', requireAuth, (req, res) => {
     const entities = loadEntities();
     const now = new Date().toISOString();
 
-    // Generate ID from name if not provided
-    const generateId = (name) =>
-      name
+    // Generate slug-style ID from name with copa- prefix
+    const generateId = (name) => {
+      const slug = name
         .toLowerCase()
         .replace(/\s+/g, '-')
-        .replace(/[^a-z0-9-]/g, '');
+        .replace(/[^a-z0-9-]/g, '')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+      return slug ? `copa-${slug}` : '';
+    };
 
     const newEntity = {
       id: req.body.id || generateId(req.body.name),
@@ -143,8 +148,6 @@ router.post('/', requireAuth, (req, res) => {
       website: req.body.website || '',
       contactEmail: req.body.contactEmail || '',
       did: req.body.did || '',
-      credentialTypes: req.body.credentialTypes || [],
-      regionsCovered: req.body.regionsCovered || [],
       status: req.body.status || 'active',
       createdAt: now,
       updatedAt: now,
@@ -199,10 +202,13 @@ router.put('/:id', requireAuth, (req, res) => {
       website: req.body.website ?? entities[index].website,
       contactEmail: req.body.contactEmail ?? entities[index].contactEmail,
       did: req.body.did ?? entities[index].did,
-      credentialTypes: req.body.credentialTypes ?? entities[index].credentialTypes,
-      regionsCovered: req.body.regionsCovered ?? entities[index].regionsCovered,
       status: req.body.status ?? entities[index].status,
       updatedAt: new Date().toISOString(),
+      updatedBy: {
+        id: String(req.session.user.id),
+        login: req.session.user.login,
+        name: req.session.user.name || undefined,
+      },
     };
 
     entities[index] = updatedEntity;

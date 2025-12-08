@@ -1,60 +1,53 @@
 {
   "entities": [
     {
-      "id": "cornerstone",
+      "id": "copa-cornerstone",
       "name": "Cornerstone Platform Inc.",
       "type": "issuer",
-      "description": "Platform operator - Issues Cornerstone ID, Home Credential, PAAC, and NP Admin Credential",
+      "description": "Platform operator for the COPA credential ecosystem",
       "logoUri": "entities/logos/cornerstone.png",
       "primaryColor": "#1a365d",
       "website": "https://cornerstone.ca",
-      "credentialTypes": ["cornerstone-id", "home-credential", "paac", "np-admin-credential"],
-      "regionsCovered": ["CA"],
       "status": "active"
     },
     {
-      "id": "sutton-group",
+      "id": "copa-sutton-group",
       "name": "Sutton Group",
       "type": "network-partner",
-      "description": "Network Partner - Issues Professional Credential, Portfolio Issuer Credential",
+      "description": "Real estate network partner in the COPA ecosystem",
       "logoUri": "entities/logos/sutton-group.png",
       "primaryColor": "#c41e3a",
       "website": "https://sutton.com",
-      "credentialTypes": ["professional-credential", "portfolio-issuer-credential"],
-      "regionsCovered": ["CA"],
       "status": "active"
     },
     {
-      "id": "landcor",
+      "id": "copa-landcor",
       "name": "Landcor Data Corporation",
       "type": "data-furnisher",
       "description": "Authorized data furnisher for property valuation and real estate market analytics",
       "logoUri": "entities/logos/landcor.png",
       "primaryColor": "#2d5a27",
       "website": "https://landcor.com",
-      "regionsCovered": ["CA-BC", "CA-AB"],
       "status": "active"
     },
     {
-      "id": "interac",
+      "id": "copa-interac",
       "name": "Interac Corp.",
       "type": "data-furnisher",
       "description": "Authorized data furnisher for identity verification services",
       "logoUri": "entities/logos/interac.png",
       "primaryColor": "#f9a825",
       "website": "https://interac.ca",
-      "regionsCovered": ["CA"],
       "status": "active"
     },
     {
-      "id": "cove",
+      "id": "copa-cove",
       "name": "Cove Insurance",
       "type": "data-furnisher",
       "description": "Authorized data furnisher for insurance data and coverage verification",
       "logoUri": "entities/logos/cove.png",
       "primaryColor": "#0077b6",
       "website": "https://coveinsurance.ca",
-      "regionsCovered": ["CA"],
       "status": "active"
     }
   ]

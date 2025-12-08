@@ -11,13 +11,13 @@ export interface UserRef {
 }
 
 export interface Entity {
-  id: string;                    // Unique identifier (slug format)
+  id: string;                    // Unique identifier (slug format: copa-entity-name)
   name: string;                  // Display name
   type: EntityType;
   description?: string;
 
   // Visual Identity
-  logoUri?: string;              // Path to logo in GitHub (entities/logos/)
+  logoUri?: string;              // Path to logo (from asset library)
   primaryColor?: string;         // Brand color (hex)
 
   // Contact & Web
@@ -25,17 +25,14 @@ export interface Entity {
   contactEmail?: string;
 
   // Technical Identity
-  did?: string;                  // Decentralized Identifier (future)
-
-  // Trust Registry Info (for issuers)
-  credentialTypes?: string[];    // What credential types can this entity issue?
-  regionsCovered?: string[];     // Geographic scope
+  did?: string;                  // Decentralized Identifier
 
   // Metadata
   status: EntityStatus;
   createdAt: string;
   updatedAt: string;
   createdBy?: UserRef;
+  updatedBy?: UserRef;
 }
 
 // Entity type display configuration

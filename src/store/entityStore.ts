@@ -6,10 +6,11 @@ const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:5174';
 // API helpers
 const entityApi = {
   // List entities
-  async listEntities(type?: EntityType, source?: 'local' | 'github'): Promise<Entity[]> {
+  async listEntities(types?: EntityType[]): Promise<Entity[]> {
     const params = new URLSearchParams();
-    if (type) params.set('type', type);
-    if (source) params.set('source', source);
+    if (types && types.length > 0) {
+      params.set('types', types.join(','));
+    }
 
     const response = await fetch(`${API_BASE}/api/entities?${params}`, {
       credentials: 'include',
@@ -72,15 +73,6 @@ const entityApi = {
     return response.json();
   },
 
-  // GitHub: List entities from repo
-  async listGitHubEntities(): Promise<Entity[]> {
-    const response = await fetch(`${API_BASE}/api/github/entity-library`, {
-      credentials: 'include',
-    });
-    if (!response.ok) throw new Error('Failed to fetch entities from GitHub');
-    return response.json();
-  },
-
   // GitHub: Save entities to repo (creates PR)
   async saveToGitHub(content: { entities: Entity[] }, title: string, description?: string): Promise<{
     success: boolean;
@@ -112,8 +104,8 @@ interface EntityState {
   entities: Entity[];
   selectedEntity: Entity | null;
 
-  // Filter state
-  typeFilter: EntityType | null;
+  // Filter state (multiple types)
+  typeFilters: EntityType[];
   searchQuery: string;
 
   // Selection
@@ -124,10 +116,10 @@ interface EntityState {
   error: string | null;
 
   // Actions
-  fetchEntities: (type?: EntityType) => Promise<void>;
+  fetchEntities: (types?: EntityType[]) => Promise<void>;
   selectEntity: (id: string) => Promise<void>;
   clearSelection: () => void;
-  setTypeFilter: (type: EntityType | null) => void;
+  setTypeFilters: (types: EntityType[]) => void;
   setSearchQuery: (query: string) => void;
 
   // CRUD
@@ -139,7 +131,6 @@ interface EntityState {
   exportAll: () => Promise<{ entities: Entity[] }>;
 
   // GitHub
-  fetchFromGitHub: () => Promise<void>;
   saveToGitHub: (title: string, description?: string) => Promise<{ pr: { url: string } }>;
 }
 
@@ -147,17 +138,18 @@ export const useEntityStore = create<EntityState>((set, get) => ({
   // Initial state
   entities: [],
   selectedEntity: null,
-  typeFilter: null,
+  typeFilters: [],
   searchQuery: '',
   selection: null,
   isLoading: false,
   error: null,
 
   // Fetch all entities
-  fetchEntities: async (type?: EntityType) => {
+  fetchEntities: async (types?: EntityType[]) => {
     set({ isLoading: true, error: null });
     try {
-      const entities = await entityApi.listEntities(type || get().typeFilter || undefined);
+      const filterTypes = types || get().typeFilters;
+      const entities = await entityApi.listEntities(filterTypes.length > 0 ? filterTypes : undefined);
       set({ entities, isLoading: false });
     } catch (error) {
       set({
@@ -186,9 +178,9 @@ export const useEntityStore = create<EntityState>((set, get) => ({
     set({ selectedEntity: null, selection: null });
   },
 
-  setTypeFilter: (type: EntityType | null) => {
-    set({ typeFilter: type });
-    get().fetchEntities(type || undefined);
+  setTypeFilters: (types: EntityType[]) => {
+    set({ typeFilters: types });
+    get().fetchEntities(types);
   },
 
   setSearchQuery: (query: string) => {
@@ -225,20 +217,6 @@ export const useEntityStore = create<EntityState>((set, get) => ({
   // Export
   exportAll: async () => {
     return entityApi.exportAll();
-  },
-
-  // GitHub: Fetch entities from repo
-  fetchFromGitHub: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      const entities = await entityApi.listGitHubEntities();
-      set({ entities, isLoading: false });
-    } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : 'Failed to fetch from GitHub',
-        isLoading: false,
-      });
-    }
   },
 
   // GitHub: Save entities to repo

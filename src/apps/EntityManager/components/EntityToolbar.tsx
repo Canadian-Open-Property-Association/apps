@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useEntityStore } from '../../../store/entityStore';
 import type { EntityType } from '../../../types/entity';
 import { ENTITY_TYPE_CONFIG } from '../../../types/entity';
@@ -9,41 +9,113 @@ interface EntityToolbarProps {
   onSaveToRepo: () => void;
 }
 
+const ALL_ENTITY_TYPES: EntityType[] = ['issuer', 'data-furnisher', 'network-partner', 'service-provider'];
+
 export default function EntityToolbar({ onAddEntity, onExport, onSaveToRepo }: EntityToolbarProps) {
-  const { typeFilter, setTypeFilter, searchQuery, setSearchQuery, fetchFromGitHub } = useEntityStore();
-  const [isSyncing, setIsSyncing] = useState(false);
+  const { typeFilters, setTypeFilters, searchQuery, setSearchQuery } = useEntityStore();
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
 
-  const entityTypes: (EntityType | null)[] = [null, 'issuer', 'data-furnisher', 'network-partner', 'service-provider'];
-
-  const handleSyncFromGitHub = async () => {
-    setIsSyncing(true);
-    try {
-      await fetchFromGitHub();
-    } catch (err) {
-      console.error('Failed to sync from GitHub:', err);
-    } finally {
-      setIsSyncing(false);
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
+        setIsFilterOpen(false);
+      }
     }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleTypeToggle = (type: EntityType) => {
+    const newFilters = typeFilters.includes(type)
+      ? typeFilters.filter((t) => t !== type)
+      : [...typeFilters, type];
+    setTypeFilters(newFilters);
   };
+
+  const handleSelectAll = () => {
+    setTypeFilters([...ALL_ENTITY_TYPES]);
+  };
+
+  const handleClearAll = () => {
+    setTypeFilters([]);
+  };
+
+  const activeFilterCount = typeFilters.length;
+  const hasActiveFilters = activeFilterCount > 0 && activeFilterCount < ALL_ENTITY_TYPES.length;
 
   return (
     <div className="bg-white border-b border-gray-200 px-4 py-3">
       <div className="flex items-center justify-between gap-4">
-        {/* Left side - Type filter tabs */}
-        <div className="flex items-center gap-1">
-          {entityTypes.map((type) => (
-            <button
-              key={type || 'all'}
-              onClick={() => setTypeFilter(type)}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                typeFilter === type
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              {type ? ENTITY_TYPE_CONFIG[type].pluralLabel : 'All'}
-            </button>
-          ))}
+        {/* Left side - Type filter dropdown */}
+        <div className="relative" ref={filterRef}>
+          <button
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+              hasActiveFilters
+                ? 'border-blue-300 bg-blue-50 text-blue-700'
+                : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            Entity Types
+            {hasActiveFilters && (
+              <span className="ml-1 px-1.5 py-0.5 text-xs bg-blue-600 text-white rounded-full">
+                {activeFilterCount}
+              </span>
+            )}
+            <svg className={`w-4 h-4 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {/* Dropdown */}
+          {isFilterOpen && (
+            <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+              <div className="p-2 border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500 uppercase">Filter by Type</span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSelectAll}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      All
+                    </button>
+                    <button
+                      onClick={handleClearAll}
+                      className="text-xs text-gray-500 hover:underline"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="p-2">
+                {ALL_ENTITY_TYPES.map((type) => {
+                  const config = ENTITY_TYPE_CONFIG[type];
+                  const isChecked = typeFilters.length === 0 || typeFilters.includes(type);
+                  return (
+                    <label
+                      key={type}
+                      className="flex items-center px-2 py-2 hover:bg-gray-50 rounded cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => handleTypeToggle(type)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="ml-3 text-sm text-gray-700">{config.pluralLabel}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Center - Search */}
@@ -74,29 +146,6 @@ export default function EntityToolbar({ onAddEntity, onExport, onSaveToRepo }: E
 
         {/* Right side - Actions */}
         <div className="flex items-center gap-2">
-          {/* Sync from GitHub */}
-          <button
-            onClick={handleSyncFromGitHub}
-            disabled={isSyncing}
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-            title="Load entities from GitHub repository"
-          >
-            <svg
-              className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-            {isSyncing ? 'Syncing...' : 'Sync from GitHub'}
-          </button>
-
           {/* Export */}
           <button
             onClick={onExport}

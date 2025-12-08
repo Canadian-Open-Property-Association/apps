@@ -6,6 +6,17 @@ interface EntityDetailProps {
   onEdit: () => void;
 }
 
+function formatDateTime(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export default function EntityDetail({ entity, onEdit }: EntityDetailProps) {
   const typeConfig = ENTITY_TYPE_CONFIG[entity.type];
   const statusConfig = ENTITY_STATUS_CONFIG[entity.status];
@@ -19,7 +30,7 @@ export default function EntityDetail({ entity, onEdit }: EntityDetailProps) {
           <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
             {entity.logoUri ? (
               <img
-                src={entity.logoUri.startsWith('http') ? entity.logoUri : `https://openpropertyassociation.ca/${entity.logoUri}`}
+                src={entity.logoUri.startsWith('http') ? entity.logoUri : entity.logoUri.startsWith('/') ? entity.logoUri : `https://openpropertyassociation.ca/${entity.logoUri}`}
                 alt={entity.name}
                 className="w-full h-full object-contain"
                 onError={(e) => {
@@ -131,56 +142,43 @@ export default function EntityDetail({ entity, onEdit }: EntityDetailProps) {
             )}
           </div>
         </div>
-
-        {/* Credential Types Section (for issuers) */}
-        {entity.credentialTypes && entity.credentialTypes.length > 0 && (
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Credential Types</h3>
-            <div className="flex flex-wrap gap-2">
-              {entity.credentialTypes.map((type) => (
-                <span
-                  key={type}
-                  className="text-xs px-2 py-1 bg-white border border-gray-200 rounded-md font-mono"
-                >
-                  {type}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Regions Section */}
-        {entity.regionsCovered && entity.regionsCovered.length > 0 && (
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Regions Covered</h3>
-            <div className="flex flex-wrap gap-2">
-              {entity.regionsCovered.map((region) => (
-                <span
-                  key={region}
-                  className="text-xs px-2 py-1 bg-white border border-gray-200 rounded-md"
-                >
-                  {region}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Metadata Footer */}
       <div className="mt-6 pt-4 border-t border-gray-200">
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <div className="flex items-center gap-4">
-            {entity.createdBy && (
-              <span>Created by {entity.createdBy.login}</span>
-            )}
-            {entity.createdAt && (
-              <span>Created {new Date(entity.createdAt).toLocaleDateString()}</span>
-            )}
+        <div className="grid grid-cols-2 gap-4">
+          {/* Created Info */}
+          <div className="bg-gray-50 rounded-lg p-3">
+            <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Created</h4>
+            <div className="space-y-1">
+              {entity.createdAt && (
+                <p className="text-sm text-gray-800">{formatDateTime(entity.createdAt)}</p>
+              )}
+              {entity.createdBy && (
+                <p className="text-xs text-gray-500">
+                  by <span className="font-medium text-gray-700">{entity.createdBy.name || entity.createdBy.login}</span>
+                </p>
+              )}
+            </div>
           </div>
-          {entity.updatedAt && (
-            <span>Last updated {new Date(entity.updatedAt).toLocaleDateString()}</span>
-          )}
+
+          {/* Updated Info */}
+          <div className="bg-gray-50 rounded-lg p-3">
+            <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Last Updated</h4>
+            <div className="space-y-1">
+              {entity.updatedAt && (
+                <p className="text-sm text-gray-800">{formatDateTime(entity.updatedAt)}</p>
+              )}
+              {entity.updatedBy && (
+                <p className="text-xs text-gray-500">
+                  by <span className="font-medium text-gray-700">{entity.updatedBy.name || entity.updatedBy.login}</span>
+                </p>
+              )}
+              {!entity.updatedBy && entity.updatedAt && (
+                <p className="text-xs text-gray-400 italic">No user information</p>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
