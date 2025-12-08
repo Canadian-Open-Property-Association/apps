@@ -931,4 +931,128 @@ router.get('/export', (req, res) => {
   }
 });
 
+// ============================================
+// Admin API (for seeding new data)
+// ============================================
+
+// Sync seed data - adds new furnishers from seed without removing existing ones
+router.post('/admin/sync-seed', (req, res) => {
+  try {
+    const { adminSecret } = req.body;
+
+    // Verify admin secret
+    const expectedSecret = process.env.ADMIN_SECRET || 'copa-admin-2024';
+    if (adminSecret !== expectedSecret) {
+      return res.status(401).json({ error: 'Invalid admin secret' });
+    }
+
+    const seedPath = getSeedDataPath();
+    if (!fs.existsSync(seedPath)) {
+      return res.status(404).json({ error: 'Seed data file not found' });
+    }
+
+    const seedData = JSON.parse(fs.readFileSync(seedPath, 'utf-8'));
+    const existingFurnishers = loadFurnishers();
+    const existingDataTypes = loadDataTypes();
+    const existingAttributes = loadAttributes();
+    const now = new Date().toISOString();
+
+    const addedFurnishers = [];
+    const addedDataTypes = [];
+    const addedAttributes = [];
+
+    for (const f of seedData.furnishers) {
+      // Skip if furnisher already exists
+      if (existingFurnishers.some(ef => ef.id === f.id)) {
+        console.log(`Skipping existing furnisher: ${f.id}`);
+        continue;
+      }
+
+      // Add new furnisher
+      const newFurnisher = {
+        id: f.id,
+        name: f.name,
+        description: f.description || '',
+        logoUri: f.logoUri || '',
+        website: f.website || '',
+        contactName: f.contactName || '',
+        contactEmail: f.contactEmail || '',
+        contactPhone: f.contactPhone || '',
+        did: f.did || '',
+        regionsCovered: f.regionsCovered || [],
+        createdAt: now,
+        updatedAt: now,
+      };
+      existingFurnishers.push(newFurnisher);
+      addedFurnishers.push(newFurnisher);
+
+      // Add data types and attributes
+      for (const dt of f.dataTypes || []) {
+        if (existingDataTypes.some(edt => edt.id === dt.id)) {
+          console.log(`Skipping existing data type: ${dt.id}`);
+          continue;
+        }
+
+        const newDataType = {
+          id: dt.id,
+          furnisherId: f.id,
+          name: dt.name,
+          description: dt.description || '',
+          createdAt: now,
+          updatedAt: now,
+        };
+        existingDataTypes.push(newDataType);
+        addedDataTypes.push(newDataType);
+
+        for (const attr of dt.attributes || []) {
+          const attrId = `${dt.id}-${attr.name}`;
+          if (existingAttributes.some(ea => ea.id === attrId)) {
+            continue;
+          }
+
+          const newAttribute = {
+            id: attrId,
+            dataTypeId: dt.id,
+            name: attr.name,
+            displayName: attr.displayName || attr.name,
+            description: attr.description || '',
+            dataType: attr.dataType || 'string',
+            sampleValue: attr.sampleValue || '',
+            regionsCovered: attr.regionsCovered || null,
+            path: attr.path || '',
+            metadata: attr.metadata || {},
+            createdAt: now,
+            updatedAt: now,
+          };
+          existingAttributes.push(newAttribute);
+          addedAttributes.push(newAttribute);
+        }
+      }
+    }
+
+    // Save updated data
+    saveFurnishers(existingFurnishers);
+    saveDataTypes(existingDataTypes);
+    saveAttributes(existingAttributes);
+
+    console.log(`Sync complete: ${addedFurnishers.length} furnishers, ${addedDataTypes.length} data types, ${addedAttributes.length} attributes added`);
+
+    res.json({
+      success: true,
+      added: {
+        furnishers: addedFurnishers.length,
+        dataTypes: addedDataTypes.length,
+        attributes: addedAttributes.length,
+      },
+      details: {
+        furnishers: addedFurnishers.map(f => f.id),
+        dataTypes: addedDataTypes.map(dt => dt.id),
+      },
+    });
+  } catch (error) {
+    console.error('Error syncing seed data:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

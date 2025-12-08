@@ -9,16 +9,18 @@ const GITHUB_REPO_NAME = process.env.GITHUB_REPO_NAME || 'governance';
 const VCT_FOLDER_PATH = process.env.VCT_FOLDER_PATH || 'credentials/branding';
 const SCHEMA_FOLDER_PATH = process.env.SCHEMA_FOLDER_PATH || 'credentials/schemas';
 const CONTEXT_FOLDER_PATH = process.env.CONTEXT_FOLDER_PATH || 'credentials/contexts';
+const ENTITY_FOLDER_PATH = process.env.ENTITY_FOLDER_PATH || 'entities';
 const BASE_URL = process.env.BASE_URL || 'https://openpropertyassociation.ca';
 // Base branch for PRs - if set, use this instead of repo's default branch
 const GITHUB_BASE_BRANCH = process.env.GITHUB_BASE_BRANCH || null;
 
-// Get configuration (base URLs for VCT, Schema, and Context)
+// Get configuration (base URLs for VCT, Schema, Context, and Entities)
 router.get('/config', requireAuth, (req, res) => {
   res.json({
     vctBaseUrl: `${BASE_URL}/credentials/branding/`,
     schemaBaseUrl: `${BASE_URL}/credentials/schemas/`,
     contextBaseUrl: `${BASE_URL}/credentials/contexts/`,
+    entityBaseUrl: `${BASE_URL}/entities/`,
   });
 });
 
@@ -344,6 +346,256 @@ Created by @${user.login} using the [COPA Apps](https://apps.openpropertyassocia
   } catch (error) {
     console.error('Error creating VCT PR:', error);
     res.status(500).json({ error: error.message || 'Failed to create VCT pull request' });
+  }
+});
+
+// ============================================
+// Entity Management Endpoints
+// ============================================
+
+// List entities from the repository
+router.get('/entity-library', requireAuth, async (req, res) => {
+  try {
+    const octokit = getOctokit(req);
+
+    // Get entities.json from the entities folder
+    const { data } = await octokit.rest.repos.getContent({
+      owner: GITHUB_REPO_OWNER,
+      repo: GITHUB_REPO_NAME,
+      path: `${ENTITY_FOLDER_PATH}/entities.json`,
+      ...(GITHUB_BASE_BRANCH && { ref: GITHUB_BASE_BRANCH }),
+    });
+
+    // Decode base64 content
+    const content = Buffer.from(data.content, 'base64').toString('utf-8');
+    const entityData = JSON.parse(content);
+
+    res.json(entityData.entities || []);
+  } catch (error) {
+    if (error.status === 404) {
+      // File doesn't exist yet
+      return res.json([]);
+    }
+    console.error('Error fetching entity library:', error);
+    res.status(500).json({ error: 'Failed to fetch entity library' });
+  }
+});
+
+// Get entity file metadata (for checking if it exists)
+router.get('/entity-available', requireAuth, async (req, res) => {
+  try {
+    const octokit = getOctokit(req);
+
+    try {
+      await octokit.rest.repos.getContent({
+        owner: GITHUB_REPO_OWNER,
+        repo: GITHUB_REPO_NAME,
+        path: `${ENTITY_FOLDER_PATH}/entities.json`,
+        ...(GITHUB_BASE_BRANCH && { ref: GITHUB_BASE_BRANCH }),
+      });
+      res.json({ exists: true });
+    } catch (error) {
+      if (error.status === 404) {
+        res.json({ exists: false });
+      } else {
+        throw error;
+      }
+    }
+  } catch (error) {
+    console.error('Error checking entity availability:', error);
+    res.status(500).json({ error: 'Failed to check entity availability' });
+  }
+});
+
+// Save entities to repository (creates branch + PR)
+router.post('/entity', requireAuth, async (req, res) => {
+  try {
+    const { content, title, description } = req.body;
+
+    if (!content) {
+      return res.status(400).json({ error: 'Content is required' });
+    }
+
+    const octokit = getOctokit(req);
+    const user = req.session.user;
+
+    // Determine the base branch for the PR
+    let baseBranch = GITHUB_BASE_BRANCH;
+    if (!baseBranch) {
+      const { data: repo } = await octokit.rest.repos.get({
+        owner: GITHUB_REPO_OWNER,
+        repo: GITHUB_REPO_NAME,
+      });
+      baseBranch = repo.default_branch;
+    }
+
+    // Get the latest commit SHA of the base branch
+    const { data: ref } = await octokit.rest.git.getRef({
+      owner: GITHUB_REPO_OWNER,
+      repo: GITHUB_REPO_NAME,
+      ref: `heads/${baseBranch}`,
+    });
+    const baseSha = ref.object.sha;
+
+    // Create a new branch
+    const timestamp = Date.now();
+    const branchName = `entity/update-entities-${timestamp}`;
+
+    await octokit.rest.git.createRef({
+      owner: GITHUB_REPO_OWNER,
+      repo: GITHUB_REPO_NAME,
+      ref: `refs/heads/${branchName}`,
+      sha: baseSha,
+    });
+
+    // Check if file exists to get its SHA for update
+    let existingSha = null;
+    try {
+      const { data: existingFile } = await octokit.rest.repos.getContent({
+        owner: GITHUB_REPO_OWNER,
+        repo: GITHUB_REPO_NAME,
+        path: `${ENTITY_FOLDER_PATH}/entities.json`,
+        ref: baseBranch,
+      });
+      existingSha = existingFile.sha;
+    } catch (error) {
+      if (error.status !== 404) {
+        throw error;
+      }
+      // File doesn't exist, that's fine - we'll create it
+    }
+
+    // Create or update the file in the new branch
+    const filePath = `${ENTITY_FOLDER_PATH}/entities.json`;
+    const fileContent = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+    const encodedContent = Buffer.from(fileContent).toString('base64');
+
+    await octokit.rest.repos.createOrUpdateFileContents({
+      owner: GITHUB_REPO_OWNER,
+      repo: GITHUB_REPO_NAME,
+      path: filePath,
+      message: title || 'Update entity registry',
+      content: encodedContent,
+      branch: branchName,
+      ...(existingSha && { sha: existingSha }),
+    });
+
+    // Create a pull request
+    const prTitle = title || 'Update entity registry';
+    const prBody = description || `This PR updates the entity registry.
+
+Created by @${user.login} using the [COPA Apps](https://apps.openpropertyassociation.ca).`;
+
+    const { data: pr } = await octokit.rest.pulls.create({
+      owner: GITHUB_REPO_OWNER,
+      repo: GITHUB_REPO_NAME,
+      title: prTitle,
+      body: prBody,
+      head: branchName,
+      base: baseBranch,
+    });
+
+    res.json({
+      success: true,
+      pr: {
+        number: pr.number,
+        url: pr.html_url,
+        title: pr.title,
+      },
+      branch: branchName,
+      file: filePath,
+      uri: `${BASE_URL}/${filePath}`,
+    });
+  } catch (error) {
+    console.error('Error creating Entity PR:', error);
+    res.status(500).json({ error: error.message || 'Failed to create Entity pull request' });
+  }
+});
+
+// Upload entity logo to repository (creates branch + PR)
+router.post('/entity-logo', requireAuth, async (req, res) => {
+  try {
+    const { entityId, filename, content, title, description } = req.body;
+
+    if (!entityId || !filename || !content) {
+      return res.status(400).json({ error: 'entityId, filename, and content are required' });
+    }
+
+    const octokit = getOctokit(req);
+    const user = req.session.user;
+
+    // Determine the base branch for the PR
+    let baseBranch = GITHUB_BASE_BRANCH;
+    if (!baseBranch) {
+      const { data: repo } = await octokit.rest.repos.get({
+        owner: GITHUB_REPO_OWNER,
+        repo: GITHUB_REPO_NAME,
+      });
+      baseBranch = repo.default_branch;
+    }
+
+    // Get the latest commit SHA of the base branch
+    const { data: ref } = await octokit.rest.git.getRef({
+      owner: GITHUB_REPO_OWNER,
+      repo: GITHUB_REPO_NAME,
+      ref: `heads/${baseBranch}`,
+    });
+    const baseSha = ref.object.sha;
+
+    // Create a new branch
+    const timestamp = Date.now();
+    const branchName = `entity/add-logo-${entityId}-${timestamp}`;
+
+    await octokit.rest.git.createRef({
+      owner: GITHUB_REPO_OWNER,
+      repo: GITHUB_REPO_NAME,
+      ref: `refs/heads/${branchName}`,
+      sha: baseSha,
+    });
+
+    // Create the logo file in the new branch
+    const filePath = `${ENTITY_FOLDER_PATH}/logos/${filename}`;
+    // Content should already be base64 encoded from the client
+    const encodedContent = content.replace(/^data:image\/\w+;base64,/, '');
+
+    await octokit.rest.repos.createOrUpdateFileContents({
+      owner: GITHUB_REPO_OWNER,
+      repo: GITHUB_REPO_NAME,
+      path: filePath,
+      message: `Add logo for entity: ${entityId}`,
+      content: encodedContent,
+      branch: branchName,
+    });
+
+    // Create a pull request
+    const prTitle = title || `Add logo for entity: ${entityId}`;
+    const prBody = description || `This PR adds a logo for the entity \`${entityId}\`.
+
+Created by @${user.login} using the [COPA Apps](https://apps.openpropertyassociation.ca).`;
+
+    const { data: pr } = await octokit.rest.pulls.create({
+      owner: GITHUB_REPO_OWNER,
+      repo: GITHUB_REPO_NAME,
+      title: prTitle,
+      body: prBody,
+      head: branchName,
+      base: baseBranch,
+    });
+
+    res.json({
+      success: true,
+      pr: {
+        number: pr.number,
+        url: pr.html_url,
+        title: pr.title,
+      },
+      branch: branchName,
+      file: filePath,
+      logoUri: `${ENTITY_FOLDER_PATH}/logos/${filename}`,
+    });
+  } catch (error) {
+    console.error('Error uploading entity logo:', error);
+    res.status(500).json({ error: error.message || 'Failed to upload entity logo' });
   }
 });
 

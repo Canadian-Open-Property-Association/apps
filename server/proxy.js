@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import authRouter from './auth.js';
 import githubRouter from './github.js';
 import catalogueRouter from './routes/catalogue.js';
+import entitiesRouter from './routes/entities.js';
 import { initAccessLogger, logAccess, queryLogs, queryAnalytics } from './accessLogger.js';
 import { requireAdmin, isAdmin } from './adminMiddleware.js';
 
@@ -139,10 +140,11 @@ app.use((req, res, next) => {
   next();
 });
 
-// Mount auth, github, and catalogue routes
+// Mount auth, github, catalogue, and entities routes
 app.use('/api/auth', authRouter);
 app.use('/api/github', githubRouter);
 app.use('/api/catalogue', catalogueRouter);
+app.use('/api/entities', entitiesRouter);
 
 // Serve static assets (uploaded files)
 app.use('/assets', express.static(ASSETS_DIR));
