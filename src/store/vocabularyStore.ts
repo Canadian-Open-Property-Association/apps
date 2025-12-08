@@ -219,11 +219,11 @@ export const loadDefaultVocabulary = async (): Promise<void> => {
     // If remote vocabulary fetch failed, use built-in fallback
     if (!result) {
       console.log('Using built-in COPA vocabulary as fallback');
-      useVocabularyStore.setState((state) => ({
+      useVocabularyStore.setState({
         vocabularies: [BUILTIN_COPA_VOCABULARY],
         selectedVocabId: BUILTIN_COPA_VOCABULARY.id,
         error: null, // Clear the error since we have a fallback
-      }));
+      });
     }
   }
 };
