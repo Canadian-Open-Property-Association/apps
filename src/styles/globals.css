@@ -21,3 +21,58 @@ body {
   display: flex;
   flex-direction: column;
 }
+
+/* Swagger UI Customizations */
+.swagger-ui .topbar {
+  display: none;
+}
+
+.swagger-ui {
+  background: transparent;
+}
+
+.swagger-ui .info {
+  margin: 0;
+}
+
+.swagger-ui .info .title {
+  color: #1f2937;
+}
+
+.swagger-ui .scheme-container {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  box-shadow: none;
+}
+
+.swagger-ui .opblock-tag {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.swagger-ui .opblock-tag:hover {
+  background: #f9fafb;
+}
+
+.swagger-ui .opblock {
+  border-radius: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.swagger-ui .btn {
+  border-radius: 0.375rem;
+}
+
+.swagger-ui .btn.execute {
+  background-color: #2563eb;
+  border-color: #2563eb;
+}
+
+.swagger-ui .btn.execute:hover {
+  background-color: #1d4ed8;
+}
+
+.swagger-ui .download-url-wrapper {
+  display: none;
+}
