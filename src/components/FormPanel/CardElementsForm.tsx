@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useVctStore } from '../../store/vctStore';
 import { useZoneTemplateStore } from '../../store/zoneTemplateStore';
+import { useZoneSelectionStore } from '../../store/zoneSelectionStore';
 import {
   ZoneTemplate,
   Zone,
@@ -28,14 +29,48 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
   const display = currentVct.display[displayIndex];
   const dynamicElements = display?.dynamic_card_elements;
 
+  // Zone selection state
+  const selectedZoneId = useZoneSelectionStore((state) => state.selectedZoneId);
+  const selectedFace = useZoneSelectionStore((state) => state.selectedFace);
+  const clearSelection = useZoneSelectionStore((state) => state.clearSelection);
+
   const [frontExpanded, setFrontExpanded] = useState(true);
   const [backExpanded, setBackExpanded] = useState(!template.frontOnly);
   const [assetPickerOpen, setAssetPickerOpen] = useState(false);
   const [assetPickerZoneId, setAssetPickerZoneId] = useState<string | null>(null);
   const [assetPickerFace, setAssetPickerFace] = useState<'front' | 'back'>('front');
 
+  // Refs for zone elements to enable scroll-to
+  const zoneRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
   const frontZones = template.front.zones;
   const backZones = template.back.zones;
+
+  // Scroll to selected zone when it changes
+  useEffect(() => {
+    if (selectedZoneId && selectedFace) {
+      // Expand the correct section if collapsed
+      if (selectedFace === 'front' && !frontExpanded) {
+        setFrontExpanded(true);
+      } else if (selectedFace === 'back' && !backExpanded) {
+        setBackExpanded(true);
+      }
+
+      // Small delay to allow expansion animation
+      setTimeout(() => {
+        const ref = zoneRefs.current[selectedZoneId];
+        if (ref) {
+          ref.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Add a brief highlight effect
+          ref.classList.add('ring-2', 'ring-blue-400', 'ring-offset-2');
+          setTimeout(() => {
+            ref.classList.remove('ring-2', 'ring-blue-400', 'ring-offset-2');
+            clearSelection();
+          }, 1500);
+        }
+      }, 100);
+    }
+  }, [selectedZoneId, selectedFace, frontExpanded, backExpanded, clearSelection]);
 
   // Get element for a zone
   const getElementForZone = (face: 'front' | 'back', zoneId: string) => {
@@ -95,11 +130,13 @@ function DynamicZoneElementsForm({ template, displayIndex, claimPaths }: Dynamic
     const verticalAlignment = element?.verticalAlignment || 'middle';
     const scale = element?.scale || 1.0;
     const textWrap = element?.textWrap || false;
+    const isSelected = selectedZoneId === zone.id;
 
     return (
       <div
         key={zone.id}
-        className="border rounded p-3 space-y-2"
+        ref={(el) => { zoneRefs.current[zone.id] = el; }}
+        className={`border rounded p-3 space-y-2 transition-all duration-300 ${isSelected ? 'ring-2 ring-blue-400 ring-offset-2' : ''}`}
         style={{ borderLeftColor: zoneColor, borderLeftWidth: '4px' }}
       >
         <div className="flex justify-between items-start">

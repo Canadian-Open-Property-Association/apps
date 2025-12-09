@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import { useVctStore } from '../../store/vctStore';
 import { useZoneTemplateStore } from '../../store/zoneTemplateStore';
+import { useZoneSelectionStore } from '../../store/zoneSelectionStore';
 import {
   getLocaleName,
   isFrontBackFormat,
@@ -84,31 +85,52 @@ function AutoSizeText({
 // Dynamic zones overlay for custom templates
 interface DynamicZonesOverlayProps {
   zones: Zone[];
+  face: 'front' | 'back';
 }
 
-function DynamicZonesOverlay({ zones }: DynamicZonesOverlayProps) {
+function DynamicZonesOverlay({ zones, face }: DynamicZonesOverlayProps) {
+  const hoveredZoneId = useZoneSelectionStore((state) => state.hoveredZoneId);
+  const selectedZoneId = useZoneSelectionStore((state) => state.selectedZoneId);
+  const setHoveredZone = useZoneSelectionStore((state) => state.setHoveredZone);
+  const setSelectedZone = useZoneSelectionStore((state) => state.setSelectedZone);
+
   return (
-    <div className="absolute inset-0 pointer-events-none z-10">
+    <div className="absolute inset-0 z-10">
       {zones.map((zone, index) => {
         const color = getZoneColor(index);
+        const isHovered = hoveredZoneId === zone.id;
+        const isSelected = selectedZoneId === zone.id;
+
         return (
           <div
             key={zone.id}
-            className="absolute flex items-center justify-center border border-dashed"
+            className="absolute flex items-center justify-center transition-all duration-150 cursor-pointer"
             style={{
               left: `${zone.position.x}%`,
               top: `${zone.position.y}%`,
               width: `${zone.position.width}%`,
               height: `${zone.position.height}%`,
-              backgroundColor: `${color}30`,
+              backgroundColor: isHovered || isSelected ? `${color}50` : `${color}30`,
+              borderWidth: isHovered || isSelected ? '2px' : '1px',
+              borderStyle: isHovered || isSelected ? 'solid' : 'dashed',
               borderColor: color,
+              transform: isHovered ? 'scale(1.02)' : 'scale(1)',
+              zIndex: isHovered || isSelected ? 20 : 10,
+              boxShadow: isHovered || isSelected ? `0 0 8px ${color}` : 'none',
+            }}
+            onMouseEnter={() => setHoveredZone(zone.id)}
+            onMouseLeave={() => setHoveredZone(null)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedZone(zone.id, face);
             }}
           >
             <span
-              className="text-[9px] font-mono font-semibold px-1 py-0.5 rounded truncate max-w-full"
+              className="text-[9px] font-mono font-semibold px-1 py-0.5 rounded truncate max-w-full transition-all duration-150"
               style={{
-                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                backgroundColor: isHovered || isSelected ? 'rgba(0, 0, 0, 0.85)' : 'rgba(0, 0, 0, 0.7)',
                 color: '#fff',
+                transform: isHovered ? 'scale(1.05)' : 'scale(1)',
               }}
             >
               {zone.name}
@@ -229,7 +251,7 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
               <div className="relative">
                 {renderDynamicCardFront()}
                 {showGridlines && selectedTemplate && (
-                  <DynamicZonesOverlay zones={selectedTemplate.front.zones} />
+                  <DynamicZonesOverlay zones={selectedTemplate.front.zones} face="front" />
                 )}
               </div>
             )}
@@ -249,7 +271,7 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
               <div className="relative">
                 {renderDynamicCardBack()}
                 {showGridlines && selectedTemplate && (
-                  <DynamicZonesOverlay zones={selectedTemplate.back.zones} />
+                  <DynamicZonesOverlay zones={selectedTemplate.back.zones} face="back" />
                 )}
               </div>
             )}
@@ -390,7 +412,7 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
                     className={`overflow-hidden ${alignment === 'left' ? 'text-left' : alignment === 'right' ? 'text-right' : 'text-center'}`}
                     style={{
                       width: '100%',
-                      fontSize: `${Math.min(16 * scale, 16)}px`,
+                      fontSize: `${16 * scale}px`,
                       lineHeight: 1.2,
                       wordBreak: 'break-word',
                     }}
@@ -502,7 +524,7 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
                       className={`overflow-hidden ${alignment === 'left' ? 'text-left' : alignment === 'right' ? 'text-right' : 'text-center'}`}
                       style={{
                         width: '100%',
-                        fontSize: `${Math.min(16 * scale, 16)}px`,
+                        fontSize: `${16 * scale}px`,
                         lineHeight: 1.2,
                         wordBreak: 'break-word',
                       }}
