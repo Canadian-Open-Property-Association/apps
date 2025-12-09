@@ -980,7 +980,7 @@ const generateV2Id = (name) => {
 // -------------------- V2 Data Types --------------------
 
 // List all data types (vocabulary-first)
-router.get('/v2/data-types', (req, res) => {
+router.get('/data-types', (req, res) => {
   try {
     const { category, search } = req.query;
     let dataTypes = loadV2DataTypes();
@@ -1007,7 +1007,7 @@ router.get('/v2/data-types', (req, res) => {
 });
 
 // Get a single data type with properties and sources
-router.get('/v2/data-types/:id', (req, res) => {
+router.get('/data-types/:id', (req, res) => {
   try {
     const { id } = req.params;
     const dataTypes = loadV2DataTypes();
@@ -1025,7 +1025,7 @@ router.get('/v2/data-types/:id', (req, res) => {
 });
 
 // Create a new data type
-router.post('/v2/data-types', requireAuth, (req, res) => {
+router.post('/data-types', requireAuth, (req, res) => {
   try {
     const dataTypes = loadV2DataTypes();
     const now = new Date().toISOString();
@@ -1067,7 +1067,7 @@ router.post('/v2/data-types', requireAuth, (req, res) => {
 });
 
 // Update a data type
-router.put('/v2/data-types/:id', requireAuth, (req, res) => {
+router.put('/data-types/:id', requireAuth, (req, res) => {
   try {
     const { id } = req.params;
     const dataTypes = loadV2DataTypes();
@@ -1104,7 +1104,7 @@ router.put('/v2/data-types/:id', requireAuth, (req, res) => {
 });
 
 // Delete a data type
-router.delete('/v2/data-types/:id', requireAuth, (req, res) => {
+router.delete('/data-types/:id', requireAuth, (req, res) => {
   try {
     const { id } = req.params;
     const dataTypes = loadV2DataTypes();
@@ -1127,7 +1127,7 @@ router.delete('/v2/data-types/:id', requireAuth, (req, res) => {
 // -------------------- V2 Properties (nested in DataType) --------------------
 
 // Add a property to a data type
-router.post('/v2/data-types/:dataTypeId/properties', requireAuth, (req, res) => {
+router.post('/data-types/:dataTypeId/properties', requireAuth, (req, res) => {
   try {
     const { dataTypeId } = req.params;
     const dataTypes = loadV2DataTypes();
@@ -1175,7 +1175,7 @@ router.post('/v2/data-types/:dataTypeId/properties', requireAuth, (req, res) => 
 });
 
 // Update a property
-router.put('/v2/data-types/:dataTypeId/properties/:propertyId', requireAuth, (req, res) => {
+router.put('/data-types/:dataTypeId/properties/:propertyId', requireAuth, (req, res) => {
   try {
     const { dataTypeId, propertyId } = req.params;
     const dataTypes = loadV2DataTypes();
@@ -1221,7 +1221,7 @@ router.put('/v2/data-types/:dataTypeId/properties/:propertyId', requireAuth, (re
 // -------------------- V2 Property Provider Mappings --------------------
 
 // Add a provider mapping to a property
-router.post('/v2/data-types/:dataTypeId/properties/:propertyId/mappings', requireAuth, (req, res) => {
+router.post('/data-types/:dataTypeId/properties/:propertyId/mappings', requireAuth, (req, res) => {
   try {
     const { dataTypeId, propertyId } = req.params;
     const dataTypes = loadV2DataTypes();
@@ -1281,7 +1281,7 @@ router.post('/v2/data-types/:dataTypeId/properties/:propertyId/mappings', requir
 });
 
 // Update a provider mapping on a property
-router.put('/v2/data-types/:dataTypeId/properties/:propertyId/mappings/:entityId', requireAuth, (req, res) => {
+router.put('/data-types/:dataTypeId/properties/:propertyId/mappings/:entityId', requireAuth, (req, res) => {
   try {
     const { dataTypeId, propertyId, entityId } = req.params;
     const dataTypes = loadV2DataTypes();
@@ -1326,7 +1326,7 @@ router.put('/v2/data-types/:dataTypeId/properties/:propertyId/mappings/:entityId
 });
 
 // Remove a provider mapping from a property
-router.delete('/v2/data-types/:dataTypeId/properties/:propertyId/mappings/:entityId', requireAuth, (req, res) => {
+router.delete('/data-types/:dataTypeId/properties/:propertyId/mappings/:entityId', requireAuth, (req, res) => {
   try {
     const { dataTypeId, propertyId, entityId } = req.params;
     const dataTypes = loadV2DataTypes();
@@ -1364,7 +1364,7 @@ router.delete('/v2/data-types/:dataTypeId/properties/:propertyId/mappings/:entit
 });
 
 // Bulk add provider mapping to multiple properties
-router.post('/v2/data-types/:dataTypeId/properties/bulk-add-mapping', requireAuth, (req, res) => {
+router.post('/data-types/:dataTypeId/properties/bulk-add-mapping', requireAuth, (req, res) => {
   try {
     const { dataTypeId } = req.params;
     const { propertyIds, mapping } = req.body;
@@ -1443,7 +1443,7 @@ router.post('/v2/data-types/:dataTypeId/properties/bulk-add-mapping', requireAut
 });
 
 // Bulk remove provider mapping from multiple properties
-router.post('/v2/data-types/:dataTypeId/properties/bulk-remove-mapping', requireAuth, (req, res) => {
+router.post('/data-types/:dataTypeId/properties/bulk-remove-mapping', requireAuth, (req, res) => {
   try {
     const { dataTypeId } = req.params;
     const { propertyIds, entityId } = req.body;
@@ -1508,7 +1508,7 @@ router.post('/v2/data-types/:dataTypeId/properties/bulk-remove-mapping', require
 });
 
 // Delete a property
-router.delete('/v2/data-types/:dataTypeId/properties/:propertyId', requireAuth, (req, res) => {
+router.delete('/data-types/:dataTypeId/properties/:propertyId', requireAuth, (req, res) => {
   try {
     const { dataTypeId, propertyId } = req.params;
     const dataTypes = loadV2DataTypes();
@@ -1542,7 +1542,7 @@ router.delete('/v2/data-types/:dataTypeId/properties/:propertyId', requireAuth, 
 // -------------------- V2 Sources (link to entities) --------------------
 
 // Add a source (entity) to a data type
-router.post('/v2/data-types/:dataTypeId/sources', requireAuth, (req, res) => {
+router.post('/data-types/:dataTypeId/sources', requireAuth, (req, res) => {
   try {
     const { dataTypeId } = req.params;
     const dataTypes = loadV2DataTypes();
@@ -1593,7 +1593,7 @@ router.post('/v2/data-types/:dataTypeId/sources', requireAuth, (req, res) => {
 });
 
 // Update a source
-router.put('/v2/data-types/:dataTypeId/sources/:entityId', requireAuth, (req, res) => {
+router.put('/data-types/:dataTypeId/sources/:entityId', requireAuth, (req, res) => {
   try {
     const { dataTypeId, entityId } = req.params;
     const dataTypes = loadV2DataTypes();
@@ -1633,7 +1633,7 @@ router.put('/v2/data-types/:dataTypeId/sources/:entityId', requireAuth, (req, re
 });
 
 // Remove a source
-router.delete('/v2/data-types/:dataTypeId/sources/:entityId', requireAuth, (req, res) => {
+router.delete('/data-types/:dataTypeId/sources/:entityId', requireAuth, (req, res) => {
   try {
     const { dataTypeId, entityId } = req.params;
     const dataTypes = loadV2DataTypes();
@@ -1667,7 +1667,7 @@ router.delete('/v2/data-types/:dataTypeId/sources/:entityId', requireAuth, (req,
 // -------------------- V2 Categories --------------------
 
 // List all categories
-router.get('/v2/categories', (req, res) => {
+router.get('/categories', (req, res) => {
   try {
     const categories = loadCategories();
     res.json(categories);
@@ -1678,7 +1678,7 @@ router.get('/v2/categories', (req, res) => {
 });
 
 // Create a new category
-router.post('/v2/categories', requireAuth, (req, res) => {
+router.post('/categories', requireAuth, (req, res) => {
   try {
     const { name, description, order } = req.body;
 
@@ -1713,7 +1713,7 @@ router.post('/v2/categories', requireAuth, (req, res) => {
 // -------------------- V2 Search --------------------
 
 // Search across data types and properties
-router.get('/v2/search', (req, res) => {
+router.get('/search', (req, res) => {
   try {
     const { q } = req.query;
     if (!q || q.length < 2) {
@@ -1743,7 +1743,7 @@ router.get('/v2/search', (req, res) => {
 // -------------------- V2 Export --------------------
 
 // Export all v2 data
-router.get('/v2/export', (req, res) => {
+router.get('/export', (req, res) => {
   try {
     const dataTypes = loadV2DataTypes();
     const categories = loadCategories();
@@ -1762,7 +1762,7 @@ router.get('/v2/export', (req, res) => {
 // -------------------- V2 Stats --------------------
 
 // Get catalogue statistics
-router.get('/v2/stats', (req, res) => {
+router.get('/stats', (req, res) => {
   try {
     const dataTypes = loadV2DataTypes();
     const categories = loadCategories();

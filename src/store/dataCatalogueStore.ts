@@ -18,7 +18,7 @@ const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:5174';
 const catalogueApi = {
   // Data Types (vocabulary)
   async listDataTypes(): Promise<DataType[]> {
-    const response = await fetch(`${API_BASE}/api/catalogue/v2/data-types`, {
+    const response = await fetch(`${API_BASE}/api/catalogue/data-types`, {
       credentials: 'include',
     });
     if (!response.ok) throw new Error('Failed to fetch data types');
@@ -26,7 +26,7 @@ const catalogueApi = {
   },
 
   async getDataType(id: string): Promise<DataType> {
-    const response = await fetch(`${API_BASE}/api/catalogue/v2/data-types/${id}`, {
+    const response = await fetch(`${API_BASE}/api/catalogue/data-types/${id}`, {
       credentials: 'include',
     });
     if (!response.ok) throw new Error('Failed to fetch data type');
@@ -34,7 +34,7 @@ const catalogueApi = {
   },
 
   async createDataType(dataType: Partial<DataType>): Promise<DataType> {
-    const response = await fetch(`${API_BASE}/api/catalogue/v2/data-types`, {
+    const response = await fetch(`${API_BASE}/api/catalogue/data-types`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -48,7 +48,7 @@ const catalogueApi = {
   },
 
   async updateDataType(id: string, updates: Partial<DataType>): Promise<DataType> {
-    const response = await fetch(`${API_BASE}/api/catalogue/v2/data-types/${id}`, {
+    const response = await fetch(`${API_BASE}/api/catalogue/data-types/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -59,7 +59,7 @@ const catalogueApi = {
   },
 
   async deleteDataType(id: string): Promise<void> {
-    const response = await fetch(`${API_BASE}/api/catalogue/v2/data-types/${id}`, {
+    const response = await fetch(`${API_BASE}/api/catalogue/data-types/${id}`, {
       method: 'DELETE',
       credentials: 'include',
     });
@@ -68,7 +68,7 @@ const catalogueApi = {
 
   // Properties (attributes of a data type)
   async addProperty(dataTypeId: string, property: Partial<Property>): Promise<DataType> {
-    const response = await fetch(`${API_BASE}/api/catalogue/v2/data-types/${dataTypeId}/properties`, {
+    const response = await fetch(`${API_BASE}/api/catalogue/data-types/${dataTypeId}/properties`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -82,7 +82,7 @@ const catalogueApi = {
   },
 
   async updateProperty(dataTypeId: string, propertyId: string, updates: Partial<Property>): Promise<DataType> {
-    const response = await fetch(`${API_BASE}/api/catalogue/v2/data-types/${dataTypeId}/properties/${propertyId}`, {
+    const response = await fetch(`${API_BASE}/api/catalogue/data-types/${dataTypeId}/properties/${propertyId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -93,7 +93,7 @@ const catalogueApi = {
   },
 
   async deleteProperty(dataTypeId: string, propertyId: string): Promise<DataType> {
-    const response = await fetch(`${API_BASE}/api/catalogue/v2/data-types/${dataTypeId}/properties/${propertyId}`, {
+    const response = await fetch(`${API_BASE}/api/catalogue/data-types/${dataTypeId}/properties/${propertyId}`, {
       method: 'DELETE',
       credentials: 'include',
     });
@@ -103,7 +103,7 @@ const catalogueApi = {
 
   // Data Sources (link data type to entity)
   async addSource(dataTypeId: string, source: Partial<DataSource>): Promise<DataType> {
-    const response = await fetch(`${API_BASE}/api/catalogue/v2/data-types/${dataTypeId}/sources`, {
+    const response = await fetch(`${API_BASE}/api/catalogue/data-types/${dataTypeId}/sources`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -117,7 +117,7 @@ const catalogueApi = {
   },
 
   async updateSource(dataTypeId: string, entityId: string, updates: Partial<DataSource>): Promise<DataType> {
-    const response = await fetch(`${API_BASE}/api/catalogue/v2/data-types/${dataTypeId}/sources/${entityId}`, {
+    const response = await fetch(`${API_BASE}/api/catalogue/data-types/${dataTypeId}/sources/${entityId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -128,7 +128,7 @@ const catalogueApi = {
   },
 
   async removeSource(dataTypeId: string, entityId: string): Promise<DataType> {
-    const response = await fetch(`${API_BASE}/api/catalogue/v2/data-types/${dataTypeId}/sources/${entityId}`, {
+    const response = await fetch(`${API_BASE}/api/catalogue/data-types/${dataTypeId}/sources/${entityId}`, {
       method: 'DELETE',
       credentials: 'include',
     });
@@ -138,7 +138,7 @@ const catalogueApi = {
 
   // Provider Mappings (at property level)
   async addProviderMapping(dataTypeId: string, propertyId: string, mapping: Partial<ProviderMapping>): Promise<DataType> {
-    const response = await fetch(`${API_BASE}/api/catalogue/v2/data-types/${dataTypeId}/properties/${propertyId}/mappings`, {
+    const response = await fetch(`${API_BASE}/api/catalogue/data-types/${dataTypeId}/properties/${propertyId}/mappings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -152,7 +152,7 @@ const catalogueApi = {
   },
 
   async updateProviderMapping(dataTypeId: string, propertyId: string, entityId: string, updates: Partial<ProviderMapping>): Promise<DataType> {
-    const response = await fetch(`${API_BASE}/api/catalogue/v2/data-types/${dataTypeId}/properties/${propertyId}/mappings/${entityId}`, {
+    const response = await fetch(`${API_BASE}/api/catalogue/data-types/${dataTypeId}/properties/${propertyId}/mappings/${entityId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -163,7 +163,7 @@ const catalogueApi = {
   },
 
   async removeProviderMapping(dataTypeId: string, propertyId: string, entityId: string): Promise<DataType> {
-    const response = await fetch(`${API_BASE}/api/catalogue/v2/data-types/${dataTypeId}/properties/${propertyId}/mappings/${entityId}`, {
+    const response = await fetch(`${API_BASE}/api/catalogue/data-types/${dataTypeId}/properties/${propertyId}/mappings/${entityId}`, {
       method: 'DELETE',
       credentials: 'include',
     });
@@ -172,7 +172,7 @@ const catalogueApi = {
   },
 
   async bulkAddProviderMapping(dataTypeId: string, propertyIds: string[], mapping: Partial<ProviderMapping>): Promise<{ success: boolean; added: number; skipped: number; dataType: DataType }> {
-    const response = await fetch(`${API_BASE}/api/catalogue/v2/data-types/${dataTypeId}/properties/bulk-add-mapping`, {
+    const response = await fetch(`${API_BASE}/api/catalogue/data-types/${dataTypeId}/properties/bulk-add-mapping`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -186,7 +186,7 @@ const catalogueApi = {
   },
 
   async bulkRemoveProviderMapping(dataTypeId: string, propertyIds: string[], entityId: string): Promise<{ success: boolean; removed: number; skipped: number; dataType: DataType }> {
-    const response = await fetch(`${API_BASE}/api/catalogue/v2/data-types/${dataTypeId}/properties/bulk-remove-mapping`, {
+    const response = await fetch(`${API_BASE}/api/catalogue/data-types/${dataTypeId}/properties/bulk-remove-mapping`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -201,7 +201,7 @@ const catalogueApi = {
 
   // Categories
   async listCategories(): Promise<DataTypeCategory[]> {
-    const response = await fetch(`${API_BASE}/api/catalogue/v2/categories`, {
+    const response = await fetch(`${API_BASE}/api/catalogue/categories`, {
       credentials: 'include',
     });
     if (!response.ok) throw new Error('Failed to fetch categories');
@@ -209,7 +209,7 @@ const catalogueApi = {
   },
 
   async createCategory(category: Partial<DataTypeCategory>): Promise<DataTypeCategory> {
-    const response = await fetch(`${API_BASE}/api/catalogue/v2/categories`, {
+    const response = await fetch(`${API_BASE}/api/catalogue/categories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -224,7 +224,7 @@ const catalogueApi = {
 
   // Search
   async search(query: string): Promise<{ dataTypes: DataType[] }> {
-    const response = await fetch(`${API_BASE}/api/catalogue/v2/search?q=${encodeURIComponent(query)}`, {
+    const response = await fetch(`${API_BASE}/api/catalogue/search?q=${encodeURIComponent(query)}`, {
       credentials: 'include',
     });
     if (!response.ok) throw new Error('Failed to search');
@@ -233,7 +233,7 @@ const catalogueApi = {
 
   // Export
   async exportAll(): Promise<{ categories: DataTypeCategory[]; dataTypes: DataType[] }> {
-    const response = await fetch(`${API_BASE}/api/catalogue/v2/export`, {
+    const response = await fetch(`${API_BASE}/api/catalogue/export`, {
       credentials: 'include',
     });
     if (!response.ok) throw new Error('Failed to export');
@@ -242,7 +242,7 @@ const catalogueApi = {
 
   // Stats
   async getStats(): Promise<CatalogueStats> {
-    const response = await fetch(`${API_BASE}/api/catalogue/v2/stats`, {
+    const response = await fetch(`${API_BASE}/api/catalogue/stats`, {
       credentials: 'include',
     });
     if (!response.ok) throw new Error('Failed to fetch stats');

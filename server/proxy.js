@@ -12,6 +12,7 @@ import catalogueRouter from './routes/catalogue.js';
 import entitiesRouter from './routes/entities.js';
 import { initAccessLogger, logAccess, queryLogs, queryAnalytics } from './accessLogger.js';
 import { requireAdmin, isAdmin } from './adminMiddleware.js';
+import { specs, swaggerUi } from './swagger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -145,6 +146,13 @@ app.use('/api/auth', authRouter);
 app.use('/api/github', githubRouter);
 app.use('/api/catalogue', catalogueRouter);
 app.use('/api/entities', entitiesRouter);
+
+// Swagger API documentation
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(specs, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'COPA API Documentation',
+}));
+app.get('/api/docs.json', (req, res) => res.json(specs));
 
 // Serve static assets (uploaded files)
 app.use('/assets', express.static(ASSETS_DIR));
