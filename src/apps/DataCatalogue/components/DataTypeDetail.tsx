@@ -3,9 +3,12 @@ import { useDataCatalogueStore } from '../../../store/dataCatalogueStore';
 import type { Property, DataSource } from '../../../types/catalogue';
 import PropertyForm from './PropertyForm';
 import SourceForm from './SourceForm';
+import JsonPreviewModal from './JsonPreviewModal';
+import BulkAssignModal from './BulkAssignModal';
 
 interface DataTypeDetailProps {
   onEdit: () => void;
+  onOpenCanvas?: () => void;
 }
 
 function formatDateTime(dateString: string): string {
@@ -33,12 +36,19 @@ const VALUE_TYPE_LABELS: Record<string, string> = {
   phone: 'Phone',
 };
 
-export default function DataTypeDetail({ onEdit }: DataTypeDetailProps) {
+export default function DataTypeDetail({ onEdit, onOpenCanvas }: DataTypeDetailProps) {
   const { selectedDataType, deleteProperty, removeSource } = useDataCatalogueStore();
   const [showPropertyForm, setShowPropertyForm] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const [showSourceForm, setShowSourceForm] = useState(false);
   const [editingSource, setEditingSource] = useState<DataSource | null>(null);
+
+  // JSON Preview state
+  const [previewProperty, setPreviewProperty] = useState<Property | null>(null);
+
+  // Multi-select state
+  const [selectedPropertyIds, setSelectedPropertyIds] = useState<string[]>([]);
+  const [showBulkAssign, setShowBulkAssign] = useState(false);
 
   if (!selectedDataType) return null;
 
@@ -52,6 +62,27 @@ export default function DataTypeDetail({ onEdit }: DataTypeDetailProps) {
     if (confirm('Are you sure you want to remove this source?')) {
       await removeSource(selectedDataType.id, entityId);
     }
+  };
+
+  // Multi-select handlers
+  const handleSelectAll = () => {
+    if (selectedPropertyIds.length === selectedDataType.properties.length) {
+      setSelectedPropertyIds([]);
+    } else {
+      setSelectedPropertyIds(selectedDataType.properties.map(p => p.id));
+    }
+  };
+
+  const handleSelectProperty = (propertyId: string) => {
+    if (selectedPropertyIds.includes(propertyId)) {
+      setSelectedPropertyIds(selectedPropertyIds.filter(id => id !== propertyId));
+    } else {
+      setSelectedPropertyIds([...selectedPropertyIds, propertyId]);
+    }
+  };
+
+  const handleBulkAssignSuccess = () => {
+    setSelectedPropertyIds([]);
   };
 
   return (
@@ -72,15 +103,29 @@ export default function DataTypeDetail({ onEdit }: DataTypeDetailProps) {
             <p className="text-sm text-gray-600 mt-2 max-w-2xl">{selectedDataType.description}</p>
           )}
         </div>
-        <button
-          onClick={onEdit}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
-          Edit
-        </button>
+        <div className="flex items-center gap-2">
+          {onOpenCanvas && (
+            <button
+              onClick={onOpenCanvas}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100"
+              title="Open visual mapping canvas"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+              </svg>
+              Canvas
+            </button>
+          )}
+          <button
+            onClick={onEdit}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Edit
+          </button>
+        </div>
       </div>
 
       {/* Properties Section */}
@@ -104,6 +149,29 @@ export default function DataTypeDetail({ onEdit }: DataTypeDetailProps) {
           </button>
         </div>
 
+        {/* Bulk Actions Bar */}
+        {selectedPropertyIds.length > 0 && (
+          <div className="mb-3 p-3 bg-blue-50 rounded-lg flex items-center justify-between">
+            <span className="text-sm text-blue-800">
+              {selectedPropertyIds.length} propert{selectedPropertyIds.length === 1 ? 'y' : 'ies'} selected
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowBulkAssign(true)}
+                className="px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Assign/Remove Provider
+              </button>
+              <button
+                onClick={() => setSelectedPropertyIds([])}
+                className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Clear Selection
+              </button>
+            </div>
+          </div>
+        )}
+
         {selectedDataType.properties.length === 0 ? (
           <div className="p-4 bg-gray-50 rounded-lg text-center text-gray-500 text-sm">
             No properties defined yet
@@ -113,16 +181,43 @@ export default function DataTypeDetail({ onEdit }: DataTypeDetailProps) {
             <table className="w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-3 py-2 w-8">
+                    <input
+                      type="checkbox"
+                      checked={selectedPropertyIds.length === selectedDataType.properties.length && selectedDataType.properties.length > 0}
+                      onChange={handleSelectAll}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Providers</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Required</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sample</th>
                   <th className="px-4 py-2"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {selectedDataType.properties.map((prop) => (
-                  <tr key={prop.id} className="hover:bg-gray-50">
+                  <tr
+                    key={prop.id}
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={(e) => {
+                      // Don't trigger JSON preview if clicking on checkbox or action buttons
+                      const target = e.target as HTMLElement;
+                      if (target.tagName === 'INPUT' || target.closest('button')) {
+                        return;
+                      }
+                      setPreviewProperty(prop);
+                    }}
+                  >
+                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedPropertyIds.includes(prop.id)}
+                        onChange={() => handleSelectProperty(prop.id)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </td>
                     <td className="px-4 py-2">
                       <div>
                         <span className="font-medium text-gray-800">{prop.displayName}</span>
@@ -136,16 +231,44 @@ export default function DataTypeDetail({ onEdit }: DataTypeDetailProps) {
                       {VALUE_TYPE_LABELS[prop.valueType] || prop.valueType}
                     </td>
                     <td className="px-4 py-2">
+                      {prop.providerMappings && prop.providerMappings.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {prop.providerMappings.slice(0, 2).map((mapping) => (
+                            <span
+                              key={mapping.entityId}
+                              className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded"
+                              title={`Provider field: ${mapping.providerFieldName}`}
+                            >
+                              {mapping.entityName || mapping.entityId}
+                            </span>
+                          ))}
+                          {prop.providerMappings.length > 2 && (
+                            <span className="text-xs text-gray-400">
+                              +{prop.providerMappings.length - 2} more
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2">
                       {prop.required ? (
                         <span className="text-xs px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded">Required</span>
                       ) : (
                         <span className="text-xs text-gray-400">Optional</span>
                       )}
                     </td>
-                    <td className="px-4 py-2 text-gray-500 font-mono text-xs">
-                      {prop.sampleValue || '-'}
-                    </td>
-                    <td className="px-4 py-2 text-right">
+                    <td className="px-4 py-2 text-right" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => setPreviewProperty(prop)}
+                        className="text-gray-400 hover:text-gray-600 p-1"
+                        title="View JSON"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                        </svg>
+                      </button>
                       <button
                         onClick={() => { setEditingProperty(prop); setShowPropertyForm(true); }}
                         className="text-gray-400 hover:text-blue-600 p-1"
@@ -180,7 +303,7 @@ export default function DataTypeDetail({ onEdit }: DataTypeDetailProps) {
             <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
-            Data Sources
+            Data Sources (Type-Level)
             <span className="text-gray-400 font-normal">({selectedDataType.sources.length})</span>
           </h3>
           <button
@@ -288,6 +411,25 @@ export default function DataTypeDetail({ onEdit }: DataTypeDetailProps) {
           dataTypeId={selectedDataType.id}
           source={editingSource}
           onClose={() => { setShowSourceForm(false); setEditingSource(null); }}
+        />
+      )}
+
+      {/* JSON Preview Modal */}
+      {previewProperty && (
+        <JsonPreviewModal
+          property={previewProperty}
+          dataTypeName={selectedDataType.name}
+          onClose={() => setPreviewProperty(null)}
+        />
+      )}
+
+      {/* Bulk Assign Modal */}
+      {showBulkAssign && (
+        <BulkAssignModal
+          dataTypeId={selectedDataType.id}
+          selectedPropertyIds={selectedPropertyIds}
+          onClose={() => setShowBulkAssign(false)}
+          onSuccess={handleBulkAssignSuccess}
         />
       )}
     </div>

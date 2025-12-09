@@ -36,9 +36,24 @@ export type PropertyValueType =
   | 'email'
   | 'phone';
 
+// ============================================
+// ProviderMapping - links a Property to an Entity (provider)
+// This enables data harmonization at the property level
+// ============================================
+
+export interface ProviderMapping {
+  entityId: string; // Reference to Entity (e.g., "copa-landcor")
+  entityName?: string; // Denormalized for display
+  providerFieldName: string; // The provider's original field name (e.g., "assessed_val")
+  regionsCovered?: string[]; // Optional region override
+  notes?: string; // Integration notes
+  addedAt: string;
+  addedBy?: UserRef;
+}
+
 export interface Property {
   id: string;
-  name: string; // Technical name (e.g., "assessed_value")
+  name: string; // Technical name (e.g., "assessed_value") - canonical vocabulary name
   displayName: string; // Human-readable (e.g., "Assessed Value")
   description?: string;
   valueType: PropertyValueType;
@@ -46,6 +61,7 @@ export interface Property {
   sampleValue?: string;
   path?: string; // JSON path like "property_details.bedrooms"
   metadata?: Record<string, unknown>;
+  providerMappings?: ProviderMapping[]; // Which entities provide this property with field name mapping
 }
 
 // ============================================

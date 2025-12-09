@@ -4,6 +4,7 @@ import type {
   DataTypeCategory,
   Property,
   DataSource,
+  ProviderMapping,
   CategoryWithTypes,
   CatalogueStats,
 } from '../types/catalogue';
@@ -135,6 +136,69 @@ const catalogueApi = {
     return response.json();
   },
 
+  // Provider Mappings (at property level)
+  async addProviderMapping(dataTypeId: string, propertyId: string, mapping: Partial<ProviderMapping>): Promise<DataType> {
+    const response = await fetch(`${API_BASE}/api/catalogue/v2/data-types/${dataTypeId}/properties/${propertyId}/mappings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(mapping),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to add provider mapping');
+    }
+    return response.json();
+  },
+
+  async updateProviderMapping(dataTypeId: string, propertyId: string, entityId: string, updates: Partial<ProviderMapping>): Promise<DataType> {
+    const response = await fetch(`${API_BASE}/api/catalogue/v2/data-types/${dataTypeId}/properties/${propertyId}/mappings/${entityId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(updates),
+    });
+    if (!response.ok) throw new Error('Failed to update provider mapping');
+    return response.json();
+  },
+
+  async removeProviderMapping(dataTypeId: string, propertyId: string, entityId: string): Promise<DataType> {
+    const response = await fetch(`${API_BASE}/api/catalogue/v2/data-types/${dataTypeId}/properties/${propertyId}/mappings/${entityId}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    if (!response.ok) throw new Error('Failed to remove provider mapping');
+    return response.json();
+  },
+
+  async bulkAddProviderMapping(dataTypeId: string, propertyIds: string[], mapping: Partial<ProviderMapping>): Promise<{ success: boolean; added: number; skipped: number; dataType: DataType }> {
+    const response = await fetch(`${API_BASE}/api/catalogue/v2/data-types/${dataTypeId}/properties/bulk-add-mapping`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ propertyIds, mapping }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to bulk add provider mappings');
+    }
+    return response.json();
+  },
+
+  async bulkRemoveProviderMapping(dataTypeId: string, propertyIds: string[], entityId: string): Promise<{ success: boolean; removed: number; skipped: number; dataType: DataType }> {
+    const response = await fetch(`${API_BASE}/api/catalogue/v2/data-types/${dataTypeId}/properties/bulk-remove-mapping`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ propertyIds, entityId }),
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to bulk remove provider mappings');
+    }
+    return response.json();
+  },
+
   // Categories
   async listCategories(): Promise<DataTypeCategory[]> {
     const response = await fetch(`${API_BASE}/api/catalogue/v2/categories`, {
@@ -225,6 +289,13 @@ interface DataCatalogueState {
   addSource: (dataTypeId: string, source: Partial<DataSource>) => Promise<void>;
   updateSource: (dataTypeId: string, entityId: string, updates: Partial<DataSource>) => Promise<void>;
   removeSource: (dataTypeId: string, entityId: string) => Promise<void>;
+
+  // Provider Mapping CRUD (at property level)
+  addProviderMapping: (dataTypeId: string, propertyId: string, mapping: Partial<ProviderMapping>) => Promise<void>;
+  updateProviderMapping: (dataTypeId: string, propertyId: string, entityId: string, updates: Partial<ProviderMapping>) => Promise<void>;
+  removeProviderMapping: (dataTypeId: string, propertyId: string, entityId: string) => Promise<void>;
+  bulkAddProviderMapping: (dataTypeId: string, propertyIds: string[], mapping: Partial<ProviderMapping>) => Promise<{ added: number; skipped: number }>;
+  bulkRemoveProviderMapping: (dataTypeId: string, propertyIds: string[], entityId: string) => Promise<{ removed: number; skipped: number }>;
 
   // Category CRUD
   createCategory: (category: Partial<DataTypeCategory>) => Promise<DataTypeCategory>;
@@ -365,6 +436,43 @@ export const useDataCatalogueStore = create<DataCatalogueState>((set, get) => ({
     const updated = await catalogueApi.removeSource(dataTypeId, entityId);
     set({ selectedDataType: updated });
     await get().fetchDataTypes();
+  },
+
+  // Add provider mapping to a property
+  addProviderMapping: async (dataTypeId, propertyId, mapping) => {
+    const updated = await catalogueApi.addProviderMapping(dataTypeId, propertyId, mapping);
+    set({ selectedDataType: updated });
+    await get().fetchDataTypes();
+  },
+
+  // Update provider mapping on a property
+  updateProviderMapping: async (dataTypeId, propertyId, entityId, updates) => {
+    const updated = await catalogueApi.updateProviderMapping(dataTypeId, propertyId, entityId, updates);
+    set({ selectedDataType: updated });
+    await get().fetchDataTypes();
+  },
+
+  // Remove provider mapping from a property
+  removeProviderMapping: async (dataTypeId, propertyId, entityId) => {
+    const updated = await catalogueApi.removeProviderMapping(dataTypeId, propertyId, entityId);
+    set({ selectedDataType: updated });
+    await get().fetchDataTypes();
+  },
+
+  // Bulk add provider mapping to multiple properties
+  bulkAddProviderMapping: async (dataTypeId, propertyIds, mapping) => {
+    const result = await catalogueApi.bulkAddProviderMapping(dataTypeId, propertyIds, mapping);
+    set({ selectedDataType: result.dataType });
+    await get().fetchDataTypes();
+    return { added: result.added, skipped: result.skipped };
+  },
+
+  // Bulk remove provider mapping from multiple properties
+  bulkRemoveProviderMapping: async (dataTypeId, propertyIds, entityId) => {
+    const result = await catalogueApi.bulkRemoveProviderMapping(dataTypeId, propertyIds, entityId);
+    set({ selectedDataType: result.dataType });
+    await get().fetchDataTypes();
+    return { removed: result.removed, skipped: result.skipped };
   },
 
   // Create category

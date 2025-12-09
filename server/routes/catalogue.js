@@ -1200,6 +1200,7 @@ router.put('/v2/data-types/:dataTypeId/properties/:propertyId', requireAuth, (re
       sampleValue: req.body.sampleValue ?? dataTypes[dtIndex].properties[propIndex].sampleValue,
       path: req.body.path ?? dataTypes[dtIndex].properties[propIndex].path,
       metadata: req.body.metadata ?? dataTypes[dtIndex].properties[propIndex].metadata,
+      providerMappings: req.body.providerMappings ?? dataTypes[dtIndex].properties[propIndex].providerMappings,
     };
 
     dataTypes[dtIndex].updatedAt = new Date().toISOString();
@@ -1213,6 +1214,295 @@ router.put('/v2/data-types/:dataTypeId/properties/:propertyId', requireAuth, (re
     res.json(dataTypes[dtIndex]);
   } catch (error) {
     console.error('Error updating property:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// -------------------- V2 Property Provider Mappings --------------------
+
+// Add a provider mapping to a property
+router.post('/v2/data-types/:dataTypeId/properties/:propertyId/mappings', requireAuth, (req, res) => {
+  try {
+    const { dataTypeId, propertyId } = req.params;
+    const dataTypes = loadV2DataTypes();
+    const dtIndex = dataTypes.findIndex(dt => dt.id === dataTypeId);
+
+    if (dtIndex === -1) {
+      return res.status(404).json({ error: 'Data type not found' });
+    }
+
+    const propIndex = dataTypes[dtIndex].properties.findIndex(p => p.id === propertyId);
+    if (propIndex === -1) {
+      return res.status(404).json({ error: 'Property not found' });
+    }
+
+    const mapping = {
+      entityId: req.body.entityId,
+      entityName: req.body.entityName || '',
+      providerFieldName: req.body.providerFieldName || dataTypes[dtIndex].properties[propIndex].name,
+      regionsCovered: req.body.regionsCovered || [],
+      notes: req.body.notes || '',
+      addedAt: new Date().toISOString(),
+      addedBy: {
+        id: String(req.session.user.id),
+        login: req.session.user.login,
+        name: req.session.user.name || undefined,
+      },
+    };
+
+    if (!mapping.entityId) {
+      return res.status(400).json({ error: 'Entity ID is required' });
+    }
+
+    // Initialize providerMappings array if it doesn't exist
+    if (!dataTypes[dtIndex].properties[propIndex].providerMappings) {
+      dataTypes[dtIndex].properties[propIndex].providerMappings = [];
+    }
+
+    // Check for duplicate mapping
+    if (dataTypes[dtIndex].properties[propIndex].providerMappings.some(m => m.entityId === mapping.entityId)) {
+      return res.status(409).json({ error: 'This entity is already mapped to this property' });
+    }
+
+    dataTypes[dtIndex].properties[propIndex].providerMappings.push(mapping);
+    dataTypes[dtIndex].updatedAt = new Date().toISOString();
+    dataTypes[dtIndex].updatedBy = {
+      id: String(req.session.user.id),
+      login: req.session.user.login,
+      name: req.session.user.name || undefined,
+    };
+
+    saveV2DataTypes(dataTypes);
+    res.json(dataTypes[dtIndex]);
+  } catch (error) {
+    console.error('Error adding provider mapping:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update a provider mapping on a property
+router.put('/v2/data-types/:dataTypeId/properties/:propertyId/mappings/:entityId', requireAuth, (req, res) => {
+  try {
+    const { dataTypeId, propertyId, entityId } = req.params;
+    const dataTypes = loadV2DataTypes();
+    const dtIndex = dataTypes.findIndex(dt => dt.id === dataTypeId);
+
+    if (dtIndex === -1) {
+      return res.status(404).json({ error: 'Data type not found' });
+    }
+
+    const propIndex = dataTypes[dtIndex].properties.findIndex(p => p.id === propertyId);
+    if (propIndex === -1) {
+      return res.status(404).json({ error: 'Property not found' });
+    }
+
+    const mappings = dataTypes[dtIndex].properties[propIndex].providerMappings || [];
+    const mappingIndex = mappings.findIndex(m => m.entityId === entityId);
+    if (mappingIndex === -1) {
+      return res.status(404).json({ error: 'Provider mapping not found' });
+    }
+
+    dataTypes[dtIndex].properties[propIndex].providerMappings[mappingIndex] = {
+      ...mappings[mappingIndex],
+      entityName: req.body.entityName ?? mappings[mappingIndex].entityName,
+      providerFieldName: req.body.providerFieldName ?? mappings[mappingIndex].providerFieldName,
+      regionsCovered: req.body.regionsCovered ?? mappings[mappingIndex].regionsCovered,
+      notes: req.body.notes ?? mappings[mappingIndex].notes,
+    };
+
+    dataTypes[dtIndex].updatedAt = new Date().toISOString();
+    dataTypes[dtIndex].updatedBy = {
+      id: String(req.session.user.id),
+      login: req.session.user.login,
+      name: req.session.user.name || undefined,
+    };
+
+    saveV2DataTypes(dataTypes);
+    res.json(dataTypes[dtIndex]);
+  } catch (error) {
+    console.error('Error updating provider mapping:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remove a provider mapping from a property
+router.delete('/v2/data-types/:dataTypeId/properties/:propertyId/mappings/:entityId', requireAuth, (req, res) => {
+  try {
+    const { dataTypeId, propertyId, entityId } = req.params;
+    const dataTypes = loadV2DataTypes();
+    const dtIndex = dataTypes.findIndex(dt => dt.id === dataTypeId);
+
+    if (dtIndex === -1) {
+      return res.status(404).json({ error: 'Data type not found' });
+    }
+
+    const propIndex = dataTypes[dtIndex].properties.findIndex(p => p.id === propertyId);
+    if (propIndex === -1) {
+      return res.status(404).json({ error: 'Property not found' });
+    }
+
+    const mappings = dataTypes[dtIndex].properties[propIndex].providerMappings || [];
+    const mappingIndex = mappings.findIndex(m => m.entityId === entityId);
+    if (mappingIndex === -1) {
+      return res.status(404).json({ error: 'Provider mapping not found' });
+    }
+
+    dataTypes[dtIndex].properties[propIndex].providerMappings.splice(mappingIndex, 1);
+    dataTypes[dtIndex].updatedAt = new Date().toISOString();
+    dataTypes[dtIndex].updatedBy = {
+      id: String(req.session.user.id),
+      login: req.session.user.login,
+      name: req.session.user.name || undefined,
+    };
+
+    saveV2DataTypes(dataTypes);
+    res.json(dataTypes[dtIndex]);
+  } catch (error) {
+    console.error('Error removing provider mapping:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk add provider mapping to multiple properties
+router.post('/v2/data-types/:dataTypeId/properties/bulk-add-mapping', requireAuth, (req, res) => {
+  try {
+    const { dataTypeId } = req.params;
+    const { propertyIds, mapping } = req.body;
+    const dataTypes = loadV2DataTypes();
+    const dtIndex = dataTypes.findIndex(dt => dt.id === dataTypeId);
+
+    if (dtIndex === -1) {
+      return res.status(404).json({ error: 'Data type not found' });
+    }
+
+    if (!Array.isArray(propertyIds) || propertyIds.length === 0) {
+      return res.status(400).json({ error: 'Property IDs array is required' });
+    }
+
+    if (!mapping?.entityId) {
+      return res.status(400).json({ error: 'Entity ID is required in mapping' });
+    }
+
+    const now = new Date().toISOString();
+    const userRef = {
+      id: String(req.session.user.id),
+      login: req.session.user.login,
+      name: req.session.user.name || undefined,
+    };
+
+    let addedCount = 0;
+    let skippedCount = 0;
+
+    for (const propertyId of propertyIds) {
+      const propIndex = dataTypes[dtIndex].properties.findIndex(p => p.id === propertyId);
+      if (propIndex === -1) {
+        skippedCount++;
+        continue;
+      }
+
+      // Initialize providerMappings array if it doesn't exist
+      if (!dataTypes[dtIndex].properties[propIndex].providerMappings) {
+        dataTypes[dtIndex].properties[propIndex].providerMappings = [];
+      }
+
+      // Skip if mapping already exists for this entity
+      if (dataTypes[dtIndex].properties[propIndex].providerMappings.some(m => m.entityId === mapping.entityId)) {
+        skippedCount++;
+        continue;
+      }
+
+      const newMapping = {
+        entityId: mapping.entityId,
+        entityName: mapping.entityName || '',
+        providerFieldName: mapping.providerFieldName || dataTypes[dtIndex].properties[propIndex].name,
+        regionsCovered: mapping.regionsCovered || [],
+        notes: mapping.notes || '',
+        addedAt: now,
+        addedBy: userRef,
+      };
+
+      dataTypes[dtIndex].properties[propIndex].providerMappings.push(newMapping);
+      addedCount++;
+    }
+
+    dataTypes[dtIndex].updatedAt = now;
+    dataTypes[dtIndex].updatedBy = userRef;
+
+    saveV2DataTypes(dataTypes);
+
+    res.json({
+      success: true,
+      added: addedCount,
+      skipped: skippedCount,
+      dataType: dataTypes[dtIndex],
+    });
+  } catch (error) {
+    console.error('Error bulk adding provider mappings:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk remove provider mapping from multiple properties
+router.post('/v2/data-types/:dataTypeId/properties/bulk-remove-mapping', requireAuth, (req, res) => {
+  try {
+    const { dataTypeId } = req.params;
+    const { propertyIds, entityId } = req.body;
+    const dataTypes = loadV2DataTypes();
+    const dtIndex = dataTypes.findIndex(dt => dt.id === dataTypeId);
+
+    if (dtIndex === -1) {
+      return res.status(404).json({ error: 'Data type not found' });
+    }
+
+    if (!Array.isArray(propertyIds) || propertyIds.length === 0) {
+      return res.status(400).json({ error: 'Property IDs array is required' });
+    }
+
+    if (!entityId) {
+      return res.status(400).json({ error: 'Entity ID is required' });
+    }
+
+    const now = new Date().toISOString();
+    const userRef = {
+      id: String(req.session.user.id),
+      login: req.session.user.login,
+      name: req.session.user.name || undefined,
+    };
+
+    let removedCount = 0;
+    let skippedCount = 0;
+
+    for (const propertyId of propertyIds) {
+      const propIndex = dataTypes[dtIndex].properties.findIndex(p => p.id === propertyId);
+      if (propIndex === -1) {
+        skippedCount++;
+        continue;
+      }
+
+      const mappings = dataTypes[dtIndex].properties[propIndex].providerMappings || [];
+      const mappingIndex = mappings.findIndex(m => m.entityId === entityId);
+      if (mappingIndex === -1) {
+        skippedCount++;
+        continue;
+      }
+
+      dataTypes[dtIndex].properties[propIndex].providerMappings.splice(mappingIndex, 1);
+      removedCount++;
+    }
+
+    dataTypes[dtIndex].updatedAt = now;
+    dataTypes[dtIndex].updatedBy = userRef;
+
+    saveV2DataTypes(dataTypes);
+
+    res.json({
+      success: true,
+      removed: removedCount,
+      skipped: skippedCount,
+      dataType: dataTypes[dtIndex],
+    });
+  } catch (error) {
+    console.error('Error bulk removing provider mappings:', error);
     res.status(500).json({ error: error.message });
   }
 });
