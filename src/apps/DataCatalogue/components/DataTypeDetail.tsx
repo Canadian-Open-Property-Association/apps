@@ -64,12 +64,16 @@ export default function DataTypeDetail({ onEdit, onOpenCanvas }: DataTypeDetailP
     }
   };
 
+  // Get properties and sources with fallbacks for legacy data
+  const properties = selectedDataType.properties || [];
+  const sources = selectedDataType.sources || [];
+
   // Multi-select handlers
   const handleSelectAll = () => {
-    if (selectedPropertyIds.length === selectedDataType.properties.length) {
+    if (selectedPropertyIds.length === properties.length) {
       setSelectedPropertyIds([]);
     } else {
-      setSelectedPropertyIds(selectedDataType.properties.map(p => p.id));
+      setSelectedPropertyIds(properties.map(p => p.id));
     }
   };
 
@@ -136,7 +140,7 @@ export default function DataTypeDetail({ onEdit, onOpenCanvas }: DataTypeDetailP
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
             </svg>
             Properties
-            <span className="text-gray-400 font-normal">({selectedDataType.properties.length})</span>
+            <span className="text-gray-400 font-normal">({properties.length})</span>
           </h3>
           <button
             onClick={() => { setEditingProperty(null); setShowPropertyForm(true); }}
@@ -172,7 +176,7 @@ export default function DataTypeDetail({ onEdit, onOpenCanvas }: DataTypeDetailP
           </div>
         )}
 
-        {selectedDataType.properties.length === 0 ? (
+        {properties.length === 0 ? (
           <div className="p-4 bg-gray-50 rounded-lg text-center text-gray-500 text-sm">
             No properties defined yet
           </div>
@@ -184,7 +188,7 @@ export default function DataTypeDetail({ onEdit, onOpenCanvas }: DataTypeDetailP
                   <th className="px-3 py-2 w-8">
                     <input
                       type="checkbox"
-                      checked={selectedPropertyIds.length === selectedDataType.properties.length && selectedDataType.properties.length > 0}
+                      checked={selectedPropertyIds.length === properties.length && properties.length > 0}
                       onChange={handleSelectAll}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
@@ -197,7 +201,7 @@ export default function DataTypeDetail({ onEdit, onOpenCanvas }: DataTypeDetailP
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {selectedDataType.properties.map((prop) => (
+                {properties.map((prop) => (
                   <tr
                     key={prop.id}
                     className="hover:bg-gray-50 cursor-pointer"
@@ -304,7 +308,7 @@ export default function DataTypeDetail({ onEdit, onOpenCanvas }: DataTypeDetailP
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
             Data Sources (Type-Level)
-            <span className="text-gray-400 font-normal">({selectedDataType.sources.length})</span>
+            <span className="text-gray-400 font-normal">({sources.length})</span>
           </h3>
           <button
             onClick={() => { setEditingSource(null); setShowSourceForm(true); }}
@@ -317,13 +321,13 @@ export default function DataTypeDetail({ onEdit, onOpenCanvas }: DataTypeDetailP
           </button>
         </div>
 
-        {selectedDataType.sources.length === 0 ? (
+        {sources.length === 0 ? (
           <div className="p-4 bg-gray-50 rounded-lg text-center text-gray-500 text-sm">
             No data sources linked yet
           </div>
         ) : (
           <div className="space-y-2">
-            {selectedDataType.sources.map((source) => (
+            {sources.map((source) => (
               <div key={source.entityId} className="border border-gray-200 rounded-lg p-3 bg-white hover:bg-gray-50">
                 <div className="flex items-start justify-between">
                   <div>

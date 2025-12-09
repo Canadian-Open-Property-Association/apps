@@ -37,18 +37,18 @@ function VocabNode({ data, selected }: NodeProps<VocabNodeData>) {
         <div className="flex items-center gap-2 mt-0.5">
           <span className="text-xs text-gray-500 capitalize">{data.category}</span>
           <span className="text-xs text-gray-400">|</span>
-          <span className="text-xs text-gray-500">{data.properties.length} properties</span>
+          <span className="text-xs text-gray-500">{(data.properties || []).length} properties</span>
         </div>
       </div>
 
       {/* Properties */}
       <div className="p-2 space-y-1 max-h-[300px] overflow-y-auto">
-        {data.properties.length === 0 ? (
+        {(data.properties || []).length === 0 ? (
           <div className="text-xs text-gray-400 italic px-2 py-1">
             No properties defined
           </div>
         ) : (
-          data.properties.map((prop) => (
+          (data.properties || []).map((prop) => (
             <div
               key={prop.id}
               className="relative flex items-center"

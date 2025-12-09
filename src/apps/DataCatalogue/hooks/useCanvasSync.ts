@@ -57,7 +57,7 @@ export function useCanvasSync(selectedDataTypeId: string | null) {
     // Collect all entities that have mappings to this data type's properties
     const entityMappings = new Map<string, Set<string>>(); // entityId -> set of providerFieldNames
 
-    selectedDataType.properties.forEach(prop => {
+    (selectedDataType.properties || []).forEach(prop => {
       prop.providerMappings?.forEach(mapping => {
         if (!entityMappings.has(mapping.entityId)) {
           entityMappings.set(mapping.entityId, new Set());
@@ -116,7 +116,7 @@ export function useCanvasSync(selectedDataTypeId: string | null) {
         dataTypeId: selectedDataType.id,
         dataTypeName: selectedDataType.name,
         category: selectedDataType.category,
-        properties: selectedDataType.properties.map(p => ({
+        properties: (selectedDataType.properties || []).map(p => ({
           id: p.id,
           name: p.name,
           displayName: p.displayName,
@@ -128,7 +128,7 @@ export function useCanvasSync(selectedDataTypeId: string | null) {
     // Create edges from provider mappings
     const newEdges: Edge[] = [];
 
-    selectedDataType.properties.forEach(prop => {
+    (selectedDataType.properties || []).forEach(prop => {
       prop.providerMappings?.forEach(mapping => {
         newEdges.push({
           id: `edge-${mapping.entityId}-${mapping.providerFieldName}-${prop.id}`,

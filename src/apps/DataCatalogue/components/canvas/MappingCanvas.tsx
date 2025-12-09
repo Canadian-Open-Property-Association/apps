@@ -119,7 +119,7 @@ export default function MappingCanvas({ selectedDataTypeId, onBackToList }: Mapp
                 {selectedDataType.name}
               </span>
               <span className="text-xs text-gray-500 ml-2">
-                ({selectedDataType.properties.length} properties)
+                ({(selectedDataType.properties || []).length} properties)
               </span>
             </div>
           )}

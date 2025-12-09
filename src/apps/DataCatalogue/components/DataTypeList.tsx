@@ -40,11 +40,11 @@ export default function DataTypeList() {
             )}
             <div className="flex items-center gap-3 mt-1">
               <span className="text-xs text-gray-400">
-                {dt.properties.length} properties
+                {(dt.properties || []).length} properties
               </span>
-              {dt.sources.length > 0 && (
+              {(dt.sources || []).length > 0 && (
                 <span className="text-xs text-green-600">
-                  {dt.sources.length} source{dt.sources.length !== 1 ? 's' : ''}
+                  {(dt.sources || []).length} source{(dt.sources || []).length !== 1 ? 's' : ''}
                 </span>
               )}
             </div>
