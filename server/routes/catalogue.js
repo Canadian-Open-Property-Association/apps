@@ -1678,6 +1678,42 @@ function mapLegacyDataType(legacyType) {
   return mapping[legacyType?.toLowerCase()] || 'string';
 }
 
+// Force reseed v2 data types from seed file
+router.post('/admin/reseed-v2', (req, res) => {
+  try {
+    const { adminSecret } = req.body;
+
+    // Verify admin secret
+    const expectedSecret = process.env.ADMIN_SECRET || 'copa-admin-2024';
+    if (adminSecret !== expectedSecret) {
+      return res.status(401).json({ error: 'Invalid admin secret' });
+    }
+
+    const seedPath = getV2SeedDataPath();
+    if (!fs.existsSync(seedPath)) {
+      return res.status(404).json({ error: 'V2 seed data file not found' });
+    }
+
+    const seedData = JSON.parse(fs.readFileSync(seedPath, 'utf-8'));
+    const v2File = getV2DataTypesFile();
+
+    // Force overwrite with seed data
+    fs.writeFileSync(v2File, JSON.stringify(seedData, null, 2));
+
+    console.log(`V2 data types reseeded with ${seedData.dataTypes?.length || 0} data types`);
+
+    res.json({
+      success: true,
+      message: `Reseeded v2 data types`,
+      dataTypes: seedData.dataTypes?.length || 0,
+      properties: seedData.dataTypes?.reduce((sum, dt) => sum + (dt.properties?.length || 0), 0) || 0,
+    });
+  } catch (error) {
+    console.error('Error reseeding v2 data:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Sync seed data - adds new furnishers from seed without removing existing ones
 router.post('/admin/sync-seed', (req, res) => {
   try {
