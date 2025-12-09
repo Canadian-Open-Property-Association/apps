@@ -101,6 +101,18 @@ const apps: AppCard[] = [
     available: true,
     adminOnly: true,
   },
+  {
+    id: 'dev-tools',
+    name: 'Developer Tools',
+    description: 'API documentation, VDR conventions, and vocabulary reference for developers',
+    icon: (
+      <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+      </svg>
+    ),
+    path: '/apps/dev-tools',
+    available: true,
+  },
 ];
 
 // Helper to get recent apps from localStorage

@@ -229,6 +229,43 @@ export const useSchemaStore = create<SchemaStore>()(
         });
       },
 
+      // Add property with initial data (for vocabulary import)
+      addPropertyWithData: (data: Partial<SchemaProperty>, parentId?: string) => {
+        const newId = generateId();
+        const newProperty = { ...createDefaultProperty(newId), ...data, id: newId };
+
+        set((state) => {
+          const properties = deepClone(state.properties);
+
+          if (!parentId) {
+            properties.push(newProperty);
+          } else {
+            const parent = findPropertyById(properties, parentId);
+            if (parent) {
+              if (parent.type === 'object') {
+                parent.properties = parent.properties || [];
+                parent.properties.push(newProperty);
+              } else if (parent.type === 'array' && parent.items) {
+                parent.items.properties = parent.items.properties || [];
+                parent.items.properties.push(newProperty);
+              }
+            }
+          }
+
+          const expandedNodes = new Set(state.expandedNodes);
+          if (parentId) expandedNodes.add(parentId);
+
+          return {
+            properties,
+            selectedPropertyId: newId,
+            expandedNodes,
+            isDirty: true,
+          };
+        });
+
+        return newId;
+      },
+
       updateProperty: (id: string, updates: Partial<SchemaProperty>) =>
         set((state) => {
           const properties = deepClone(state.properties);

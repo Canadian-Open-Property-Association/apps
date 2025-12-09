@@ -58,6 +58,10 @@ export interface SchemaMetadata {
   governanceDocUrl?: string;     // x-governance-doc URL
   governanceDocName?: string;    // Display name of linked governance doc
 
+  // Namespace fields (for VDR naming convention)
+  category?: string;             // Category slug (e.g., "property", "identity", "badge")
+  credentialName?: string;       // Credential name slug (e.g., "home-credential")
+
   // JSON-LD Context mode fields
   mode: SchemaMode;              // 'json-schema' or 'jsonld-context'
   vocabUrl?: string;             // URL to vocabulary file
@@ -142,6 +146,7 @@ export interface SchemaStore {
 
   // Property actions
   addProperty: (parentId?: string) => void;
+  addPropertyWithData: (data: Partial<SchemaProperty>, parentId?: string) => string;
   updateProperty: (id: string, updates: Partial<SchemaProperty>) => void;
   deleteProperty: (id: string) => void;
   moveProperty: (id: string, direction: 'up' | 'down') => void;
@@ -169,20 +174,59 @@ export interface SchemaStore {
   fetchGovernanceDocs: () => Promise<void>;
 }
 
-// Base URL for schema hosting
-export const SCHEMA_BASE_URL = 'https://openpropertyassociation.ca/credentials/schemas';
+// Base URLs for VDR hosting
+export const VDR_BASE_URL = 'https://openpropertyassociation.ca/credentials';
+export const SCHEMA_BASE_URL = `${VDR_BASE_URL}/schemas`;
+export const CONTEXT_BASE_URL = `${VDR_BASE_URL}/contexts`;
 
-// Generate $id from title (converts to kebab-case)
-export const generateSchemaId = (title: string): string => {
-  if (!title) return '';
-  const kebabCase = title
+// Convert string to kebab-case
+export const toKebabCase = (str: string): string => {
+  if (!str) return '';
+  return str
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, '') // Remove special chars except spaces and hyphens
     .replace(/\s+/g, '-')          // Replace spaces with hyphens
     .replace(/-+/g, '-')           // Collapse multiple hyphens
     .replace(/^-|-$/g, '');        // Remove leading/trailing hyphens
-  return `${SCHEMA_BASE_URL}/${kebabCase}.json`;
+};
+
+// Generate full artifact name from category and credential name
+// Pattern: {category}-{credential-name}
+export const generateArtifactName = (category?: string, credentialName?: string): string => {
+  if (!category && !credentialName) return '';
+  const parts = [category, credentialName].filter((p): p is string => Boolean(p)).map(toKebabCase);
+  return parts.join('-');
+};
+
+// Generate $id from category and credential name (for schemas)
+export const generateSchemaId = (title: string, category?: string, credentialName?: string): string => {
+  // If category and credentialName are provided, use them
+  if (category || credentialName) {
+    const artifactName = generateArtifactName(category, credentialName);
+    if (artifactName) {
+      return `${SCHEMA_BASE_URL}/${artifactName}.schema.json`;
+    }
+  }
+  // Fallback to title-based generation
+  if (!title) return '';
+  const kebabCase = toKebabCase(title);
+  return `${SCHEMA_BASE_URL}/${kebabCase}.schema.json`;
+};
+
+// Generate context URL from category and credential name
+export const generateContextUrl = (title: string, category?: string, credentialName?: string): string => {
+  // If category and credentialName are provided, use them
+  if (category || credentialName) {
+    const artifactName = generateArtifactName(category, credentialName);
+    if (artifactName) {
+      return `${CONTEXT_BASE_URL}/${artifactName}.context.jsonld`;
+    }
+  }
+  // Fallback to title-based generation
+  if (!title) return '';
+  const kebabCase = toKebabCase(title);
+  return `${CONTEXT_BASE_URL}/${kebabCase}.context.jsonld`;
 };
 
 // Create default empty schema metadata
@@ -370,6 +414,29 @@ export const STRING_FORMAT_LABELS: Record<StringFormat, string> = {
 };
 
 /**
+ * Convert a property name to PascalCase
+ * Handles both snake_case and kebab-case
+ */
+const toPascalCase = (str: string): string => {
+  return str
+    .split(/[-_]/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join('');
+};
+
+/**
+ * Generate schema prefix from title (PascalCase)
+ * e.g., "Home Credential" -> "HomeCredential"
+ */
+const getSchemaPrefix = (title: string): string => {
+  return title
+    .replace(/[^a-zA-Z0-9\s]/g, '')
+    .split(/\s+/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join('');
+};
+
+/**
  * Convert internal schema representation to JSON-LD Context format
  * This is used when mode is 'jsonld-context'
  */
@@ -378,8 +445,16 @@ export const toJsonLdContext = (
   properties: SchemaProperty[],
   vocabulary: Vocabulary | null
 ): object => {
-  const contextUrl = metadata.contextUrl || DEFAULT_CONTEXT_URL;
-  const vocabUrl = metadata.vocabUrl || (vocabulary?.url) || 'https://openpropertyassociation.ca/vocab.jsonld';
+  // Generate context URL dynamically from category + credentialName, or fallback
+  const contextUrl = metadata.contextUrl ||
+    generateContextUrl(metadata.title, metadata.category, metadata.credentialName) ||
+    DEFAULT_CONTEXT_URL;
+
+  // Vocab URL - use copa: prefix since vocabulary comes from Data Catalogue
+  const vocabUrl = metadata.vocabUrl || (vocabulary?.url) || 'https://openpropertyassociation.ca/vocab';
+
+  // Schema prefix for nested type naming (e.g., "HomeCredential")
+  const schemaPrefix = metadata.title ? getSchemaPrefix(metadata.title) : '';
 
   /**
    * Build property mappings for a set of properties
@@ -404,8 +479,8 @@ export const toJsonLdContext = (
         // Simple vocab term reference
         mappings[prop.name] = customId || `vocab:${vocabTermId}`;
       } else {
-        // Fallback to property name
-        mappings[prop.name] = customId || `vocab:${prop.name}`;
+        // Fallback to property name (use copa: prefix for canonical vocab terms)
+        mappings[prop.name] = customId || `copa:${prop.name}`;
       }
     }
 
@@ -415,6 +490,7 @@ export const toJsonLdContext = (
   /**
    * Build type definitions for complex types (objects with nested properties)
    * Each complex type gets its own @context block
+   * Type names follow pattern: {SchemaName}{PropertyName} (e.g., HomeCredentialPropertyAddress)
    */
   const buildTypeDefinitions = (props: SchemaProperty[]): Record<string, unknown> => {
     const types: Record<string, unknown> = {};
@@ -445,8 +521,10 @@ export const toJsonLdContext = (
 
       // Also check if property type is object with properties (implicit complex type)
       if (prop.type === 'object' && prop.properties && prop.properties.length > 0 && !prop.jsonLd?.complexTypeId) {
-        // Create a type name from the property name (PascalCase)
-        const typeId = prop.name.charAt(0).toUpperCase() + prop.name.slice(1);
+        // Create type name with schema prefix: {SchemaName}{PropertyName}
+        // e.g., "HomeCredentialPropertyAddress" for "property_address" in "Home Credential" schema
+        const propPascal = toPascalCase(prop.name);
+        const typeId = schemaPrefix ? `${schemaPrefix}${propPascal}` : propPascal;
         const nestedMappings = buildPropertyMappings(prop.properties);
 
         types[typeId] = {
@@ -458,6 +536,9 @@ export const toJsonLdContext = (
             ...nestedMappings,
           },
         };
+
+        // Update the property mapping to reference this type
+        // (This is needed so the root mapping points to the correct type)
 
         // Recursively process nested properties
         for (const nested of prop.properties) {
@@ -473,11 +554,51 @@ export const toJsonLdContext = (
     return types;
   };
 
+  /**
+   * Build property mappings with proper @type references for nested objects
+   */
+  const buildRootMappingsWithTypes = (props: SchemaProperty[]): Record<string, unknown> => {
+    const mappings: Record<string, unknown> = {};
+
+    for (const prop of props) {
+      if (!prop.name) continue;
+
+      const vocabTermId = prop.jsonLd?.vocabTermId;
+      const complexTypeId = prop.jsonLd?.complexTypeId;
+      const customId = prop.jsonLd?.customId;
+
+      // Check if this is an object with nested properties (needs @type reference)
+      if (prop.type === 'object' && prop.properties && prop.properties.length > 0) {
+        const propPascal = toPascalCase(prop.name);
+        const typeId = complexTypeId || (schemaPrefix ? `${schemaPrefix}${propPascal}` : propPascal);
+
+        mappings[prop.name] = {
+          '@id': customId || `copa:${vocabTermId || prop.name}`,
+          '@type': `${contextUrl}#${typeId}`,
+        };
+      } else if (complexTypeId) {
+        // Explicit complex type reference
+        mappings[prop.name] = {
+          '@id': customId || `copa:${vocabTermId || prop.name}`,
+          '@type': `${contextUrl}#${complexTypeId}`,
+        };
+      } else if (vocabTermId) {
+        // Simple vocab term reference
+        mappings[prop.name] = customId || `copa:${vocabTermId}`;
+      } else {
+        // Fallback to property name
+        mappings[prop.name] = customId || `copa:${prop.name}`;
+      }
+    }
+
+    return mappings;
+  };
+
   // Build type definitions for nested complex types
   const typeDefinitions = buildTypeDefinitions(properties);
 
-  // Build root property mappings
-  const rootMappings = buildPropertyMappings(properties);
+  // Build root property mappings (with @type references for nested objects)
+  const rootMappings = buildRootMappingsWithTypes(properties);
 
   // Build the full @context object
   const contextContent: Record<string, unknown> = {
@@ -490,19 +611,16 @@ export const toJsonLdContext = (
     contextContent['oca'] = metadata.ocaUrl;
   }
 
-  // Add vocabulary reference
+  // Add vocabulary references
   contextContent['vocab'] = vocabUrl;
+  contextContent['copa'] = 'https://openpropertyassociation.ca/vocab#';
 
   // Add type definitions (complex types with their own @context)
   Object.assign(contextContent, typeDefinitions);
 
   // If there's a root type (based on schema title), wrap root properties in it
   if (metadata.title) {
-    const rootTypeName = metadata.title
-      .replace(/[^a-zA-Z0-9\s]/g, '')
-      .split(/\s+/)
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join('');
+    const rootTypeName = getSchemaPrefix(metadata.title);
 
     contextContent[rootTypeName] = {
       '@id': `${contextUrl}#${rootTypeName}`,

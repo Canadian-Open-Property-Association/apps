@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { useSchemaStore } from '../../../store/schemaStore';
 import { SchemaProperty, PROPERTY_TYPE_LABELS } from '../../../types/schema';
+import VocabPropertySelector from './VocabPropertySelector';
 
 interface PropertyNodeProps {
   property: SchemaProperty;
@@ -180,53 +182,37 @@ function PropertyNode({ property, depth }: PropertyNodeProps) {
 }
 
 export default function PropertyTree() {
+  const [showVocabSelector, setShowVocabSelector] = useState(false);
+
   const {
     properties,
     addProperty,
     expandAll,
     collapseAll,
     metadata,
-    updateMetadata,
   } = useSchemaStore();
+
+  const isJsonLdMode = metadata.mode === 'jsonld-context';
 
   return (
     <div className="flex flex-col h-full">
-      {/* Metadata Section */}
-      <div className="p-3 border-b border-gray-200 bg-gray-50">
-        <div className="space-y-2">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Schema Title
-            </label>
-            <input
-              type="text"
-              value={metadata.title}
-              onChange={(e) => updateMetadata({ title: e.target.value })}
-              placeholder="e.g., Home Credential Schema"
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
-              Description
-            </label>
-            <textarea
-              value={metadata.description}
-              onChange={(e) => updateMetadata({ description: e.target.value })}
-              placeholder="Schema description..."
-              rows={2}
-              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
-            />
-          </div>
-        </div>
-      </div>
-
       {/* Properties Header */}
       <div className="px-3 py-2 border-b border-gray-200 flex items-center justify-between bg-white">
         <span className="text-sm font-medium text-gray-700">
           credentialSubject Properties
         </span>
         <div className="flex items-center gap-1">
+          {isJsonLdMode && (
+            <button
+              onClick={() => setShowVocabSelector(true)}
+              className="p-1 hover:bg-purple-100 rounded text-purple-600"
+              title="Add from vocabulary"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </button>
+          )}
           <button
             onClick={expandAll}
             className="p-1 hover:bg-gray-100 rounded text-gray-500"
@@ -278,6 +264,12 @@ export default function PropertyTree() {
           ))
         )}
       </div>
+
+      {/* Vocabulary Property Selector Modal */}
+      <VocabPropertySelector
+        isOpen={showVocabSelector}
+        onClose={() => setShowVocabSelector(false)}
+      />
     </div>
   );
 }

@@ -3,10 +3,12 @@
  *
  * Modal for creating a GitHub PR to save the schema/context to the repository.
  * Supports both JSON Schema and JSON-LD Context modes.
+ * Uses VDR namespace convention: {category}-{credential-name}.{type}.{ext}
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useSchemaStore } from '../../../store/schemaStore';
+import { generateArtifactName } from '../../../types/schema';
 
 interface SaveSchemaToRepoModalProps {
   isOpen: boolean;
@@ -29,7 +31,18 @@ export default function SaveSchemaToRepoModal({ isOpen, onClose }: SaveSchemaToR
 
   const isJsonLdMode = metadata.mode === 'jsonld-context';
   const typeLabel = isJsonLdMode ? 'JSON-LD Context' : 'JSON Schema';
-  const fileExtension = isJsonLdMode ? '.jsonld' : '.json';
+  // Use namespace convention: {base}.context.jsonld or {base}.schema.json
+  const fileExtension = isJsonLdMode ? '.context.jsonld' : '.schema.json';
+
+  // Generate default filename using namespace convention
+  const defaultFilename = useMemo(() => {
+    const artifactName = generateArtifactName(metadata.category, metadata.credentialName);
+    if (artifactName) return artifactName;
+    // Fallback to project name if namespace not set
+    return currentProjectName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  }, [metadata.category, metadata.credentialName, currentProjectName]);
+
+  const hasNamespace = !!(metadata.category && metadata.credentialName);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +52,6 @@ export default function SaveSchemaToRepoModal({ isOpen, onClose }: SaveSchemaToR
 
     try {
       const content = exportSchema();
-      const defaultFilename = currentProjectName.toLowerCase().replace(/\s+/g, '-');
 
       const response = await fetch(`${API_BASE}/api/github/schema`, {
         method: 'POST',
@@ -148,6 +160,18 @@ export default function SaveSchemaToRepoModal({ isOpen, onClose }: SaveSchemaToR
               </p>
             </div>
 
+            {/* Namespace warning */}
+            {!hasNamespace && (
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                <p className="text-sm text-yellow-800">
+                  <strong>Tip:</strong> Set category and credential name in Metadata to use VDR naming convention.
+                </p>
+                <p className="text-xs text-yellow-700 mt-1">
+                  Convention: <code>{'{category}'}-{'{credential-name}'}{fileExtension}</code>
+                </p>
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Filename
@@ -157,15 +181,17 @@ export default function SaveSchemaToRepoModal({ isOpen, onClose }: SaveSchemaToR
                   type="text"
                   value={filename}
                   onChange={(e) => setFilename(e.target.value)}
-                  placeholder={currentProjectName.toLowerCase().replace(/\s+/g, '-')}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md text-sm"
+                  placeholder={defaultFilename}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-l-md text-sm font-mono"
                 />
-                <span className="px-3 py-2 bg-gray-100 border border-l-0 border-gray-300 rounded-r-md text-sm text-gray-500">
+                <span className="px-3 py-2 bg-gray-100 border border-l-0 border-gray-300 rounded-r-md text-sm text-gray-500 font-mono">
                   {fileExtension}
                 </span>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Leave blank to use project name
+                {hasNamespace
+                  ? `Using namespace convention: ${defaultFilename}${fileExtension}`
+                  : 'Leave blank to use default name'}
               </p>
             </div>
 
