@@ -112,6 +112,12 @@ export default function EntityDetail({ entity, onEdit }: EntityDetailProps) {
                 </a>
               </div>
             )}
+            {entity.contactName && (
+              <div>
+                <label className="text-xs text-gray-500">Contact Person</label>
+                <p className="text-sm text-gray-800">{entity.contactName}</p>
+              </div>
+            )}
             {entity.contactEmail && (
               <div>
                 <label className="text-xs text-gray-500">Email</label>
@@ -123,7 +129,18 @@ export default function EntityDetail({ entity, onEdit }: EntityDetailProps) {
                 </a>
               </div>
             )}
-            {!entity.website && !entity.contactEmail && (
+            {entity.contactPhone && (
+              <div>
+                <label className="text-xs text-gray-500">Phone</label>
+                <a
+                  href={`tel:${entity.contactPhone}`}
+                  className="block text-sm text-blue-600 hover:underline"
+                >
+                  {entity.contactPhone}
+                </a>
+              </div>
+            )}
+            {!entity.website && !entity.contactEmail && !entity.contactName && !entity.contactPhone && (
               <p className="text-sm text-gray-400 italic">No contact information</p>
             )}
           </div>
@@ -164,6 +181,31 @@ export default function EntityDetail({ entity, onEdit }: EntityDetailProps) {
           </div>
         </div>
       </div>
+
+      {/* Regions Covered - Only shown for Data Furnishers with regions */}
+      {entity.regionsCovered && entity.regionsCovered.length > 0 && (
+        <div className="mt-6 bg-green-50 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Regions Covered
+            <span className="ml-auto text-xs font-normal text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+              Data Furnisher
+            </span>
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {entity.regionsCovered.map((region) => (
+              <span
+                key={region}
+                className="px-2 py-1 text-sm bg-white border border-green-200 text-green-800 rounded-lg"
+              >
+                {region}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Metadata Footer */}
       <div className="mt-6 pt-4 border-t border-gray-200">

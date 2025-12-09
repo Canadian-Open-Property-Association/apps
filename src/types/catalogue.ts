@@ -1,20 +1,5 @@
-// Data Catalogue Types
-
-// Data Type Config - standardized data type definitions
-export interface DataTypeConfig {
-  id: string;
-  name: string;
-  description?: string;
-  category: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface DataTypeCategory {
-  id: string;
-  name: string;
-  order: number;
-}
+// Data Catalogue Types - Vocabulary-First Design
+// Based on schema.org vocabulary model where DataTypes are the primary concept
 
 export interface UserRef {
   id: string;
@@ -22,74 +7,121 @@ export interface UserRef {
   name?: string;
 }
 
-export interface Furnisher {
+// ============================================
+// Categories - for organizing data types
+// ============================================
+
+export interface DataTypeCategory {
   id: string;
   name: string;
   description?: string;
+  order: number;
+}
 
-  // Info Card Details
-  logoUri?: string;
-  website?: string;
-  contactName?: string;
-  contactEmail?: string;
-  contactPhone?: string;
+// ============================================
+// Property - attributes/fields of a data type
+// Similar to schema.org Property
+// ============================================
 
-  // Technical Details
-  did?: string; // Future: DID for trust registry
-  regionsCovered: string[];
+export type PropertyValueType =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'date'
+  | 'datetime'
+  | 'array'
+  | 'object'
+  | 'currency'
+  | 'url'
+  | 'email'
+  | 'phone';
+
+export interface Property {
+  id: string;
+  name: string; // Technical name (e.g., "assessed_value")
+  displayName: string; // Human-readable (e.g., "Assessed Value")
+  description?: string;
+  valueType: PropertyValueType;
+  required: boolean;
+  sampleValue?: string;
+  path?: string; // JSON path like "property_details.bedrooms"
+  metadata?: Record<string, unknown>;
+}
+
+// ============================================
+// DataSource - links a DataType to an Entity
+// This is the "who provides this data type" relationship
+// ============================================
+
+export interface DataSource {
+  entityId: string; // Reference to Entity from Entity Manager
+  entityName?: string; // Denormalized for display (populated from Entity Manager)
+  regionsCovered?: string[]; // Optional override - if empty, use Entity's regions
+  updateFrequency?: string; // How often data is refreshed (e.g., "daily", "monthly")
+  notes?: string; // Integration notes
+  apiEndpoint?: string; // Technical integration endpoint
+  addedAt: string;
+  addedBy?: UserRef;
+}
+
+// ============================================
+// DataType - the primary vocabulary concept
+// Similar to schema.org Type
+// ============================================
+
+export interface DataType {
+  id: string; // Slug-style ID (e.g., "property-valuation")
+  name: string; // Display name (e.g., "Property Valuation")
+  description?: string;
+  category: string; // Category ID (e.g., "property", "financial", "identity")
+
+  // Hierarchy support (like schema.org type inheritance)
+  parentTypeId?: string; // Reference to parent DataType for inheritance
+  childTypeIds?: string[]; // Populated dynamically, not stored
+
+  // Properties (attributes of this type)
+  properties: Property[];
+
+  // Data Sources (which entities provide this type)
+  sources: DataSource[];
 
   // Metadata
   createdAt: string;
   updatedAt: string;
   createdBy?: UserRef;
+  updatedBy?: UserRef;
 }
 
-export interface DataType {
-  id: string;
-  furnisherId: string;
-  configId?: string; // Reference to DataTypeConfig for standardization
-  name: string;
-  description?: string;
-  createdAt: string;
-  updatedAt: string;
+// ============================================
+// API Response Types
+// ============================================
+
+export interface DataTypeWithCategory extends DataType {
+  categoryName?: string; // Denormalized category name
 }
 
-export interface DataAttribute {
-  id: string;
-  dataTypeId: string;
-  name: string;
-  displayName?: string;
-  description?: string;
-  dataType: string; // string, number, boolean, array, object, etc.
-  sampleValue?: string;
-  regionsCovered?: string[]; // Override furnisher default if needed
-  path?: string; // JSON path like "property_details[].bedrooms"
-  metadata?: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string;
+export interface DataTypeHierarchy {
+  dataType: DataType;
+  children: DataTypeHierarchy[];
 }
 
-// API response types
-export interface FurnisherWithDataTypes extends Furnisher {
-  dataTypes: DataTypeWithAttributes[];
+export interface CategoryWithTypes {
+  category: DataTypeCategory;
+  dataTypes: DataType[];
 }
 
-export interface DataTypeWithAttributes extends DataType {
-  attributes: DataAttribute[];
-}
-
+// ============================================
 // Stats for display
-export interface FurnisherStats {
-  dataTypeCount: number;
-  attributeCount: number;
+// ============================================
+
+export interface DataTypeStats {
+  propertyCount: number;
+  sourceCount: number;
 }
 
-// Selection state
-export type SelectionType = 'furnisher' | 'dataType' | 'attribute';
-
-export interface Selection {
-  type: SelectionType;
-  furnisherId: string;
-  dataTypeId?: string;
-  attributeId?: string;
+export interface CatalogueStats {
+  totalDataTypes: number;
+  totalProperties: number;
+  totalSources: number;
+  categoryCounts: Record<string, number>;
 }

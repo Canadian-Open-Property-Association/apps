@@ -932,8 +932,742 @@ router.get('/export', (req, res) => {
 });
 
 // ============================================
+// V2 API - Vocabulary-First Design
+// DataTypes are the primary concept, with properties and sources
+// ============================================
+
+// Data file path for vocabulary-first data types
+const getV2DataTypesFile = () => path.join(getDataDir(), 'v2-data-types.json');
+
+// Initialize v2 data if it doesn't exist
+const initializeV2Data = () => {
+  const v2File = getV2DataTypesFile();
+  if (!fs.existsSync(v2File)) {
+    fs.writeFileSync(v2File, JSON.stringify({ dataTypes: [] }, null, 2));
+  }
+};
+
+// Load/Save v2 data types
+const loadV2DataTypes = () => {
+  initializeV2Data();
+  const data = JSON.parse(fs.readFileSync(getV2DataTypesFile(), 'utf-8'));
+  return data.dataTypes || [];
+};
+
+const saveV2DataTypes = (dataTypes) => {
+  fs.writeFileSync(getV2DataTypesFile(), JSON.stringify({ dataTypes }, null, 2));
+};
+
+// Generate slug-style ID
+const generateV2Id = (name) => {
+  return name
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+};
+
+// -------------------- V2 Data Types --------------------
+
+// List all data types (vocabulary-first)
+router.get('/v2/data-types', (req, res) => {
+  try {
+    const { category, search } = req.query;
+    let dataTypes = loadV2DataTypes();
+
+    // Filter by category
+    if (category) {
+      dataTypes = dataTypes.filter(dt => dt.category === category);
+    }
+
+    // Filter by search query
+    if (search && search.length >= 2) {
+      const query = search.toLowerCase();
+      dataTypes = dataTypes.filter(dt =>
+        dt.name.toLowerCase().includes(query) ||
+        dt.description?.toLowerCase().includes(query)
+      );
+    }
+
+    res.json(dataTypes);
+  } catch (error) {
+    console.error('Error listing v2 data types:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get a single data type with properties and sources
+router.get('/v2/data-types/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const dataTypes = loadV2DataTypes();
+    const dataType = dataTypes.find(dt => dt.id === id);
+
+    if (!dataType) {
+      return res.status(404).json({ error: 'Data type not found' });
+    }
+
+    res.json(dataType);
+  } catch (error) {
+    console.error('Error getting v2 data type:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create a new data type
+router.post('/v2/data-types', requireAuth, (req, res) => {
+  try {
+    const dataTypes = loadV2DataTypes();
+    const now = new Date().toISOString();
+
+    const newDataType = {
+      id: req.body.id || generateV2Id(req.body.name),
+      name: req.body.name,
+      description: req.body.description || '',
+      category: req.body.category || 'other',
+      parentTypeId: req.body.parentTypeId || null,
+      properties: req.body.properties || [],
+      sources: req.body.sources || [],
+      createdAt: now,
+      updatedAt: now,
+      createdBy: {
+        id: String(req.session.user.id),
+        login: req.session.user.login,
+        name: req.session.user.name || undefined,
+      },
+    };
+
+    if (!newDataType.name) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+
+    // Check for duplicate ID
+    if (dataTypes.some(dt => dt.id === newDataType.id)) {
+      return res.status(409).json({ error: 'Data type with this ID already exists' });
+    }
+
+    dataTypes.push(newDataType);
+    saveV2DataTypes(dataTypes);
+
+    res.json(newDataType);
+  } catch (error) {
+    console.error('Error creating v2 data type:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update a data type
+router.put('/v2/data-types/:id', requireAuth, (req, res) => {
+  try {
+    const { id } = req.params;
+    const dataTypes = loadV2DataTypes();
+    const index = dataTypes.findIndex(dt => dt.id === id);
+
+    if (index === -1) {
+      return res.status(404).json({ error: 'Data type not found' });
+    }
+
+    const updatedDataType = {
+      ...dataTypes[index],
+      name: req.body.name ?? dataTypes[index].name,
+      description: req.body.description ?? dataTypes[index].description,
+      category: req.body.category ?? dataTypes[index].category,
+      parentTypeId: req.body.parentTypeId !== undefined ? req.body.parentTypeId : dataTypes[index].parentTypeId,
+      properties: req.body.properties ?? dataTypes[index].properties,
+      sources: req.body.sources ?? dataTypes[index].sources,
+      updatedAt: new Date().toISOString(),
+      updatedBy: {
+        id: String(req.session.user.id),
+        login: req.session.user.login,
+        name: req.session.user.name || undefined,
+      },
+    };
+
+    dataTypes[index] = updatedDataType;
+    saveV2DataTypes(dataTypes);
+
+    res.json(updatedDataType);
+  } catch (error) {
+    console.error('Error updating v2 data type:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a data type
+router.delete('/v2/data-types/:id', requireAuth, (req, res) => {
+  try {
+    const { id } = req.params;
+    const dataTypes = loadV2DataTypes();
+
+    const index = dataTypes.findIndex(dt => dt.id === id);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Data type not found' });
+    }
+
+    dataTypes.splice(index, 1);
+    saveV2DataTypes(dataTypes);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting v2 data type:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// -------------------- V2 Properties (nested in DataType) --------------------
+
+// Add a property to a data type
+router.post('/v2/data-types/:dataTypeId/properties', requireAuth, (req, res) => {
+  try {
+    const { dataTypeId } = req.params;
+    const dataTypes = loadV2DataTypes();
+    const index = dataTypes.findIndex(dt => dt.id === dataTypeId);
+
+    if (index === -1) {
+      return res.status(404).json({ error: 'Data type not found' });
+    }
+
+    const property = {
+      id: req.body.id || `prop-${Date.now()}`,
+      name: req.body.name,
+      displayName: req.body.displayName || req.body.name,
+      description: req.body.description || '',
+      valueType: req.body.valueType || 'string',
+      required: req.body.required || false,
+      sampleValue: req.body.sampleValue || '',
+      path: req.body.path || '',
+      metadata: req.body.metadata || {},
+    };
+
+    if (!property.name) {
+      return res.status(400).json({ error: 'Property name is required' });
+    }
+
+    // Check for duplicate property name
+    if (dataTypes[index].properties.some(p => p.name === property.name)) {
+      return res.status(409).json({ error: 'Property with this name already exists' });
+    }
+
+    dataTypes[index].properties.push(property);
+    dataTypes[index].updatedAt = new Date().toISOString();
+    dataTypes[index].updatedBy = {
+      id: String(req.session.user.id),
+      login: req.session.user.login,
+      name: req.session.user.name || undefined,
+    };
+
+    saveV2DataTypes(dataTypes);
+    res.json(dataTypes[index]);
+  } catch (error) {
+    console.error('Error adding property:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update a property
+router.put('/v2/data-types/:dataTypeId/properties/:propertyId', requireAuth, (req, res) => {
+  try {
+    const { dataTypeId, propertyId } = req.params;
+    const dataTypes = loadV2DataTypes();
+    const dtIndex = dataTypes.findIndex(dt => dt.id === dataTypeId);
+
+    if (dtIndex === -1) {
+      return res.status(404).json({ error: 'Data type not found' });
+    }
+
+    const propIndex = dataTypes[dtIndex].properties.findIndex(p => p.id === propertyId);
+    if (propIndex === -1) {
+      return res.status(404).json({ error: 'Property not found' });
+    }
+
+    dataTypes[dtIndex].properties[propIndex] = {
+      ...dataTypes[dtIndex].properties[propIndex],
+      name: req.body.name ?? dataTypes[dtIndex].properties[propIndex].name,
+      displayName: req.body.displayName ?? dataTypes[dtIndex].properties[propIndex].displayName,
+      description: req.body.description ?? dataTypes[dtIndex].properties[propIndex].description,
+      valueType: req.body.valueType ?? dataTypes[dtIndex].properties[propIndex].valueType,
+      required: req.body.required ?? dataTypes[dtIndex].properties[propIndex].required,
+      sampleValue: req.body.sampleValue ?? dataTypes[dtIndex].properties[propIndex].sampleValue,
+      path: req.body.path ?? dataTypes[dtIndex].properties[propIndex].path,
+      metadata: req.body.metadata ?? dataTypes[dtIndex].properties[propIndex].metadata,
+    };
+
+    dataTypes[dtIndex].updatedAt = new Date().toISOString();
+    dataTypes[dtIndex].updatedBy = {
+      id: String(req.session.user.id),
+      login: req.session.user.login,
+      name: req.session.user.name || undefined,
+    };
+
+    saveV2DataTypes(dataTypes);
+    res.json(dataTypes[dtIndex]);
+  } catch (error) {
+    console.error('Error updating property:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a property
+router.delete('/v2/data-types/:dataTypeId/properties/:propertyId', requireAuth, (req, res) => {
+  try {
+    const { dataTypeId, propertyId } = req.params;
+    const dataTypes = loadV2DataTypes();
+    const dtIndex = dataTypes.findIndex(dt => dt.id === dataTypeId);
+
+    if (dtIndex === -1) {
+      return res.status(404).json({ error: 'Data type not found' });
+    }
+
+    const propIndex = dataTypes[dtIndex].properties.findIndex(p => p.id === propertyId);
+    if (propIndex === -1) {
+      return res.status(404).json({ error: 'Property not found' });
+    }
+
+    dataTypes[dtIndex].properties.splice(propIndex, 1);
+    dataTypes[dtIndex].updatedAt = new Date().toISOString();
+    dataTypes[dtIndex].updatedBy = {
+      id: String(req.session.user.id),
+      login: req.session.user.login,
+      name: req.session.user.name || undefined,
+    };
+
+    saveV2DataTypes(dataTypes);
+    res.json(dataTypes[dtIndex]);
+  } catch (error) {
+    console.error('Error deleting property:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// -------------------- V2 Sources (link to entities) --------------------
+
+// Add a source (entity) to a data type
+router.post('/v2/data-types/:dataTypeId/sources', requireAuth, (req, res) => {
+  try {
+    const { dataTypeId } = req.params;
+    const dataTypes = loadV2DataTypes();
+    const index = dataTypes.findIndex(dt => dt.id === dataTypeId);
+
+    if (index === -1) {
+      return res.status(404).json({ error: 'Data type not found' });
+    }
+
+    const source = {
+      entityId: req.body.entityId,
+      entityName: req.body.entityName || '',
+      regionsCovered: req.body.regionsCovered || [],
+      updateFrequency: req.body.updateFrequency || '',
+      notes: req.body.notes || '',
+      apiEndpoint: req.body.apiEndpoint || '',
+      addedAt: new Date().toISOString(),
+      addedBy: {
+        id: String(req.session.user.id),
+        login: req.session.user.login,
+        name: req.session.user.name || undefined,
+      },
+    };
+
+    if (!source.entityId) {
+      return res.status(400).json({ error: 'Entity ID is required' });
+    }
+
+    // Check for duplicate source
+    if (dataTypes[index].sources.some(s => s.entityId === source.entityId)) {
+      return res.status(409).json({ error: 'This entity is already a source for this data type' });
+    }
+
+    dataTypes[index].sources.push(source);
+    dataTypes[index].updatedAt = new Date().toISOString();
+    dataTypes[index].updatedBy = {
+      id: String(req.session.user.id),
+      login: req.session.user.login,
+      name: req.session.user.name || undefined,
+    };
+
+    saveV2DataTypes(dataTypes);
+    res.json(dataTypes[index]);
+  } catch (error) {
+    console.error('Error adding source:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update a source
+router.put('/v2/data-types/:dataTypeId/sources/:entityId', requireAuth, (req, res) => {
+  try {
+    const { dataTypeId, entityId } = req.params;
+    const dataTypes = loadV2DataTypes();
+    const dtIndex = dataTypes.findIndex(dt => dt.id === dataTypeId);
+
+    if (dtIndex === -1) {
+      return res.status(404).json({ error: 'Data type not found' });
+    }
+
+    const sourceIndex = dataTypes[dtIndex].sources.findIndex(s => s.entityId === entityId);
+    if (sourceIndex === -1) {
+      return res.status(404).json({ error: 'Source not found' });
+    }
+
+    dataTypes[dtIndex].sources[sourceIndex] = {
+      ...dataTypes[dtIndex].sources[sourceIndex],
+      entityName: req.body.entityName ?? dataTypes[dtIndex].sources[sourceIndex].entityName,
+      regionsCovered: req.body.regionsCovered ?? dataTypes[dtIndex].sources[sourceIndex].regionsCovered,
+      updateFrequency: req.body.updateFrequency ?? dataTypes[dtIndex].sources[sourceIndex].updateFrequency,
+      notes: req.body.notes ?? dataTypes[dtIndex].sources[sourceIndex].notes,
+      apiEndpoint: req.body.apiEndpoint ?? dataTypes[dtIndex].sources[sourceIndex].apiEndpoint,
+    };
+
+    dataTypes[dtIndex].updatedAt = new Date().toISOString();
+    dataTypes[dtIndex].updatedBy = {
+      id: String(req.session.user.id),
+      login: req.session.user.login,
+      name: req.session.user.name || undefined,
+    };
+
+    saveV2DataTypes(dataTypes);
+    res.json(dataTypes[dtIndex]);
+  } catch (error) {
+    console.error('Error updating source:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remove a source
+router.delete('/v2/data-types/:dataTypeId/sources/:entityId', requireAuth, (req, res) => {
+  try {
+    const { dataTypeId, entityId } = req.params;
+    const dataTypes = loadV2DataTypes();
+    const dtIndex = dataTypes.findIndex(dt => dt.id === dataTypeId);
+
+    if (dtIndex === -1) {
+      return res.status(404).json({ error: 'Data type not found' });
+    }
+
+    const sourceIndex = dataTypes[dtIndex].sources.findIndex(s => s.entityId === entityId);
+    if (sourceIndex === -1) {
+      return res.status(404).json({ error: 'Source not found' });
+    }
+
+    dataTypes[dtIndex].sources.splice(sourceIndex, 1);
+    dataTypes[dtIndex].updatedAt = new Date().toISOString();
+    dataTypes[dtIndex].updatedBy = {
+      id: String(req.session.user.id),
+      login: req.session.user.login,
+      name: req.session.user.name || undefined,
+    };
+
+    saveV2DataTypes(dataTypes);
+    res.json(dataTypes[dtIndex]);
+  } catch (error) {
+    console.error('Error removing source:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// -------------------- V2 Categories --------------------
+
+// List all categories
+router.get('/v2/categories', (req, res) => {
+  try {
+    const categories = loadCategories();
+    res.json(categories);
+  } catch (error) {
+    console.error('Error listing v2 categories:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create a new category
+router.post('/v2/categories', requireAuth, (req, res) => {
+  try {
+    const { name, description, order } = req.body;
+
+    if (!name?.trim()) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+
+    const categories = loadCategories();
+
+    if (categories.some(c => c.name.toLowerCase() === name.trim().toLowerCase())) {
+      return res.status(409).json({ error: 'Category with this name already exists' });
+    }
+
+    const maxOrder = Math.max(0, ...categories.map(c => c.order || 0));
+    const newCategory = {
+      id: name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+      name: name.trim(),
+      description: description?.trim() || '',
+      order: order ?? maxOrder + 1,
+    };
+
+    categories.push(newCategory);
+    saveCategories(categories);
+
+    res.status(201).json(newCategory);
+  } catch (error) {
+    console.error('Error creating v2 category:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// -------------------- V2 Search --------------------
+
+// Search across data types and properties
+router.get('/v2/search', (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.length < 2) {
+      return res.json({ dataTypes: [] });
+    }
+
+    const query = q.toLowerCase();
+    const dataTypes = loadV2DataTypes();
+
+    const matchedDataTypes = dataTypes.filter(dt =>
+      dt.name.toLowerCase().includes(query) ||
+      dt.description?.toLowerCase().includes(query) ||
+      dt.properties.some(p =>
+        p.name.toLowerCase().includes(query) ||
+        p.displayName?.toLowerCase().includes(query) ||
+        p.description?.toLowerCase().includes(query)
+      )
+    );
+
+    res.json({ dataTypes: matchedDataTypes });
+  } catch (error) {
+    console.error('Error searching v2 catalogue:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// -------------------- V2 Export --------------------
+
+// Export all v2 data
+router.get('/v2/export', (req, res) => {
+  try {
+    const dataTypes = loadV2DataTypes();
+    const categories = loadCategories();
+
+    res.json({
+      exportedAt: new Date().toISOString(),
+      categories,
+      dataTypes,
+    });
+  } catch (error) {
+    console.error('Error exporting v2 catalogue:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// -------------------- V2 Stats --------------------
+
+// Get catalogue statistics
+router.get('/v2/stats', (req, res) => {
+  try {
+    const dataTypes = loadV2DataTypes();
+    const categories = loadCategories();
+
+    const totalProperties = dataTypes.reduce((sum, dt) => sum + dt.properties.length, 0);
+    const totalSources = dataTypes.reduce((sum, dt) => sum + dt.sources.length, 0);
+
+    const categoryCounts = {};
+    for (const dt of dataTypes) {
+      const cat = dt.category || 'other';
+      categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
+    }
+
+    res.json({
+      totalDataTypes: dataTypes.length,
+      totalProperties,
+      totalSources,
+      totalCategories: categories.length,
+      categoryCounts,
+    });
+  } catch (error) {
+    console.error('Error getting v2 stats:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
 // Admin API (for seeding new data)
 // ============================================
+
+// Migrate legacy data to v2 vocabulary-first structure
+// This transforms furnisher-centric data to data-type-centric structure
+router.post('/admin/migrate-to-v2', requireAuth, (req, res) => {
+  try {
+    const legacyDataTypes = loadDataTypes();
+    const legacyAttributes = loadAttributes();
+    const furnishers = loadFurnishers();
+    const configs = loadDataTypeConfigs();
+    const existingV2DataTypes = loadV2DataTypes();
+
+    if (legacyDataTypes.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No legacy data to migrate',
+        migrated: { dataTypes: 0, properties: 0, sources: 0 },
+      });
+    }
+
+    const now = new Date().toISOString();
+    const v2DataTypes = [...existingV2DataTypes];
+    let migratedTypes = 0;
+    let migratedProperties = 0;
+    let migratedSources = 0;
+
+    // Group legacy data types by configId (standardized type) or name
+    const typeGroups = new Map();
+
+    for (const ldt of legacyDataTypes) {
+      // Use configId as the grouping key if available, otherwise use normalized name
+      const groupKey = ldt.configId || ldt.name.toLowerCase().replace(/\s+/g, '-');
+
+      if (!typeGroups.has(groupKey)) {
+        typeGroups.set(groupKey, {
+          name: ldt.name,
+          configId: ldt.configId,
+          description: ldt.description,
+          furnisherDataTypes: [],
+        });
+      }
+
+      typeGroups.get(groupKey).furnisherDataTypes.push(ldt);
+    }
+
+    // Convert grouped data to v2 format
+    for (const [groupKey, group] of typeGroups) {
+      // Skip if already exists in v2
+      if (v2DataTypes.some(dt => dt.id === groupKey)) {
+        console.log(`Skipping existing v2 data type: ${groupKey}`);
+        continue;
+      }
+
+      // Get category from config if available
+      const config = configs.find(c => c.id === group.configId);
+      const category = config?.category?.toLowerCase().replace(/\s+/g, '-') || 'other';
+
+      // Collect all attributes from all instances of this data type
+      const allAttributes = [];
+      const sources = [];
+
+      for (const ldt of group.furnisherDataTypes) {
+        // Get attributes for this data type
+        const attrs = legacyAttributes.filter(a => a.dataTypeId === ldt.id);
+
+        for (const attr of attrs) {
+          // Check if this attribute already exists (by name)
+          if (!allAttributes.some(a => a.name === attr.name)) {
+            allAttributes.push(attr);
+          }
+        }
+
+        // Get furnisher info for source
+        const furnisher = furnishers.find(f => f.id === ldt.furnisherId);
+        if (furnisher) {
+          sources.push({
+            entityId: furnisher.id,
+            entityName: furnisher.name,
+            regionsCovered: furnisher.regionsCovered || [],
+            updateFrequency: '',
+            notes: `Migrated from legacy data type: ${ldt.id}`,
+            apiEndpoint: '',
+            addedAt: now,
+          });
+          migratedSources++;
+        }
+      }
+
+      // Convert attributes to properties
+      const properties = allAttributes.map(attr => ({
+        id: attr.id,
+        name: attr.name,
+        displayName: attr.displayName || attr.name,
+        description: attr.description || '',
+        valueType: mapLegacyDataType(attr.dataType),
+        required: false,
+        sampleValue: attr.sampleValue || '',
+        path: attr.path || '',
+        metadata: attr.metadata || {},
+      }));
+      migratedProperties += properties.length;
+
+      // Create v2 data type
+      const v2DataType = {
+        id: groupKey,
+        name: group.name,
+        description: group.description || config?.description || '',
+        category,
+        parentTypeId: null,
+        properties,
+        sources,
+        createdAt: now,
+        updatedAt: now,
+        createdBy: {
+          id: String(req.session.user.id),
+          login: req.session.user.login,
+          name: req.session.user.name || undefined,
+        },
+      };
+
+      v2DataTypes.push(v2DataType);
+      migratedTypes++;
+    }
+
+    // Save migrated data
+    saveV2DataTypes(v2DataTypes);
+
+    console.log(`Migration complete: ${migratedTypes} types, ${migratedProperties} properties, ${migratedSources} sources`);
+
+    res.json({
+      success: true,
+      message: `Migration complete`,
+      migrated: {
+        dataTypes: migratedTypes,
+        properties: migratedProperties,
+        sources: migratedSources,
+      },
+      details: {
+        dataTypes: v2DataTypes.slice(-migratedTypes).map(dt => ({
+          id: dt.id,
+          name: dt.name,
+          propertyCount: dt.properties.length,
+          sourceCount: dt.sources.length,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error('Error migrating to v2:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Helper: Map legacy data types to new property value types
+function mapLegacyDataType(legacyType) {
+  const mapping = {
+    'string': 'string',
+    'text': 'string',
+    'number': 'number',
+    'integer': 'number',
+    'float': 'number',
+    'decimal': 'number',
+    'currency': 'currency',
+    'boolean': 'boolean',
+    'bool': 'boolean',
+    'date': 'date',
+    'datetime': 'datetime',
+    'timestamp': 'datetime',
+    'array': 'array',
+    'object': 'object',
+    'json': 'object',
+    'url': 'url',
+    'email': 'email',
+    'phone': 'phone',
+  };
+  return mapping[legacyType?.toLowerCase()] || 'string';
+}
 
 // Sync seed data - adds new furnishers from seed without removing existing ones
 router.post('/admin/sync-seed', (req, res) => {

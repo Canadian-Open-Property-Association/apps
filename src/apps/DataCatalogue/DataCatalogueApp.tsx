@@ -1,191 +1,111 @@
 import { useEffect, useState } from 'react';
 import { useDataCatalogueStore } from '../../store/dataCatalogueStore';
-import FurnisherList from './components/FurnisherList';
-import FurnisherCard from './components/FurnisherCard';
-import DataTypeTree from './components/DataTypeTree';
-import AttributeDetail from './components/AttributeDetail';
-import FurnisherForm from './components/FurnisherForm';
-import ImportModal from './components/ImportModal';
+import DataTypeList from './components/DataTypeList';
+import DataTypeDetail from './components/DataTypeDetail';
+import DataTypeForm from './components/DataTypeForm';
 import CatalogueToolbar from './components/CatalogueToolbar';
-import DataTypeLibrary from './components/DataTypeLibrary';
 
 export default function DataCatalogueApp() {
   const {
-    fetchFurnishers,
-    fetchDataTypeConfigs,
-    selectedFurnisher,
-    selection,
+    fetchDataTypes,
+    fetchCategories,
+    selectedDataType,
     isLoading,
     error,
-    exportAll,
   } = useDataCatalogueStore();
 
-  const [showFurnisherForm, setShowFurnisherForm] = useState(false);
-  const [editingFurnisherId, setEditingFurnisherId] = useState<string | null>(null);
-  const [showImportModal, setShowImportModal] = useState(false);
-  const [showDataTypeLibrary, setShowDataTypeLibrary] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingDataType, setEditingDataType] = useState<string | null>(null);
 
+  // Load data on mount
   useEffect(() => {
-    fetchFurnishers();
-    fetchDataTypeConfigs();
-  }, [fetchFurnishers, fetchDataTypeConfigs]);
+    fetchDataTypes();
+    fetchCategories();
+  }, [fetchDataTypes, fetchCategories]);
 
-  const handleAddFurnisher = () => {
-    setEditingFurnisherId(null);
-    setShowFurnisherForm(true);
+  const handleAddDataType = () => {
+    setEditingDataType(null);
+    setShowAddForm(true);
   };
 
-  const handleEditFurnisher = (id: string) => {
-    setEditingFurnisherId(id);
-    setShowFurnisherForm(true);
+  const handleEditDataType = () => {
+    if (selectedDataType) {
+      setEditingDataType(selectedDataType.id);
+      setShowAddForm(true);
+    }
+  };
+
+  const handleCloseForm = () => {
+    setShowAddForm(false);
+    setEditingDataType(null);
   };
 
   const handleExport = async () => {
     try {
-      const data = await exportAll();
+      const data = await useDataCatalogueStore.getState().exportAll();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `data-catalogue-export-${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
+      a.download = `data-catalogue-${new Date().toISOString().split('T')[0]}.json`;
       a.click();
-      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Export failed:', err);
     }
   };
 
-  const renderDetailPanel = () => {
-    if (!selection) {
-      return (
-        <div className="flex-1 flex items-center justify-center text-gray-400">
-          <div className="text-center">
-            <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-            <p className="text-lg font-medium">Select an item</p>
-            <p className="text-sm mt-1">Choose a furnisher, data type, or attribute to view details</p>
-          </div>
-        </div>
-      );
-    }
-
-    if (selection.type === 'furnisher' && selectedFurnisher) {
-      return (
-        <FurnisherCard
-          furnisher={selectedFurnisher}
-          onEdit={() => handleEditFurnisher(selectedFurnisher.id)}
-        />
-      );
-    }
-
-    if (selection.type === 'dataType' && selectedFurnisher && selection.dataTypeId) {
-      const dataType = selectedFurnisher.dataTypes.find(dt => dt.id === selection.dataTypeId);
-      if (dataType) {
-        return (
-          <div className="p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">{dataType.name}</h3>
-            {dataType.description && (
-              <p className="text-gray-600 mb-4">{dataType.description}</p>
-            )}
-            <div className="text-sm text-gray-500">
-              <p>{dataType.attributes?.length || 0} attributes</p>
-            </div>
-          </div>
-        );
-      }
-    }
-
-    if (selection.type === 'attribute' && selectedFurnisher && selection.dataTypeId && selection.attributeId) {
-      const dataType = selectedFurnisher.dataTypes.find(dt => dt.id === selection.dataTypeId);
-      const attribute = dataType?.attributes?.find(attr => attr.id === selection.attributeId);
-      if (attribute) {
-        return <AttributeDetail attribute={attribute} dataType={dataType!} />;
-      }
-    }
-
-    return null;
-  };
-
-  if (isLoading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading catalogue...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center text-red-600">
-          <p className="text-lg font-medium">Error loading catalogue</p>
-          <p className="text-sm mt-1">{error}</p>
-          <button
-            onClick={() => fetchFurnishers()}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {/* Toolbar */}
       <CatalogueToolbar
-        onAddFurnisher={handleAddFurnisher}
-        onImport={() => setShowImportModal(true)}
+        onAddDataType={handleAddDataType}
         onExport={handleExport}
-        onOpenDataTypeLibrary={() => setShowDataTypeLibrary(true)}
       />
 
-      {/* Main 3-panel layout */}
+      {/* Error display */}
+      {error && (
+        <div className="mx-4 mt-2 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+          {error}
+        </div>
+      )}
+
+      {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Panel - Furnisher List */}
-        <div className="w-64 border-r border-gray-200 bg-white flex flex-col">
-          <FurnisherList onEditFurnisher={handleEditFurnisher} />
+        {/* Left panel - Data Type List */}
+        <div className="w-80 border-r border-gray-200 bg-white overflow-auto">
+          {isLoading ? (
+            <div className="p-4 text-center text-gray-500">Loading...</div>
+          ) : (
+            <DataTypeList />
+          )}
         </div>
 
-        {/* Middle Panel - Data Type / Attribute Tree */}
-        <div className="w-80 border-r border-gray-200 bg-white flex flex-col">
-          <DataTypeTree />
-        </div>
-
-        {/* Right Panel - Detail View */}
-        <div className="flex-1 bg-white flex flex-col overflow-y-auto">
-          {renderDetailPanel()}
+        {/* Right panel - Detail View */}
+        <div className="flex-1 overflow-auto">
+          {selectedDataType ? (
+            <DataTypeDetail onEdit={handleEditDataType} />
+          ) : (
+            <div className="h-full flex items-center justify-center text-gray-400">
+              <div className="text-center">
+                <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <p className="text-lg font-medium">Select a data type</p>
+                <p className="text-sm mt-1">Choose from the list or create a new one</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Furnisher Form Modal */}
-      {showFurnisherForm && (
-        <FurnisherForm
-          furnisherId={editingFurnisherId}
-          onClose={() => {
-            setShowFurnisherForm(false);
-            setEditingFurnisherId(null);
-          }}
+      {/* Add/Edit Form Modal */}
+      {showAddForm && (
+        <DataTypeForm
+          dataTypeId={editingDataType}
+          onClose={handleCloseForm}
         />
       )}
-
-      {/* Import Modal */}
-      {showImportModal && (
-        <ImportModal onClose={() => setShowImportModal(false)} />
-      )}
-
-      {/* Data Type Library Modal */}
-      <DataTypeLibrary
-        isOpen={showDataTypeLibrary}
-        onClose={() => setShowDataTypeLibrary(false)}
-      />
     </div>
   );
 }

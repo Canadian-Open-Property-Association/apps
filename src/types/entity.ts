@@ -23,9 +23,14 @@ export interface Entity {
   // Contact & Web
   website?: string;
   contactEmail?: string;
+  contactPhone?: string;         // Phone number
+  contactName?: string;          // Primary contact person
 
   // Technical Identity
   did?: string;                  // Decentralized Identifier
+
+  // Data Furnisher specific (only relevant if types includes 'data-furnisher')
+  regionsCovered?: string[];     // Regions/provinces this entity covers
 
   // Metadata
   status: EntityStatus;

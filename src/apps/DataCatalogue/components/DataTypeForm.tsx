@@ -1,220 +1,185 @@
 import { useState, useEffect } from 'react';
 import { useDataCatalogueStore } from '../../../store/dataCatalogueStore';
-import { DataTypeWithAttributes } from '../../../types/catalogue';
 
 interface DataTypeFormProps {
-  furnisherId: string;
-  dataType: DataTypeWithAttributes | null;
+  dataTypeId: string | null;
   onClose: () => void;
 }
 
-export default function DataTypeForm({ furnisherId, dataType, onClose }: DataTypeFormProps) {
-  const createDataType = useDataCatalogueStore((state) => state.createDataType);
-  const updateDataType = useDataCatalogueStore((state) => state.updateDataType);
-  const dataTypeConfigs = useDataCatalogueStore((state) => state.dataTypeConfigs);
-  const dataTypeCategories = useDataCatalogueStore((state) => state.dataTypeCategories);
-  const fetchDataTypeConfigs = useDataCatalogueStore((state) => state.fetchDataTypeConfigs);
+const CATEGORY_OPTIONS = [
+  { value: 'property', label: 'Property Data' },
+  { value: 'financial', label: 'Financial Data' },
+  { value: 'identity', label: 'Identity Data' },
+  { value: 'employment', label: 'Employment Data' },
+  { value: 'other', label: 'Other' },
+];
 
-  const [selectedConfigId, setSelectedConfigId] = useState<string>('');
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    configId: '',
-  });
-
-  const [saving, setSaving] = useState(false);
+export default function DataTypeForm({ dataTypeId, onClose }: DataTypeFormProps) {
+  const { dataTypes, createDataType, updateDataType } = useDataCatalogueStore();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load data type configs on mount
+  const [formData, setFormData] = useState({
+    id: '',
+    name: '',
+    description: '',
+    category: 'other',
+  });
+
+  const isEditing = !!dataTypeId;
+
+  // Load existing data type if editing
   useEffect(() => {
-    if (dataTypeConfigs.length === 0) {
-      fetchDataTypeConfigs();
+    if (dataTypeId) {
+      const existing = dataTypes.find(dt => dt.id === dataTypeId);
+      if (existing) {
+        setFormData({
+          id: existing.id,
+          name: existing.name,
+          description: existing.description || '',
+          category: existing.category || 'other',
+        });
+      }
     }
-  }, [dataTypeConfigs.length, fetchDataTypeConfigs]);
+  }, [dataTypeId, dataTypes]);
 
-  useEffect(() => {
-    if (dataType) {
-      setFormData({
-        name: dataType.name || '',
-        description: dataType.description || '',
-        configId: dataType.configId || '',
-      });
-      setSelectedConfigId(dataType.configId || '');
-    }
-  }, [dataType]);
-
-  // When a config is selected, populate name and description
-  const handleConfigSelect = (configId: string) => {
-    setSelectedConfigId(configId);
-    const config = dataTypeConfigs.find((c) => c.id === configId);
-    if (config) {
-      setFormData({
-        name: config.name,
-        description: config.description || '',
-        configId: config.id,
-      });
-    } else {
-      // Custom - clear fields but keep configId empty
-      setFormData({
-        name: '',
-        description: '',
-        configId: '',
-      });
-    }
-  };
-
-  const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  // Auto-generate ID from name
+  const handleNameChange = (name: string) => {
+    setFormData(prev => ({
+      ...prev,
+      name,
+      // Only auto-generate ID for new data types
+      id: isEditing ? prev.id : name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setIsSubmitting(true);
 
-    if (!formData.name.trim()) {
-      setError('Please select a data type or enter a custom name');
-      return;
-    }
-
-    setSaving(true);
     try {
-      if (dataType) {
-        await updateDataType(dataType.id, formData);
+      if (isEditing) {
+        await updateDataType(dataTypeId, {
+          name: formData.name,
+          description: formData.description,
+          category: formData.category,
+        });
       } else {
         await createDataType({
-          ...formData,
-          furnisherId,
+          id: formData.id,
+          name: formData.name,
+          description: formData.description,
+          category: formData.category,
+          properties: [],
+          sources: [],
         });
       }
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save data type');
     } finally {
-      setSaving(false);
+      setIsSubmitting(false);
     }
   };
 
-  // Group configs by category for the dropdown
-  const configsByCategory = dataTypeConfigs.reduce(
-    (acc, config) => {
-      const cat = config.category || 'Other';
-      if (!acc[cat]) acc[cat] = [];
-      acc[cat].push(config);
-      return acc;
-    },
-    {} as Record<string, typeof dataTypeConfigs>
-  );
-
-  // Sort categories
-  const sortedCategories = Object.keys(configsByCategory).sort((a, b) => {
-    const orderA = dataTypeCategories.find((c) => c.name === a)?.order || 999;
-    const orderB = dataTypeCategories.find((c) => c.name === b)?.order || 999;
-    return orderA - orderB;
-  });
-
   return (
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-gray-800">
-            {dataType ? 'Edit Data Type' : 'Add Data Type'}
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-800">
+            {isEditing ? 'Edit Data Type' : 'Add Data Type'}
+          </h2>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6">
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded text-sm">
-              {error}
-            </div>
-          )}
+        <form onSubmit={handleSubmit}>
+          <div className="px-6 py-4 space-y-4">
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
 
-          <div className="space-y-4">
-            {/* Data Type Selection */}
+            {/* Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Select Data Type <span className="text-red-500">*</span>
+                Name <span className="text-red-500">*</span>
               </label>
-              <select
-                value={selectedConfigId}
-                onChange={(e) => handleConfigSelect(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                autoFocus
-              >
-                <option value="">-- Select a standard data type --</option>
-                {sortedCategories.map((category) => (
-                  <optgroup key={category} label={category}>
-                    {configsByCategory[category]?.map((config) => (
-                      <option key={config.id} value={config.id}>
-                        {config.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 mt-1">
-                Choose from standardized data type definitions
-              </p>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => handleNameChange(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Property Valuation"
+                required
+              />
             </div>
 
-            {/* Selected Type Info */}
-            {selectedConfigId && (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                <p className="text-sm font-medium text-blue-800">{formData.name}</p>
-                {formData.description && (
-                  <p className="text-xs text-blue-600 mt-1">{formData.description}</p>
-                )}
-              </div>
-            )}
+            {/* ID (auto-generated) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                ID
+              </label>
+              <input
+                type="text"
+                value={formData.id}
+                onChange={(e) => setFormData(prev => ({ ...prev, id: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm bg-gray-50"
+                placeholder="property-valuation"
+                disabled={isEditing}
+              />
+              <p className="text-xs text-gray-500 mt-1">Auto-generated from name</p>
+            </div>
 
-            {/* Custom Description Override (optional) */}
-            {selectedConfigId && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Custom Description
-                  <span className="text-xs font-normal text-gray-400 ml-1">(optional override)</span>
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => handleChange('description', e.target.value)}
-                  placeholder="Override the default description for this furnisher..."
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-              </div>
-            )}
+            {/* Category */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Category
+              </label>
+              <select
+                value={formData.category}
+                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {CATEGORY_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={3}
+                placeholder="Describe what this data type represents..."
+              />
+            </div>
           </div>
 
           {/* Footer */}
-          <div className="mt-6 flex justify-end gap-2">
+          <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded"
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              disabled={isSubmitting}
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={saving || !selectedConfigId}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              disabled={isSubmitting || !formData.name}
             >
-              {saving ? 'Saving...' : dataType ? 'Save Changes' : 'Add Data Type'}
+              {isSubmitting ? 'Saving...' : isEditing ? 'Update' : 'Create'}
             </button>
           </div>
         </form>
