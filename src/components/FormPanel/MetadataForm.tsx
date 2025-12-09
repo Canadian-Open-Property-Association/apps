@@ -368,10 +368,10 @@ export default function MetadataForm() {
       <div className="border border-gray-200 rounded-lg p-4 space-y-4 mt-6">
         <h4 className="font-medium text-gray-800">Card Styling</h4>
 
-        {/* Background Color */}
+        {/* Background Colour */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Background Color
+            Background Colour
           </label>
           <div className="flex gap-2">
             <input
@@ -403,10 +403,10 @@ export default function MetadataForm() {
           </div>
         </div>
 
-        {/* Text Color */}
+        {/* Text Colour */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Text Color
+            Text Colour
           </label>
           <div className="flex gap-2">
             <input

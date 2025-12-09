@@ -36,14 +36,38 @@ function getTypeColor(type: EntityType): string {
 
 export default function EntityDetail({ entity, onEdit }: EntityDetailProps) {
   const statusConfig = ENTITY_STATUS_CONFIG[entity.status];
+  const brandColour = entity.primaryColor || '#1a365d';
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-6">
-        <div className="flex items-start gap-4">
+    <div>
+      {/* Banner Header with Brand Colour */}
+      <div
+        className="h-28 relative"
+        style={{ backgroundColor: brandColour }}
+      >
+        {/* Gradient overlay for depth */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/10" />
+
+        {/* Edit button positioned on banner */}
+        <button
+          onClick={onEdit}
+          className="absolute top-4 right-4 flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-white/20 backdrop-blur-sm rounded-lg hover:bg-white/30 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          Edit
+        </button>
+      </div>
+
+      {/* Content with logo overlapping banner */}
+      <div className="px-6 pb-6">
+        {/* Logo and Name - positioned to overlap banner */}
+        <div className="flex items-end gap-4 -mt-12 relative z-10 mb-4">
           {/* Logo */}
-          <div className="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+          <div
+            className="w-20 h-20 rounded-xl bg-white shadow-lg border-4 border-white flex items-center justify-center overflow-hidden flex-shrink-0"
+          >
             {entity.logoUri ? (
               <img
                 src={resolveLogoUri(entity.logoUri)}
@@ -54,13 +78,16 @@ export default function EntityDetail({ entity, onEdit }: EntityDetailProps) {
                 }}
               />
             ) : (
-              <span className="text-2xl font-bold text-gray-400">
+              <span
+                className="text-2xl font-bold"
+                style={{ color: brandColour }}
+              >
                 {entity.name.substring(0, 2).toUpperCase()}
               </span>
             )}
           </div>
 
-          <div>
+          <div className="pb-1">
             <h2 className="text-xl font-semibold text-gray-900">{entity.name}</h2>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               {entity.types?.map((type) => (
@@ -76,22 +103,13 @@ export default function EntityDetail({ entity, onEdit }: EntityDetailProps) {
                 {statusConfig.label}
               </span>
             </div>
-            {entity.description && (
-              <p className="text-sm text-gray-600 mt-2 max-w-2xl">{entity.description}</p>
-            )}
           </div>
         </div>
 
-        <button
-          onClick={onEdit}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
-          Edit
-        </button>
-      </div>
+        {/* Description */}
+        {entity.description && (
+          <p className="text-sm text-gray-600 mb-6 max-w-2xl">{entity.description}</p>
+        )}
 
       {/* Details Grid */}
       <div className="grid grid-cols-2 gap-6">
@@ -168,7 +186,7 @@ export default function EntityDetail({ entity, onEdit }: EntityDetailProps) {
             )}
             {entity.primaryColor && (
               <div>
-                <label className="text-xs text-gray-500">Brand Color</label>
+                <label className="text-xs text-gray-500">Brand Colour</label>
                 <div className="flex items-center gap-2">
                   <div
                     className="w-6 h-6 rounded border border-gray-200"
@@ -243,6 +261,7 @@ export default function EntityDetail({ entity, onEdit }: EntityDetailProps) {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

@@ -36,16 +36,18 @@ function resolveLogoUri(logoUri: string | undefined): string | undefined {
 export default function EntityList({ onEditEntity }: EntityListProps) {
   const { entities, selectedEntity, selectEntity, searchQuery, deleteEntity } = useEntityStore();
 
-  // Filter entities by search query
-  const filteredEntities = entities.filter((entity) => {
-    if (!searchQuery || searchQuery.length < 2) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      entity.name.toLowerCase().includes(query) ||
-      entity.description?.toLowerCase().includes(query) ||
-      entity.id.toLowerCase().includes(query)
-    );
-  });
+  // Filter entities by search query and sort alphabetically
+  const filteredEntities = entities
+    .filter((entity) => {
+      if (!searchQuery || searchQuery.length < 2) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        entity.name.toLowerCase().includes(query) ||
+        entity.description?.toLowerCase().includes(query) ||
+        entity.id.toLowerCase().includes(query)
+      );
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const handleDelete = async (e: React.MouseEvent, entity: Entity) => {
     e.stopPropagation();

@@ -7,6 +7,7 @@ import AssetLibrary from '../../../components/AssetLibrary/AssetLibrary';
 interface EntityFormProps {
   entityId: string | null;
   onClose: () => void;
+  onCreated?: (entityId: string) => void;
 }
 
 type FormData = Omit<Entity, 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy'>;
@@ -55,7 +56,7 @@ function generateSlug(name: string): string {
   return slug ? `copa-${slug}` : '';
 }
 
-export default function EntityForm({ entityId, onClose }: EntityFormProps) {
+export default function EntityForm({ entityId, onClose, onCreated }: EntityFormProps) {
   const { entities, createEntity, updateEntity } = useEntityStore();
   const [formData, setFormData] = useState<FormData>(defaultFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -143,7 +144,10 @@ export default function EntityForm({ entityId, onClose }: EntityFormProps) {
       if (isEditing) {
         await updateEntity(entityId, formData);
       } else {
-        await createEntity(formData);
+        const newEntity = await createEntity(formData);
+        if (onCreated && newEntity?.id) {
+          onCreated(newEntity.id);
+        }
       }
       onClose();
     } catch (err) {
@@ -357,10 +361,10 @@ export default function EntityForm({ entityId, onClose }: EntityFormProps) {
                 </div>
               </div>
 
-              {/* Brand Color */}
+              {/* Brand Colour */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Brand Color
+                  Brand Colour
                 </label>
                 <div className="flex gap-2">
                   <input

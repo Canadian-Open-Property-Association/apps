@@ -10,6 +10,7 @@ export default function EntityManagerApp() {
   const {
     fetchEntities,
     selectedEntity,
+    selectEntity,
     isLoading,
     error,
     exportAll,
@@ -31,6 +32,10 @@ export default function EntityManagerApp() {
   const handleEditEntity = (id: string) => {
     setEditingEntityId(id);
     setShowEntityForm(true);
+  };
+
+  const handleEntityCreated = (entityId: string) => {
+    selectEntity(entityId);
   };
 
   const handleExport = async () => {
@@ -131,6 +136,7 @@ export default function EntityManagerApp() {
             setShowEntityForm(false);
             setEditingEntityId(null);
           }}
+          onCreated={handleEntityCreated}
         />
       )}
 
