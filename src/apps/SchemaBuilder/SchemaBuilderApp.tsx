@@ -20,15 +20,13 @@ export default function SchemaBuilderApp() {
 
   const fetchGovernanceDocs = useSchemaStore((state) => state.fetchGovernanceDocs);
   const mode = useSchemaStore((state) => state.metadata.mode);
-  const title = useSchemaStore((state) => state.metadata.title);
-  const properties = useSchemaStore((state) => state.properties);
-  const currentProjectId = useSchemaStore((state) => state.currentProjectId);
   const savedProjects = useSchemaStore((state) => state.savedProjects);
   const newSchema = useSchemaStore((state) => state.newSchema);
   const updateMetadata = useSchemaStore((state) => state.updateMetadata);
   const loadSchema = useSchemaStore((state) => state.loadSchema);
   const deleteSchema = useSchemaStore((state) => state.deleteSchema);
   const isDirty = useSchemaStore((state) => state.isDirty);
+  const isEditing = useSchemaStore((state) => state.isEditing);
 
   // Fetch governance docs on mount
   useEffect(() => {
@@ -36,9 +34,6 @@ export default function SchemaBuilderApp() {
   }, [fetchGovernanceDocs]);
 
   const isJsonLdMode = mode === 'jsonld-context'; // mode defaults to 'json-schema'
-
-  // Determine if we have an active schema (either loaded or with content)
-  const hasActiveSchema = Boolean(currentProjectId || title.trim() || properties.length > 0);
 
   const handleNewSchemaSelect = (selectedMode: SchemaMode) => {
     newSchema();
@@ -61,8 +56,8 @@ export default function SchemaBuilderApp() {
     }
   };
 
-  // Show welcome screen if no active schema
-  if (!hasActiveSchema) {
+  // Show welcome screen if not editing
+  if (!isEditing) {
     return (
       <div className="flex flex-col h-full bg-gray-100">
         {/* Minimal Toolbar */}

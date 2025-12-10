@@ -168,6 +168,7 @@ export const useSchemaStore = create<SchemaStore>()(
       currentProjectId: null,
       currentProjectName: 'Untitled',
       isDirty: false,
+      isEditing: false,
       savedProjects: [],
       selectedPropertyId: null,
       expandedNodes: new Set<string>(),
@@ -351,6 +352,19 @@ export const useSchemaStore = create<SchemaStore>()(
           currentProjectId: null,
           currentProjectName: 'Untitled',
           isDirty: false,
+          isEditing: true,
+          selectedPropertyId: null,
+          expandedNodes: new Set(),
+        }),
+
+      closeSchema: () =>
+        set({
+          metadata: createDefaultMetadata(),
+          properties: [],
+          currentProjectId: null,
+          currentProjectName: 'Untitled',
+          isDirty: false,
+          isEditing: false,
           selectedPropertyId: null,
           expandedNodes: new Set(),
         }),
@@ -434,6 +448,7 @@ export const useSchemaStore = create<SchemaStore>()(
             currentProjectId: project.id,
             currentProjectName: project.name,
             isDirty: false,
+            isEditing: true,
             selectedPropertyId: null,
             expandedNodes: new Set(collectAllIds(project.properties)),
           });

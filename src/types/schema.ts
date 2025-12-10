@@ -183,6 +183,7 @@ export interface SchemaStore {
   currentProjectId: string | null;
   currentProjectName: string;
   isDirty: boolean;
+  isEditing: boolean; // True when user has created/loaded a schema (shows editor vs welcome screen)
   savedProjects: SavedSchemaProject[];
 
   // UI state
@@ -215,6 +216,7 @@ export interface SchemaStore {
   saveSchema: (name: string) => Promise<void>;
   loadSchema: (id: string) => void;
   deleteSchema: (id: string) => Promise<void>;
+  closeSchema: () => void; // Return to welcome screen
 
   // Mode management
   setMode: (mode: SchemaMode) => void;
