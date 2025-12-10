@@ -6,7 +6,6 @@ import {
   SchemaMode,
   JsonLdPropertyExtension,
   Vocabulary,
-  DEFAULT_CONTEXT_URL,
 } from './vocabulary';
 
 // Supported JSON Schema types
@@ -585,18 +584,18 @@ const getSchemaPrefix = (title: string): string => {
  * This is used when mode is 'jsonld-context'
  *
  * Produces a JSON Schema (Draft 2020-12) for validating W3C Verifiable Credentials
- * that use JSON-LD format with @context references.
+ * following the W3C VC JSON Schema Specification pattern.
+ *
+ * The schema focuses on validating credentialSubject properties only,
+ * as recommended by the W3C spec examples.
+ *
+ * @see https://www.w3.org/TR/vc-json-schema/
  */
 export const toJsonLdContext = (
   metadata: SchemaMetadata,
   properties: SchemaProperty[],
   _vocabulary: Vocabulary | null
 ): object => {
-  // Generate context URL dynamically from category + credentialName, or fallback
-  const contextUrl = metadata.contextUrl ||
-    generateContextUrl(metadata.title, metadata.category, metadata.credentialName) ||
-    DEFAULT_CONTEXT_URL;
-
   // Generate schema $id URL
   const schemaId = metadata.schemaId ||
     generateSchemaId(metadata.title, metadata.category, metadata.credentialName);
@@ -606,19 +605,18 @@ export const toJsonLdContext = (
    */
   const buildPropertySchema = (prop: SchemaProperty): object => {
     const schema: Record<string, unknown> = {
-      title: prop.title || prop.name,
       type: prop.type,
     };
 
-    if (prop.description) {
-      schema.description = prop.description;
+    // Only add format for strings that have it
+    if (prop.type === 'string' && prop.format) {
+      schema.format = prop.format;
     }
 
     // String constraints
     if (prop.type === 'string') {
       if (prop.minLength !== undefined) schema.minLength = prop.minLength;
       if (prop.maxLength !== undefined) schema.maxLength = prop.maxLength;
-      if (prop.format) schema.format = prop.format;
       if (prop.pattern) schema.pattern = prop.pattern;
       if (prop.enum && prop.enum.length > 0) schema.enum = prop.enum;
     }
@@ -675,123 +673,25 @@ export const toJsonLdContext = (
     }
   }
 
-  // Credential type name (PascalCase from title)
+  // Credential type name (PascalCase from title) for description
   const credentialTypeName = metadata.title ? getSchemaPrefix(metadata.title) : 'Credential';
 
-  // Build the full JSON-LD Credential Schema
+  // Build the JSON Schema following W3C VC JSON Schema Specification pattern
+  // This simplified structure focuses on credentialSubject validation only
   const schema: Record<string, unknown> = {
-    $schema: 'https://json-schema.org/draft/2020-12/schema',
     $id: schemaId,
-    title: metadata.title || 'Verifiable Credential',
-    description: metadata.description || `JSON Schema for ${metadata.title || 'Verifiable Credential'}`,
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    title: metadata.title || credentialTypeName,
+    description: metadata.description || `${credentialTypeName} using JsonSchema`,
     type: 'object',
-    required: ['@context', 'type', 'credentialSubject'],
     properties: {
-      '@context': {
-        title: 'JSON-LD Context',
-        description: 'The JSON-LD context for semantic interoperability.',
-        oneOf: [
-          {
-            type: 'array',
-            items: {
-              oneOf: [
-                { type: 'string', format: 'uri' },
-                { type: 'object' },
-              ],
-            },
-            contains: {
-              const: 'https://www.w3.org/2018/credentials/v1',
-            },
-          },
-          {
-            type: 'string',
-            const: 'https://www.w3.org/2018/credentials/v1',
-          },
-        ],
-      },
-      type: {
-        title: 'Credential Type',
-        description: 'The type(s) of this credential.',
-        oneOf: [
-          {
-            type: 'array',
-            items: { type: 'string' },
-            contains: { const: 'VerifiableCredential' },
-          },
-          {
-            type: 'string',
-            const: 'VerifiableCredential',
-          },
-        ],
-      },
-      id: {
-        title: 'Credential ID',
-        description: 'Unique identifier for this credential instance.',
-        type: 'string',
-        format: 'uri',
-      },
-      issuer: {
-        title: 'Issuer',
-        description: 'The entity that issued this credential.',
-        oneOf: [
-          { type: 'string', format: 'uri' },
-          {
-            type: 'object',
-            required: ['id'],
-            properties: {
-              id: { type: 'string', format: 'uri' },
-              name: { type: 'string' },
-            },
-          },
-        ],
-      },
-      issuanceDate: {
-        title: 'Issuance Date',
-        description: 'The date and time when the credential was issued.',
-        type: 'string',
-        format: 'date-time',
-      },
-      expirationDate: {
-        title: 'Expiration Date',
-        description: 'The date and time when the credential expires.',
-        type: 'string',
-        format: 'date-time',
-      },
       credentialSubject: {
-        title: 'Credential Subject',
-        description: 'Claims about the subject of the credential.',
         type: 'object',
-        properties: {
-          id: {
-            title: 'Subject ID',
-            description: 'Identifier for the subject of the credential.',
-            type: 'string',
-            format: 'uri',
-          },
-          ...credentialSubjectProps,
-        },
+        properties: credentialSubjectProps,
         ...(credentialSubjectRequired.length > 0 ? { required: credentialSubjectRequired } : {}),
-      },
-      proof: {
-        title: 'Proof',
-        description: 'Digital proof that makes this credential verifiable.',
-        type: 'object',
       },
     },
   };
-
-  // Add governance doc reference if present
-  if (metadata.governanceDocUrl) {
-    schema['x-governance-doc'] = metadata.governanceDocUrl;
-  }
-
-  // Add context URL reference for documentation
-  if (contextUrl) {
-    schema['x-context-url'] = contextUrl;
-  }
-
-  // Add credential type hint
-  schema['x-credential-type'] = credentialTypeName;
 
   return schema;
 };

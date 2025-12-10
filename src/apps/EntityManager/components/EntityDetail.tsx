@@ -166,11 +166,10 @@ export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailPr
         <div className="absolute inset-0 bg-gradient-to-b from-black/5 to-black/20" />
       </div>
 
-      {/* Content with logo overlapping banner */}
+      {/* Content area */}
       <div className="px-6 pb-6">
-        {/* Logo, Name, and badges - positioned to overlap banner */}
-        <div className="flex items-end gap-4 -mt-8 relative z-10 mb-6">
-          {/* Logo */}
+        {/* Logo overlapping banner */}
+        <div className="flex items-end -mt-8 relative z-10 mb-4">
           <div
             className="w-16 h-16 rounded-xl bg-white shadow-lg border-4 border-white flex items-center justify-center overflow-hidden flex-shrink-0"
           >
@@ -192,32 +191,32 @@ export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailPr
               </span>
             )}
           </div>
+        </div>
 
-          {/* Name and badges to the right of logo */}
-          <div className="flex-1 min-w-0 pb-1">
-            <h2 className="text-xl font-semibold text-gray-900 truncate mb-2">
-              {entity.name}
-            </h2>
-            <div className="flex items-center gap-2 flex-wrap">
-              {entity.types?.map((type) => (
-                <span
-                  key={type}
-                  className={`text-xs px-2 py-0.5 rounded-full ${getTypeColor(type)}`}
-                >
-                  {ENTITY_TYPE_CONFIG[type]?.label}
-                </span>
-              ))}
-              <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-${statusConfig.color}-100 text-${statusConfig.color}-800`}>
-                <span className={`w-1.5 h-1.5 rounded-full bg-${statusConfig.color}-500`}></span>
-                {statusConfig.label}
+        {/* Name and badges - completely below banner */}
+        <div className="mb-4">
+          <h2 className="text-xl font-semibold text-gray-900 truncate mb-2">
+            {entity.name}
+          </h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            {entity.types?.map((type) => (
+              <span
+                key={type}
+                className={`text-xs px-2 py-0.5 rounded-full ${getTypeColor(type)}`}
+              >
+                {ENTITY_TYPE_CONFIG[type]?.label}
               </span>
-            </div>
+            ))}
+            <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-${statusConfig.color}-100 text-${statusConfig.color}-800`}>
+              <span className={`w-1.5 h-1.5 rounded-full bg-${statusConfig.color}-500`}></span>
+              {statusConfig.label}
+            </span>
           </div>
         </div>
 
         {/* Description */}
         {entity.description && (
-          <p className="text-sm text-gray-600 mb-6 max-w-2xl">{entity.description}</p>
+          <p className="text-sm text-gray-600 mb-4 max-w-2xl">{entity.description}</p>
         )}
 
         {/* Tabs - only show if data furnisher */}
