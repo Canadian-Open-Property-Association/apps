@@ -211,33 +211,9 @@ function AppCardComponent({ app, onNavigate, showRecentBadge }: AppCardComponent
         <h2 className="text-lg font-semibold text-gray-900 mb-2">
           {app.name}
         </h2>
-        <p className="text-gray-600 text-sm mb-3">
+        <p className="text-gray-600 text-sm">
           {app.description}
         </p>
-
-        {/* Action */}
-        {app.available ? (
-          <button
-            className={`inline-flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors ${
-              app.adminOnly
-                ? 'bg-purple-600 hover:bg-purple-700'
-                : 'bg-blue-600 hover:bg-blue-700'
-            }`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onNavigate(app);
-            }}
-          >
-            Open App
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        ) : (
-          <span className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-500 text-sm font-medium rounded-lg">
-            Not Available Yet
-          </span>
-        )}
       </div>
     </div>
   );
