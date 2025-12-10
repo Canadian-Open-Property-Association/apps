@@ -94,9 +94,10 @@ const requireAuth = (req, res, next) => {
   next();
 };
 
-// -------------------- Data Types --------------------
+// -------------------- Data Types / Vocab Types --------------------
+// Both /data-types (legacy) and /vocab-types (new Data Dictionary) are supported
 
-// List all data types
+// List all data types (also handles vocab-types for Data Dictionary)
 router.get('/data-types', (req, res) => {
   try {
     const { category, search } = req.query;
@@ -941,6 +942,275 @@ router.post('/admin/reseed', (req, res) => {
     });
   } catch (error) {
     console.error('Error reseeding data:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// -------------------- Route Aliases for Data Dictionary --------------------
+// The Data Dictionary frontend uses /vocab-types instead of /data-types
+// These are direct route handlers that call the same underlying functions
+
+// Helper functions for vocab-type routes (reuse logic from data-types routes)
+const listVocabTypes = (req, res) => {
+  try {
+    const { category, search } = req.query;
+    let dataTypes = loadDataTypes();
+
+    if (category) {
+      dataTypes = dataTypes.filter(dt => dt.category === category);
+    }
+
+    if (search && search.length >= 2) {
+      const query = search.toLowerCase();
+      dataTypes = dataTypes.filter(dt =>
+        dt.name.toLowerCase().includes(query) ||
+        dt.description?.toLowerCase().includes(query)
+      );
+    }
+
+    res.json(dataTypes);
+  } catch (error) {
+    console.error('Error listing vocab types:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const getVocabType = (req, res) => {
+  try {
+    const { id } = req.params;
+    const dataTypes = loadDataTypes();
+    const dataType = dataTypes.find(dt => dt.id === id);
+
+    if (!dataType) {
+      return res.status(404).json({ error: 'Vocab type not found' });
+    }
+
+    res.json(dataType);
+  } catch (error) {
+    console.error('Error getting vocab type:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const createVocabType = (req, res) => {
+  try {
+    const dataTypes = loadDataTypes();
+    const now = new Date().toISOString();
+
+    const newDataType = {
+      id: req.body.id || generateId(req.body.name),
+      name: req.body.name,
+      description: req.body.description || '',
+      category: req.body.category || 'other',
+      parentTypeId: req.body.parentTypeId || null,
+      properties: req.body.properties || [],
+      sources: req.body.sources || [],
+      createdAt: now,
+      updatedAt: now,
+      createdBy: {
+        id: String(req.session.user.id),
+        login: req.session.user.login,
+        name: req.session.user.name || undefined,
+      },
+    };
+
+    if (!newDataType.name) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+
+    if (dataTypes.some(dt => dt.id === newDataType.id)) {
+      return res.status(409).json({ error: 'Vocab type with this ID already exists' });
+    }
+
+    dataTypes.push(newDataType);
+    saveDataTypes(dataTypes);
+
+    res.json(newDataType);
+  } catch (error) {
+    console.error('Error creating vocab type:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const updateVocabType = (req, res) => {
+  try {
+    const { id } = req.params;
+    const dataTypes = loadDataTypes();
+    const index = dataTypes.findIndex(dt => dt.id === id);
+
+    if (index === -1) {
+      return res.status(404).json({ error: 'Vocab type not found' });
+    }
+
+    const updatedDataType = {
+      ...dataTypes[index],
+      name: req.body.name ?? dataTypes[index].name,
+      description: req.body.description ?? dataTypes[index].description,
+      category: req.body.category ?? dataTypes[index].category,
+      parentTypeId: req.body.parentTypeId !== undefined ? req.body.parentTypeId : dataTypes[index].parentTypeId,
+      properties: req.body.properties ?? dataTypes[index].properties,
+      sources: req.body.sources ?? dataTypes[index].sources,
+      updatedAt: new Date().toISOString(),
+      updatedBy: {
+        id: String(req.session.user.id),
+        login: req.session.user.login,
+        name: req.session.user.name || undefined,
+      },
+    };
+
+    dataTypes[index] = updatedDataType;
+    saveDataTypes(dataTypes);
+
+    res.json(updatedDataType);
+  } catch (error) {
+    console.error('Error updating vocab type:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const deleteVocabType = (req, res) => {
+  try {
+    const { id } = req.params;
+    const dataTypes = loadDataTypes();
+
+    const index = dataTypes.findIndex(dt => dt.id === id);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Vocab type not found' });
+    }
+
+    dataTypes.splice(index, 1);
+    saveDataTypes(dataTypes);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting vocab type:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Register vocab-types routes
+router.get('/vocab-types', listVocabTypes);
+router.get('/vocab-types/:id', getVocabType);
+router.post('/vocab-types', requireAuth, createVocabType);
+router.put('/vocab-types/:id', requireAuth, updateVocabType);
+router.delete('/vocab-types/:id', requireAuth, deleteVocabType);
+
+// Properties on vocab-types (reuse data-types property handlers)
+router.post('/vocab-types/:dataTypeId/properties', requireAuth, (req, res) => {
+  try {
+    const { dataTypeId } = req.params;
+    const dataTypes = loadDataTypes();
+    const index = dataTypes.findIndex(dt => dt.id === dataTypeId);
+
+    if (index === -1) {
+      return res.status(404).json({ error: 'Vocab type not found' });
+    }
+
+    const property = {
+      id: req.body.id || `prop-${Date.now()}`,
+      name: req.body.name,
+      displayName: req.body.displayName || req.body.name,
+      description: req.body.description || '',
+      valueType: req.body.valueType || 'string',
+      required: req.body.required || false,
+      sampleValue: req.body.sampleValue || '',
+      constraints: req.body.constraints || {},
+      jsonLdTerm: req.body.jsonLdTerm || '',
+    };
+
+    if (!property.name) {
+      return res.status(400).json({ error: 'Property name is required' });
+    }
+
+    if (dataTypes[index].properties.some(p => p.name === property.name)) {
+      return res.status(409).json({ error: 'Property with this name already exists' });
+    }
+
+    dataTypes[index].properties.push(property);
+    dataTypes[index].updatedAt = new Date().toISOString();
+    dataTypes[index].updatedBy = {
+      id: String(req.session.user.id),
+      login: req.session.user.login,
+      name: req.session.user.name || undefined,
+    };
+
+    saveDataTypes(dataTypes);
+    res.json(dataTypes[index]);
+  } catch (error) {
+    console.error('Error adding property:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/vocab-types/:dataTypeId/properties/:propertyId', requireAuth, (req, res) => {
+  try {
+    const { dataTypeId, propertyId } = req.params;
+    const dataTypes = loadDataTypes();
+    const dtIndex = dataTypes.findIndex(dt => dt.id === dataTypeId);
+
+    if (dtIndex === -1) {
+      return res.status(404).json({ error: 'Vocab type not found' });
+    }
+
+    const propIndex = dataTypes[dtIndex].properties.findIndex(p => p.id === propertyId);
+    if (propIndex === -1) {
+      return res.status(404).json({ error: 'Property not found' });
+    }
+
+    dataTypes[dtIndex].properties[propIndex] = {
+      ...dataTypes[dtIndex].properties[propIndex],
+      name: req.body.name ?? dataTypes[dtIndex].properties[propIndex].name,
+      displayName: req.body.displayName ?? dataTypes[dtIndex].properties[propIndex].displayName,
+      description: req.body.description ?? dataTypes[dtIndex].properties[propIndex].description,
+      valueType: req.body.valueType ?? dataTypes[dtIndex].properties[propIndex].valueType,
+      required: req.body.required ?? dataTypes[dtIndex].properties[propIndex].required,
+      sampleValue: req.body.sampleValue ?? dataTypes[dtIndex].properties[propIndex].sampleValue,
+      constraints: req.body.constraints ?? dataTypes[dtIndex].properties[propIndex].constraints,
+      jsonLdTerm: req.body.jsonLdTerm ?? dataTypes[dtIndex].properties[propIndex].jsonLdTerm,
+    };
+
+    dataTypes[dtIndex].updatedAt = new Date().toISOString();
+    dataTypes[dtIndex].updatedBy = {
+      id: String(req.session.user.id),
+      login: req.session.user.login,
+      name: req.session.user.name || undefined,
+    };
+
+    saveDataTypes(dataTypes);
+    res.json(dataTypes[dtIndex]);
+  } catch (error) {
+    console.error('Error updating property:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete('/vocab-types/:dataTypeId/properties/:propertyId', requireAuth, (req, res) => {
+  try {
+    const { dataTypeId, propertyId } = req.params;
+    const dataTypes = loadDataTypes();
+    const dtIndex = dataTypes.findIndex(dt => dt.id === dataTypeId);
+
+    if (dtIndex === -1) {
+      return res.status(404).json({ error: 'Vocab type not found' });
+    }
+
+    const propIndex = dataTypes[dtIndex].properties.findIndex(p => p.id === propertyId);
+    if (propIndex === -1) {
+      return res.status(404).json({ error: 'Property not found' });
+    }
+
+    dataTypes[dtIndex].properties.splice(propIndex, 1);
+    dataTypes[dtIndex].updatedAt = new Date().toISOString();
+    dataTypes[dtIndex].updatedBy = {
+      id: String(req.session.user.id),
+      login: req.session.user.login,
+      name: req.session.user.name || undefined,
+    };
+
+    saveDataTypes(dataTypes);
+    res.json(dataTypes[dtIndex]);
+  } catch (error) {
+    console.error('Error deleting property:', error);
     res.status(500).json({ error: error.message });
   }
 });

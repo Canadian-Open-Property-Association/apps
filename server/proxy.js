@@ -141,10 +141,13 @@ app.use((req, res, next) => {
   next();
 });
 
-// Mount auth, github, catalogue, and entities routes
+// Mount auth, github, catalogue/dictionary, and entities routes
 app.use('/api/auth', authRouter);
 app.use('/api/github', githubRouter);
 app.use('/api/catalogue', catalogueRouter);
+// Mount catalogue routes on /api/dictionary as well (new Data Dictionary app uses this path)
+// The route mappings: vocab-types -> data-types, categories -> categories
+app.use('/api/dictionary', catalogueRouter);
 app.use('/api/entities', entitiesRouter);
 
 // Swagger API documentation

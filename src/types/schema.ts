@@ -569,17 +569,6 @@ export const STRING_FORMAT_LABELS: Record<StringFormat, string> = {
 };
 
 /**
- * Convert a property name to PascalCase
- * Handles both snake_case and kebab-case
- */
-const toPascalCase = (str: string): string => {
-  return str
-    .split(/[-_]/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join('');
-};
-
-/**
  * Generate schema prefix from title (PascalCase)
  * e.g., "Home Credential" -> "HomeCredential"
  */
