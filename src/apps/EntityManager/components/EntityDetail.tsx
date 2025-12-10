@@ -1,5 +1,7 @@
-import type { Entity, EntityType } from '../../../types/entity';
+import type { Entity, EntityType, FurnisherDataSchema } from '../../../types/entity';
 import { ENTITY_TYPE_CONFIG, ENTITY_STATUS_CONFIG } from '../../../types/entity';
+import { useEntityStore } from '../../../store/entityStore';
+import FurnisherDataSchemaSection from './FurnisherDataSchemaSection';
 
 interface EntityDetailProps {
   entity: Entity;
@@ -37,6 +39,15 @@ function getTypeColor(type: EntityType): string {
 export default function EntityDetail({ entity, onEdit }: EntityDetailProps) {
   const statusConfig = ENTITY_STATUS_CONFIG[entity.status];
   const brandColour = entity.primaryColor || '#1a365d';
+  const { updateEntity } = useEntityStore();
+
+  const handleUpdateSchema = async (schema: FurnisherDataSchema) => {
+    try {
+      await updateEntity(entity.id, { dataSchema: schema });
+    } catch (error) {
+      console.error('Failed to update schema:', error);
+    }
+  };
 
   return (
     <div>
@@ -223,6 +234,11 @@ export default function EntityDetail({ entity, onEdit }: EntityDetailProps) {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Furnisher Data Schema - Only shown for Data Furnisher entities */}
+      {entity.types?.includes('data-furnisher') && (
+        <FurnisherDataSchemaSection entity={entity} onUpdateSchema={handleUpdateSchema} />
       )}
 
       {/* Metadata Footer */}

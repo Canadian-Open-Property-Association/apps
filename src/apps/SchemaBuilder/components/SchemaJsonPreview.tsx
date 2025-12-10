@@ -4,8 +4,112 @@ import { toJsonSchema, toJsonLdContext, generateArtifactName } from '../../../ty
 import { useVocabularyStore } from '../../../store/vocabularyStore';
 
 /**
+ * Collapsible JSON Tree Viewer
+ * Renders JSON with expandable/collapsible nested objects and arrays
+ */
+interface JsonNodeProps {
+  keyName?: string;
+  value: unknown;
+  depth: number;
+  isLast: boolean;
+  defaultExpanded?: boolean;
+}
+
+function JsonNode({ keyName, value, depth, isLast, defaultExpanded = true }: JsonNodeProps) {
+  // Auto-collapse deeply nested items to keep the view manageable
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded && depth < 2);
+  const indent = depth * 16;
+
+  const isObject = typeof value === 'object' && value !== null && !Array.isArray(value);
+  const isArray = Array.isArray(value);
+  const isExpandable = isObject || isArray;
+
+  // Count items for collapsed preview
+  const itemCount = isObject ? Object.keys(value as object).length : isArray ? (value as unknown[]).length : 0;
+
+  // Render primitive values
+  const renderValue = (val: unknown) => {
+    if (val === null) return <span className="text-purple-400">null</span>;
+    if (typeof val === 'boolean') return <span className="text-purple-400">{val.toString()}</span>;
+    if (typeof val === 'number') return <span className="text-orange-400">{val}</span>;
+    if (typeof val === 'string') return <span className="text-green-400">"{val}"</span>;
+    return null;
+  };
+
+  if (!isExpandable) {
+    return (
+      <div style={{ paddingLeft: `${indent}px` }} className="leading-relaxed">
+        {keyName !== undefined && (
+          <span className="text-cyan-400">"{keyName}"</span>
+        )}
+        {keyName !== undefined && <span className="text-gray-400">: </span>}
+        {renderValue(value)}
+        {!isLast && <span className="text-gray-400">,</span>}
+      </div>
+    );
+  }
+
+  const openBracket = isArray ? '[' : '{';
+  const closeBracket = isArray ? ']' : '}';
+  const entries = isArray
+    ? (value as unknown[]).map((v, i) => ({ key: undefined, value: v, index: i }))
+    : Object.entries(value as object).map(([k, v], i) => ({ key: k, value: v, index: i }));
+
+  return (
+    <div>
+      {/* Key and opening bracket with toggle */}
+      <div
+        style={{ paddingLeft: `${indent}px` }}
+        className="leading-relaxed cursor-pointer hover:bg-gray-800/50 flex items-center gap-1"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <span className={`text-gray-500 w-3 text-center transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
+          ▶
+        </span>
+        {keyName !== undefined && (
+          <span className="text-cyan-400">"{keyName}"</span>
+        )}
+        {keyName !== undefined && <span className="text-gray-400">: </span>}
+        <span className="text-gray-500">{openBracket}</span>
+        {!isExpanded && (
+          <>
+            <span className="text-gray-600 text-xs ml-1">
+              {itemCount} {isArray ? 'items' : 'keys'}
+            </span>
+            <span className="text-gray-500">{closeBracket}</span>
+            {!isLast && <span className="text-gray-400">,</span>}
+          </>
+        )}
+      </div>
+
+      {/* Children */}
+      {isExpanded && (
+        <>
+          {entries.map((entry, i) => (
+            <JsonNode
+              key={entry.key ?? i}
+              keyName={entry.key}
+              value={entry.value}
+              depth={depth + 1}
+              isLast={i === entries.length - 1}
+              defaultExpanded={depth < 1}
+            />
+          ))}
+          {/* Closing bracket */}
+          <div style={{ paddingLeft: `${indent}px` }} className="leading-relaxed">
+            <span className="w-3 inline-block" />
+            <span className="text-gray-500">{closeBracket}</span>
+            {!isLast && <span className="text-gray-400">,</span>}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
  * Simple JSON syntax highlighter - returns HTML with colored spans
- * Pattern borrowed from VCT Builder's JsonPreview
+ * Used when in edit mode or as fallback
  */
 function highlightJson(json: string): string {
   // Escape HTML entities first
@@ -249,20 +353,34 @@ export default function SchemaJsonPreview() {
             autoFocus
           />
         ) : (
-          // Syntax-highlighted display when not focused
-          <pre
-            className="p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words cursor-text"
-            style={{ tabSize: 2 }}
-            onClick={handleFocus}
-            dangerouslySetInnerHTML={{ __html: highlightedHtml }}
-          />
+          // Collapsible JSON tree display when not focused
+          <div
+            className="p-4 font-mono text-xs cursor-text"
+            onDoubleClick={handleFocus}
+          >
+            {(() => {
+              try {
+                const parsed = JSON.parse(localJson || storeJsonString);
+                return <JsonNode value={parsed} depth={0} isLast={true} />;
+              } catch {
+                // Fallback to highlighted text if JSON is invalid
+                return (
+                  <pre
+                    className="leading-relaxed whitespace-pre-wrap break-words"
+                    style={{ tabSize: 2 }}
+                    dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+                  />
+                );
+              }
+            })()}
+          </div>
         )}
       </div>
 
       {/* Edit hint at bottom */}
       {!isFocused && (
         <div className="px-3 py-1.5 bg-gray-800 border-t border-gray-700 text-gray-500 text-xs text-center">
-          Click to edit JSON directly
+          Double-click to edit JSON directly • Click arrows to expand/collapse
         </div>
       )}
     </div>

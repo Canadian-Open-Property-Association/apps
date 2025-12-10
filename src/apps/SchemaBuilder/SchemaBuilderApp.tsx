@@ -81,8 +81,15 @@ export default function SchemaBuilderApp() {
   const updateMetadata = useSchemaStore((state) => state.updateMetadata);
   const loadSchema = useSchemaStore((state) => state.loadSchema);
   const deleteSchema = useSchemaStore((state) => state.deleteSchema);
+  const closeSchema = useSchemaStore((state) => state.closeSchema);
   const isDirty = useSchemaStore((state) => state.isDirty);
   const isEditing = useSchemaStore((state) => state.isEditing);
+
+  // Reset to welcome screen when entering the app
+  // This ensures users always start at the welcome screen when navigating to Schema Builder
+  useEffect(() => {
+    closeSchema();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch governance docs on mount
   useEffect(() => {
