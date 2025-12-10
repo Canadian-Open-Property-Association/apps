@@ -1,6 +1,6 @@
 import { useEntityStore } from '../../../store/entityStore';
 import type { Entity, EntityType } from '../../../types/entity';
-import { ENTITY_TYPE_CONFIG, ENTITY_STATUS_CONFIG } from '../../../types/entity';
+import { ENTITY_TYPE_CONFIG } from '../../../types/entity';
 
 interface EntityListProps {
   onEditEntity: (id: string) => void;
@@ -14,15 +14,6 @@ function getTypeColor(type: EntityType): string {
     'service-provider': 'bg-orange-100 text-orange-800',
   };
   return colors[type] || 'bg-gray-100 text-gray-800';
-}
-
-function getStatusColor(status: Entity['status']): string {
-  const colors: Record<Entity['status'], string> = {
-    'active': 'bg-green-500',
-    'pending': 'bg-yellow-500',
-    'inactive': 'bg-gray-400',
-  };
-  return colors[status] || 'bg-gray-400';
 }
 
 // Helper to resolve logo URIs for display
@@ -109,11 +100,6 @@ export default function EntityList({ onEditEntity }: EntityListProps) {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <h4 className="text-sm font-medium text-gray-900 truncate">{entity.name}</h4>
-                {/* Status indicator */}
-                <span
-                  className={`w-2 h-2 rounded-full ${getStatusColor(entity.status)}`}
-                  title={ENTITY_STATUS_CONFIG[entity.status]?.label}
-                />
               </div>
 
               {entity.description && (

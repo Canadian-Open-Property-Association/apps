@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useSchemaStore } from '../../../store/schemaStore';
 import { toJsonSchema, toJsonLdContext, generateArtifactName } from '../../../types/schema';
 import { useVocabularyStore } from '../../../store/vocabularyStore';
@@ -140,6 +140,9 @@ export default function SchemaJsonPreview() {
   const [localJson, setLocalJson] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'edit' | 'tree'>('edit');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const preRef = useRef<HTMLPreElement>(null);
 
   // Subscribe to store state
   const metadata = useSchemaStore((state) => state.metadata);
@@ -233,6 +236,14 @@ export default function SchemaJsonPreview() {
     setParseError(null);
   }, [storeJsonString]);
 
+  // Sync scroll between textarea and highlighted pre
+  const handleScroll = useCallback(() => {
+    if (textareaRef.current && preRef.current) {
+      preRef.current.scrollTop = textareaRef.current.scrollTop;
+      preRef.current.scrollLeft = textareaRef.current.scrollLeft;
+    }
+  }, []);
+
   // Check if there are unsaved changes
   const hasUnsavedChanges = localJson !== storeJsonString && !parseError;
 
@@ -275,7 +286,7 @@ export default function SchemaJsonPreview() {
   return (
     <div className="h-full flex flex-col">
       {/* Action buttons */}
-      <div className="flex gap-2 p-2 bg-gray-800 border-b border-gray-700 items-center">
+      <div className="flex gap-2 p-2 bg-gray-800 border-b border-gray-700 items-center flex-wrap">
         <button
           onClick={handleCopy}
           className={`px-3 py-1.5 text-xs rounded transition-colors flex items-center gap-1 ${
@@ -312,6 +323,36 @@ export default function SchemaJsonPreview() {
           </button>
         )}
 
+        {/* View mode toggle */}
+        <div className="flex items-center gap-1 ml-2">
+          <button
+            onClick={() => setViewMode('edit')}
+            className={`px-2 py-1 text-xs rounded transition-colors ${
+              viewMode === 'edit'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+            }`}
+            title="Edit mode with syntax highlighting"
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => setViewMode('tree')}
+            className={`px-2 py-1 text-xs rounded transition-colors ${
+              viewMode === 'tree'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+            }`}
+            title="Collapsible tree view"
+          >
+            Tree
+          </button>
+        </div>
+
+        {hasUnsavedChanges && (
+          <span className="text-xs text-yellow-400 ml-2">Click outside to apply</span>
+        )}
+
         <span className="text-xs text-gray-500 ml-auto truncate max-w-[200px]" title={getFilename()}>
           {getFilename()}
         </span>
@@ -324,40 +365,39 @@ export default function SchemaJsonPreview() {
         </div>
       )}
 
-      {/* Unsaved changes hint */}
-      {hasUnsavedChanges && !parseError && isFocused && (
-        <div className="px-3 py-1.5 bg-yellow-900/30 border-b border-yellow-700/50 text-yellow-300 text-xs">
-          Click outside to apply changes
-        </div>
-      )}
-
-      {/* Editable JSON textarea / Display area */}
+      {/* JSON editor content */}
       <div
-        className={`flex-1 overflow-auto border-l-4 ${
-          parseError
-            ? 'border-red-500'
-            : hasUnsavedChanges
-            ? 'border-yellow-500'
-            : 'border-transparent'
-        }`}
+        className={`flex-1 overflow-hidden relative ${
+          parseError ? 'border-l-2 border-red-500' : ''
+        } ${hasUnsavedChanges ? 'border-l-2 border-yellow-500' : ''}`}
       >
-        {isFocused ? (
-          // Editable textarea when focused
-          <textarea
-            value={localJson}
-            onChange={(e) => handleJsonChange(e.target.value)}
-            onBlur={handleBlur}
-            className="w-full h-full p-4 font-mono text-xs leading-relaxed bg-transparent text-gray-100 resize-none outline-none"
-            style={{ tabSize: 2 }}
-            spellCheck={false}
-            autoFocus
-          />
+        {viewMode === 'edit' ? (
+          // Overlay editing mode - syntax highlighting while editing
+          <>
+            {/* Syntax-highlighted layer (behind) */}
+            <pre
+              ref={preRef}
+              className="absolute inset-0 p-4 m-0 font-mono text-xs leading-relaxed overflow-auto pointer-events-none whitespace-pre-wrap break-words"
+              style={{ tabSize: 2 }}
+              aria-hidden="true"
+              dangerouslySetInnerHTML={{ __html: highlightedHtml + '\n' }}
+            />
+            {/* Editable textarea (in front, transparent) */}
+            <textarea
+              ref={textareaRef}
+              value={localJson}
+              onChange={(e) => handleJsonChange(e.target.value)}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+              onScroll={handleScroll}
+              className="absolute inset-0 w-full h-full p-4 bg-transparent text-transparent caret-white font-mono text-xs leading-relaxed resize-none focus:outline-none"
+              style={{ tabSize: 2 }}
+              spellCheck={false}
+            />
+          </>
         ) : (
-          // Collapsible JSON tree display when not focused
-          <div
-            className="p-4 font-mono text-xs cursor-text"
-            onDoubleClick={handleFocus}
-          >
+          // Collapsible JSON tree view
+          <div className="h-full overflow-auto p-4 font-mono text-xs">
             {(() => {
               try {
                 const parsed = JSON.parse(localJson || storeJsonString);
@@ -376,13 +416,6 @@ export default function SchemaJsonPreview() {
           </div>
         )}
       </div>
-
-      {/* Edit hint at bottom */}
-      {!isFocused && (
-        <div className="px-3 py-1.5 bg-gray-800 border-t border-gray-700 text-gray-500 text-xs text-center">
-          Double-click to edit JSON directly • Click arrows to expand/collapse
-        </div>
-      )}
     </div>
   );
 }

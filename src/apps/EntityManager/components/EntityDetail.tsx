@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { Entity, EntityType, FurnisherDataSchema } from '../../../types/entity';
-import { ENTITY_TYPE_CONFIG, ENTITY_STATUS_CONFIG, migrateDataSchema } from '../../../types/entity';
+import { ENTITY_TYPE_CONFIG, migrateDataSchema } from '../../../types/entity';
 import { useEntityStore } from '../../../store/entityStore';
 import DataSourcesSection from './DataSourcesSection';
 
@@ -104,7 +104,6 @@ function getTypeColor(type: EntityType): string {
 const ALL_ENTITY_TYPES: EntityType[] = ['issuer', 'data-furnisher', 'network-partner', 'service-provider'];
 
 export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailProps) {
-  const statusConfig = ENTITY_STATUS_CONFIG[entity.status];
   const brandColour = entity.primaryColor || '#1a365d';
   const { updateEntity } = useEntityStore();
   const isDataFurnisher = entity.types?.includes('data-furnisher');
@@ -253,10 +252,6 @@ export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailPr
                   {ENTITY_TYPE_CONFIG[type]?.label}
                 </span>
               ))}
-              <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-${statusConfig.color}-100 text-${statusConfig.color}-800`}>
-                <span className={`w-1.5 h-1.5 rounded-full bg-${statusConfig.color}-500`}></span>
-                {statusConfig.label}
-              </span>
               <button
                 onClick={() => setEditingTypes(true)}
                 className="text-gray-400 hover:text-blue-600 p-1 transition-colors"
