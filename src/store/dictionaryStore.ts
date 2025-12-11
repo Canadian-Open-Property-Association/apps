@@ -395,12 +395,18 @@ export const useDictionaryStore = create<DictionaryState>((set, get) => ({
       set({ searchResults: null });
       return;
     }
-    try {
-      const results = await dictionaryApi.search(query);
-      set({ searchResults: results.vocabTypes });
-    } catch (error) {
-      console.error('Search error:', error);
-    }
+    // Client-side filtering for instant search
+    const { vocabTypes } = get();
+    const lowerQuery = query.toLowerCase();
+    const results = vocabTypes.filter(vt =>
+      vt.name.toLowerCase().includes(lowerQuery) ||
+      vt.description?.toLowerCase().includes(lowerQuery) ||
+      vt.properties?.some(p =>
+        p.name.toLowerCase().includes(lowerQuery) ||
+        p.displayName?.toLowerCase().includes(lowerQuery)
+      )
+    );
+    set({ searchResults: results });
   },
 
   clearSearch: () => {

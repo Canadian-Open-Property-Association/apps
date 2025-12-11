@@ -97,38 +97,6 @@ const requireAuth = (req, res, next) => {
 // -------------------- Data Types / Vocab Types --------------------
 // Both /data-types (legacy) and /vocab-types (new Data Dictionary) are supported
 
-// Reset data to seed (force re-import from server/data/)
-router.post('/reset-to-seed', requireAuth, (req, res) => {
-  try {
-    const seedPath = getSeedDataPath();
-    const seedCategoriesPath = path.join(__dirname, '../data/categories.json');
-
-    if (!fs.existsSync(seedPath)) {
-      return res.status(404).json({ error: 'Seed data not found' });
-    }
-
-    // Copy seed data to assets
-    const seedData = JSON.parse(fs.readFileSync(seedPath, 'utf-8'));
-    fs.writeFileSync(getDataTypesFile(), JSON.stringify(seedData, null, 2));
-
-    // Copy seed categories if exists
-    if (fs.existsSync(seedCategoriesPath)) {
-      const seedCategories = JSON.parse(fs.readFileSync(seedCategoriesPath, 'utf-8'));
-      fs.writeFileSync(getCategoriesFile(), JSON.stringify(seedCategories, null, 2));
-    }
-
-    console.log(`Reset to seed data: ${seedData.dataTypes?.length || 0} data types`);
-
-    res.json({
-      success: true,
-      message: `Reset complete. Loaded ${seedData.dataTypes?.length || 0} data types from seed.`
-    });
-  } catch (error) {
-    console.error('Error resetting to seed:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // List all data types (also handles vocab-types for Data Dictionary)
 router.get('/data-types', (req, res) => {
   try {

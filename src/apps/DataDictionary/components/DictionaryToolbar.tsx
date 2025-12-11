@@ -1,7 +1,4 @@
-import { useState } from 'react';
 import { useDictionaryStore } from '../../../store/dictionaryStore';
-
-const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:5174';
 
 interface DictionaryToolbarProps {
   onAddVocabType: () => void;
@@ -9,38 +6,7 @@ interface DictionaryToolbarProps {
 }
 
 export default function DictionaryToolbar({ onAddVocabType, onSaveToRepo }: DictionaryToolbarProps) {
-  const { searchQuery, setSearchQuery, search, clearSearch, vocabTypes, fetchVocabTypes, fetchCategories } = useDictionaryStore();
-  const [isResetting, setIsResetting] = useState(false);
-
-  const handleResetToSeed = async () => {
-    if (!confirm('This will replace all vocabulary data with the RESO Data Dictionary seed data. Are you sure?')) {
-      return;
-    }
-
-    setIsResetting(true);
-    try {
-      const response = await fetch(`${API_BASE}/api/catalogue/reset-to-seed`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to reset');
-      }
-
-      const result = await response.json();
-      alert(result.message);
-
-      // Refresh the data
-      fetchVocabTypes();
-      fetchCategories();
-    } catch (error) {
-      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsResetting(false);
-    }
-  };
+  const { searchQuery, setSearchQuery, search, clearSearch, vocabTypes } = useDictionaryStore();
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
@@ -55,9 +21,9 @@ export default function DictionaryToolbar({ onAddVocabType, onSaveToRepo }: Dict
   return (
     <div className="bg-white border-b border-gray-200 px-4 py-3">
       <div className="flex items-center justify-between gap-4">
-        {/* Left side - Title */}
+        {/* Left side - Title with RESO 2.0 branding */}
         <div className="flex items-center gap-3">
-          <h1 className="text-lg font-semibold text-gray-800">Data Dictionary</h1>
+          <h1 className="text-lg font-semibold text-gray-800">RESO Data Dictionary 2.0</h1>
           <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
             {vocabTypes.length} types
           </span>
@@ -82,7 +48,7 @@ export default function DictionaryToolbar({ onAddVocabType, onSaveToRepo }: Dict
               </svg>
               <input
                 type="text"
-                placeholder="Search vocabulary types..."
+                placeholder="Search types and properties..."
                 value={searchQuery}
                 onChange={handleSearchChange}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -93,19 +59,6 @@ export default function DictionaryToolbar({ onAddVocabType, onSaveToRepo }: Dict
 
         {/* Right side - Actions */}
         <div className="flex items-center gap-2">
-          {/* Reset to RESO Seed */}
-          <button
-            onClick={handleResetToSeed}
-            disabled={isResetting}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50"
-            title="Reset to RESO Data Dictionary seed data"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            {isResetting ? 'Resetting...' : 'Reset to RESO'}
-          </button>
-
           {/* Add Vocab Type */}
           <button
             onClick={onAddVocabType}
