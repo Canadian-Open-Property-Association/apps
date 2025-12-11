@@ -9,6 +9,9 @@ import MovePropertiesModal from './MovePropertiesModal';
 type SortField = 'name' | 'valueType' | 'required';
 type SortDirection = 'asc' | 'desc';
 
+// LocalStorage key for property favourites
+const PROPERTY_FAVOURITES_KEY = 'copa-dictionary-property-favourites';
+
 // Domain colors for badges
 const DOMAIN_COLORS: Record<string, string> = {
   property: '#10B981',
@@ -49,6 +52,21 @@ const VALUE_TYPE_LABELS: Record<string, string> = {
   phone: 'Phone',
 };
 
+// Load property favourites from localStorage (keyed by vocabTypeId)
+function loadPropertyFavourites(): Record<string, string[]> {
+  try {
+    const stored = localStorage.getItem(PROPERTY_FAVOURITES_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+}
+
+// Save property favourites to localStorage
+function savePropertyFavourites(favourites: Record<string, string[]>) {
+  localStorage.setItem(PROPERTY_FAVOURITES_KEY, JSON.stringify(favourites));
+}
+
 export default function VocabTypeDetail({ onEdit }: VocabTypeDetailProps) {
   const { selectedVocabType, deleteProperty, domains } = useDictionaryStore();
   const [showPropertyForm, setShowPropertyForm] = useState(false);
@@ -60,8 +78,33 @@ export default function VocabTypeDetail({ onEdit }: VocabTypeDetailProps) {
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
+  // Property favourites state (keyed by vocab type ID)
+  const [allPropertyFavourites, setAllPropertyFavourites] = useState<Record<string, string[]>>(loadPropertyFavourites);
+
   // Ref for scrolling to top when vocab type changes
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Get favourites for current vocab type
+  const propertyFavourites = new Set(
+    selectedVocabType ? (allPropertyFavourites[selectedVocabType.id] || []) : []
+  );
+
+  // Toggle property favourite
+  const togglePropertyFavourite = (e: React.MouseEvent, propertyId: string) => {
+    e.stopPropagation();
+    if (!selectedVocabType) return;
+
+    setAllPropertyFavourites(prev => {
+      const vocabTypeFavourites = prev[selectedVocabType.id] || [];
+      const updated = vocabTypeFavourites.includes(propertyId)
+        ? vocabTypeFavourites.filter(id => id !== propertyId)
+        : [...vocabTypeFavourites, propertyId];
+
+      const newState = { ...prev, [selectedVocabType.id]: updated };
+      savePropertyFavourites(newState);
+      return newState;
+    });
+  };
 
   // Reset scroll position and clear search when vocab type changes
   useEffect(() => {
@@ -109,9 +152,17 @@ export default function VocabTypeDetail({ onEdit }: VocabTypeDetailProps) {
       )
     : [...allProperties];
 
-  // Sort properties
-  if (sortField) {
-    properties = [...properties].sort((a, b) => {
+  // Sort properties: favourites first, then by sort field or alphabetically
+  properties = [...properties].sort((a, b) => {
+    const aFav = propertyFavourites.has(a.id);
+    const bFav = propertyFavourites.has(b.id);
+
+    // Favourites always come first
+    if (aFav && !bFav) return -1;
+    if (!aFav && bFav) return 1;
+
+    // Then apply sort field if set
+    if (sortField) {
       let comparison = 0;
       switch (sortField) {
         case 'name':
@@ -125,8 +176,15 @@ export default function VocabTypeDetail({ onEdit }: VocabTypeDetailProps) {
           break;
       }
       return sortDirection === 'asc' ? comparison : -comparison;
-    });
-  }
+    }
+
+    // Default: alphabetical by display name
+    return (a.displayName || a.name).localeCompare(b.displayName || b.name);
+  });
+
+  // Split into favourites and others for display
+  const favouriteProperties = properties.filter(p => propertyFavourites.has(p.id));
+  const otherProperties = properties.filter(p => !propertyFavourites.has(p.id));
 
   // Handle column header click for sorting
   const handleSort = (field: SortField) => {
@@ -193,6 +251,125 @@ export default function VocabTypeDetail({ onEdit }: VocabTypeDetailProps) {
     clearSelection();
   };
 
+  // Render a property row
+  const renderPropertyRow = (prop: VocabProperty) => {
+    const isFavourite = propertyFavourites.has(prop.id);
+
+    return (
+      <tr
+        key={prop.id}
+        className={`hover:bg-gray-50 cursor-pointer ${selectedPropertyIds.has(prop.id) ? 'bg-blue-50' : ''}`}
+        onClick={() => setPreviewProperty(prop)}
+      >
+        <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={selectedPropertyIds.has(prop.id)}
+            onChange={() => togglePropertySelection(prop.id)}
+            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+        </td>
+        <td className="px-1 py-2" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={(e) => togglePropertyFavourite(e, prop.id)}
+            className={`p-0.5 transition-colors ${
+              isFavourite
+                ? 'text-yellow-500 hover:text-yellow-600'
+                : 'text-gray-300 hover:text-yellow-500'
+            }`}
+            title={isFavourite ? 'Remove from favourites' : 'Add to favourites'}
+          >
+            <svg
+              className="w-4 h-4"
+              fill={isFavourite ? 'currentColor' : 'none'}
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
+              />
+            </svg>
+          </button>
+        </td>
+        <td className="px-4 py-2">
+          <div>
+            <span className="font-medium text-gray-800">{prop.displayName}</span>
+            <span className="text-xs text-gray-400 ml-2 font-mono">{prop.name}</span>
+          </div>
+          {prop.description && (
+            <p className="text-xs text-gray-500 mt-0.5">{prop.description}</p>
+          )}
+        </td>
+        <td className="px-4 py-2 text-gray-600">
+          {VALUE_TYPE_LABELS[prop.valueType] || prop.valueType}
+        </td>
+        <td className="px-4 py-2">
+          {prop.required ? (
+            <span className="text-xs px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded">Required</span>
+          ) : (
+            <span className="text-xs text-gray-400">Optional</span>
+          )}
+        </td>
+        <td className="px-4 py-2">
+          {prop.constraints ? (
+            <div className="text-xs text-gray-500">
+              {prop.constraints.enum && (
+                <span className="mr-2">Enum: {prop.constraints.enum.length} values</span>
+              )}
+              {prop.constraints.format && (
+                <span className="mr-2">Format: {prop.constraints.format}</span>
+              )}
+              {prop.constraints.minLength !== undefined && (
+                <span className="mr-2">Min: {prop.constraints.minLength}</span>
+              )}
+              {prop.constraints.maxLength !== undefined && (
+                <span className="mr-2">Max: {prop.constraints.maxLength}</span>
+              )}
+              {!prop.constraints.enum && !prop.constraints.format &&
+               prop.constraints.minLength === undefined && prop.constraints.maxLength === undefined && (
+                <span className="text-gray-400">-</span>
+              )}
+            </div>
+          ) : (
+            <span className="text-xs text-gray-400">-</span>
+          )}
+        </td>
+        <td className="px-4 py-2 text-right">
+          <button
+            onClick={(e) => { e.stopPropagation(); setPreviewProperty(prop); }}
+            className="text-gray-400 hover:text-gray-600 p-1"
+            title="View Details"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setEditingProperty(prop); setShowPropertyForm(true); }}
+            className="text-gray-400 hover:text-blue-600 p-1"
+            title="Edit"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); handleDeleteProperty(prop.id); }}
+            className="text-gray-400 hover:text-red-600 p-1 ml-1"
+            title="Delete"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        </td>
+      </tr>
+    );
+  };
+
   return (
     <div ref={containerRef} className="p-6 overflow-y-auto h-full">
       {/* Header */}
@@ -245,6 +422,14 @@ export default function VocabTypeDetail({ onEdit }: VocabTypeDetailProps) {
             <span className="text-gray-400 font-normal">
               ({properties.length}{propertySearch && ` of ${allProperties.length}`})
             </span>
+            {favouriteProperties.length > 0 && (
+              <span className="text-yellow-600 font-normal flex items-center gap-1">
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                </svg>
+                {favouriteProperties.length} favourited
+              </span>
+            )}
           </h3>
           <div className="flex items-center gap-3">
             {/* Property Search */}
@@ -335,6 +520,7 @@ export default function VocabTypeDetail({ onEdit }: VocabTypeDetailProps) {
                       className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                   </th>
+                  <th className="px-1 py-2 w-8"></th>
                   <th
                     className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100 select-none"
                     onClick={() => handleSort('name')}
@@ -367,94 +553,33 @@ export default function VocabTypeDetail({ onEdit }: VocabTypeDetailProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {properties.map((prop) => (
-                  <tr
-                    key={prop.id}
-                    className={`hover:bg-gray-50 cursor-pointer ${selectedPropertyIds.has(prop.id) ? 'bg-blue-50' : ''}`}
-                    onClick={() => setPreviewProperty(prop)}
-                  >
-                    <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={selectedPropertyIds.has(prop.id)}
-                        onChange={() => togglePropertySelection(prop.id)}
-                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                    </td>
-                    <td className="px-4 py-2">
-                      <div>
-                        <span className="font-medium text-gray-800">{prop.displayName}</span>
-                        <span className="text-xs text-gray-400 ml-2 font-mono">{prop.name}</span>
-                      </div>
-                      {prop.description && (
-                        <p className="text-xs text-gray-500 mt-0.5">{prop.description}</p>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-gray-600">
-                      {VALUE_TYPE_LABELS[prop.valueType] || prop.valueType}
-                    </td>
-                    <td className="px-4 py-2">
-                      {prop.required ? (
-                        <span className="text-xs px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded">Required</span>
-                      ) : (
-                        <span className="text-xs text-gray-400">Optional</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2">
-                      {prop.constraints ? (
-                        <div className="text-xs text-gray-500">
-                          {prop.constraints.enum && (
-                            <span className="mr-2">Enum: {prop.constraints.enum.length} values</span>
-                          )}
-                          {prop.constraints.format && (
-                            <span className="mr-2">Format: {prop.constraints.format}</span>
-                          )}
-                          {prop.constraints.minLength !== undefined && (
-                            <span className="mr-2">Min: {prop.constraints.minLength}</span>
-                          )}
-                          {prop.constraints.maxLength !== undefined && (
-                            <span className="mr-2">Max: {prop.constraints.maxLength}</span>
-                          )}
-                          {!prop.constraints.enum && !prop.constraints.format &&
-                           prop.constraints.minLength === undefined && prop.constraints.maxLength === undefined && (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setPreviewProperty(prop); }}
-                        className="text-gray-400 hover:text-gray-600 p-1"
-                        title="View JSON"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setEditingProperty(prop); setShowPropertyForm(true); }}
-                        className="text-gray-400 hover:text-blue-600 p-1"
-                        title="Edit"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDeleteProperty(prop.id); }}
-                        className="text-gray-400 hover:text-red-600 p-1 ml-1"
-                        title="Delete"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
+                {/* Favourite properties section */}
+                {favouriteProperties.length > 0 && (
+                  <>
+                    <tr className="bg-yellow-50">
+                      <td colSpan={7} className="px-4 py-1.5">
+                        <span className="text-xs font-medium text-yellow-700 uppercase tracking-wide flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                          </svg>
+                          Favourites ({favouriteProperties.length})
+                        </span>
+                      </td>
+                    </tr>
+                    {favouriteProperties.map(renderPropertyRow)}
+                  </>
+                )}
+                {/* Other properties section */}
+                {otherProperties.length > 0 && favouriteProperties.length > 0 && (
+                  <tr className="bg-gray-50">
+                    <td colSpan={7} className="px-4 py-1.5">
+                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                        All Properties ({otherProperties.length})
+                      </span>
                     </td>
                   </tr>
-                ))}
+                )}
+                {otherProperties.map(renderPropertyRow)}
               </tbody>
             </table>
           </div>
