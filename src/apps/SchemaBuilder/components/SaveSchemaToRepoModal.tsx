@@ -1,9 +1,9 @@
 /**
  * SaveSchemaToRepoModal Component
  *
- * Modal for creating a GitHub PR to save the schema/context to the repository.
- * Supports both JSON Schema and JSON-LD Context modes.
- * Uses VDR namespace convention: {category}-{credential-name}.{type}.{ext}
+ * Modal for creating a GitHub PR to save the JSON Schema to the repository.
+ * Schemas are saved to credentials/schemas/ folder.
+ * Uses VDR namespace convention: {category}-{credential-name}.schema.json
  */
 
 import { useState, useMemo } from 'react';
@@ -29,10 +29,8 @@ export default function SaveSchemaToRepoModal({ isOpen, onClose }: SaveSchemaToR
   const currentProjectName = useSchemaStore((state) => state.currentProjectName);
   const exportSchema = useSchemaStore((state) => state.exportSchema);
 
-  const isJsonLdMode = metadata.mode === 'jsonld-context';
-  const typeLabel = isJsonLdMode ? 'JSON-LD Context' : 'JSON Schema';
-  // Use namespace convention: {base}.context.jsonld or {base}.schema.json
-  const fileExtension = isJsonLdMode ? '.context.jsonld' : '.schema.json';
+  const typeLabel = 'JSON Schema';
+  const fileExtension = '.schema.json';
 
   // Generate default filename using namespace convention
   const defaultFilename = useMemo(() => {
@@ -64,7 +62,7 @@ export default function SaveSchemaToRepoModal({ isOpen, onClose }: SaveSchemaToR
           content: JSON.parse(content), // Parse back to object for proper handling
           title: title || `Add ${typeLabel}: ${metadata.title || currentProjectName}`,
           description,
-          mode: metadata.mode || 'json-schema',
+          mode: 'json-schema', // Always use json-schema mode for schemas
         }),
       });
 
@@ -151,12 +149,12 @@ export default function SaveSchemaToRepoModal({ isOpen, onClose }: SaveSchemaToR
         ) : (
           <form onSubmit={handleSubmit} className="p-4 space-y-4">
             {/* Mode indicator */}
-            <div className={`p-3 rounded-md ${isJsonLdMode ? 'bg-purple-50 border border-purple-200' : 'bg-blue-50 border border-blue-200'}`}>
-              <p className={`text-sm ${isJsonLdMode ? 'text-purple-700' : 'text-blue-700'}`}>
-                <strong>Mode:</strong> {typeLabel}
+            <div className="p-3 rounded-md bg-blue-50 border border-blue-200">
+              <p className="text-sm text-blue-700">
+                <strong>Type:</strong> {typeLabel}
               </p>
-              <p className={`text-xs mt-1 ${isJsonLdMode ? 'text-purple-600' : 'text-blue-600'}`}>
-                File will be saved to: <code>credentials/{isJsonLdMode ? 'contexts' : 'schemas'}/</code>
+              <p className="text-xs mt-1 text-blue-600">
+                File will be saved to: <code>credentials/schemas/</code>
               </p>
             </div>
 
@@ -238,11 +236,7 @@ export default function SaveSchemaToRepoModal({ isOpen, onClose }: SaveSchemaToR
               </button>
               <button
                 type="submit"
-                className={`px-4 py-2 text-white rounded-md flex items-center gap-2 disabled:opacity-50 ${
-                  isJsonLdMode
-                    ? 'bg-purple-600 hover:bg-purple-700'
-                    : 'bg-green-600 hover:bg-green-700'
-                }`}
+                className="px-4 py-2 text-white rounded-md flex items-center gap-2 disabled:opacity-50 bg-green-600 hover:bg-green-700"
                 disabled={loading}
               >
                 {loading ? (

@@ -3,7 +3,6 @@ import { useSchemaStore } from '../../../store/schemaStore';
 import { useAuthStore } from '../../../store/authStore';
 import SaveSchemaToRepoModal from './SaveSchemaToRepoModal';
 import NewSchemaModal from './NewSchemaModal';
-import { SchemaMode } from '../../../types/vocabulary';
 
 export default function SchemaToolbar() {
   const [showNewModal, setShowNewModal] = useState(false);
@@ -20,15 +19,12 @@ export default function SchemaToolbar() {
     currentProjectId,
     isDirty,
     savedProjects,
-    metadata,
     newSchema,
     saveSchema,
     loadSchema,
     deleteSchema,
     updateMetadata,
   } = useSchemaStore();
-
-  const isJsonLdMode = metadata.mode === 'jsonld-context';
 
   const handleNew = () => {
     if (isDirty && !confirm('You have unsaved changes. Create new schema anyway?')) {
@@ -37,9 +33,10 @@ export default function SchemaToolbar() {
     setShowNewModal(true);
   };
 
-  const handleNewSchemaSelect = (mode: SchemaMode) => {
+  const handleNewSchemaCreate = () => {
     newSchema();
-    updateMetadata({ mode });
+    // Always use json-schema mode (for JSON-LD VCs)
+    updateMetadata({ mode: 'json-schema' });
   };
 
   const handleSave = async () => {
@@ -128,14 +125,8 @@ export default function SchemaToolbar() {
 
         {/* Format Badge */}
         <div className="w-px h-6 bg-gray-300 mx-2" />
-        <span
-          className={`px-3 py-1 text-xs font-medium rounded-full ${
-            isJsonLdMode
-              ? 'bg-purple-100 text-purple-700 border border-purple-200'
-              : 'bg-green-100 text-green-700 border border-green-200'
-          }`}
-        >
-          {isJsonLdMode ? 'JSON-LD Context' : 'SD-JWT Schema'}
+        <span className="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700 border border-blue-200">
+          JSON Schema
         </span>
 
         {/* Create Pull Request - far right, only for authenticated users */}
@@ -145,12 +136,8 @@ export default function SchemaToolbar() {
             <div className="w-px h-6 bg-gray-300 mx-2" />
             <button
               onClick={() => setShowSaveToRepoModal(true)}
-              className={`px-3 py-1.5 text-sm font-medium text-white rounded-md flex items-center gap-1 ${
-                isJsonLdMode
-                  ? 'bg-purple-600 hover:bg-purple-700'
-                  : 'bg-green-600 hover:bg-green-700'
-              }`}
-              title={`Create PR to save ${isJsonLdMode ? 'JSON-LD Context' : 'JSON Schema'} to repository`}
+              className="px-3 py-1.5 text-sm font-medium text-white rounded-md flex items-center gap-1 bg-green-600 hover:bg-green-700"
+              title="Create PR to save JSON Schema to repository"
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
@@ -248,7 +235,7 @@ export default function SchemaToolbar() {
       <NewSchemaModal
         isOpen={showNewModal}
         onClose={() => setShowNewModal(false)}
-        onSelect={handleNewSchemaSelect}
+        onSelect={handleNewSchemaCreate}
       />
     </>
   );

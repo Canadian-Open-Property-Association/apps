@@ -6,7 +6,6 @@ import SchemaInfoTab from './components/SchemaInfoTab';
 import PropertiesTab from './components/PropertiesTab';
 import SchemaJsonPreview from './components/SchemaJsonPreview';
 import NewSchemaModal from './components/NewSchemaModal';
-import { SchemaMode } from '../../types/vocabulary';
 
 type SchemaTab = 'info' | 'properties';
 
@@ -75,7 +74,6 @@ export default function SchemaBuilderApp() {
   }, []);
 
   const fetchGovernanceDocs = useSchemaStore((state) => state.fetchGovernanceDocs);
-  const mode = useSchemaStore((state) => state.metadata.mode);
   const savedProjects = useSchemaStore((state) => state.savedProjects);
   const newSchema = useSchemaStore((state) => state.newSchema);
   const updateMetadata = useSchemaStore((state) => state.updateMetadata);
@@ -101,11 +99,10 @@ export default function SchemaBuilderApp() {
     fetchGovernanceDocs();
   }, [fetchGovernanceDocs]);
 
-  const isJsonLdMode = mode === 'jsonld-context'; // mode defaults to 'json-schema'
-
-  const handleNewSchemaSelect = (selectedMode: SchemaMode) => {
+  const handleNewSchemaCreate = () => {
     newSchema();
-    updateMetadata({ mode: selectedMode });
+    // Always use json-schema mode (for JSON-LD VCs)
+    updateMetadata({ mode: 'json-schema' });
     setShowNewModal(false);
   };
 
@@ -136,7 +133,7 @@ export default function SchemaBuilderApp() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               <h2 className="text-2xl font-semibold text-gray-800 mb-2">Welcome to Schema Builder</h2>
-              <p className="text-gray-500">Create JSON Schemas for SD-JWT credentials or JSON-LD Contexts</p>
+              <p className="text-gray-500">Create JSON Schemas to define data structures for JSON-LD Verifiable Credentials</p>
             </div>
 
             <div className="flex gap-4 justify-center">
@@ -179,7 +176,7 @@ export default function SchemaBuilderApp() {
         <NewSchemaModal
           isOpen={showNewModal}
           onClose={() => setShowNewModal(false)}
-          onSelect={handleNewSchemaSelect}
+          onSelect={handleNewSchemaCreate}
         />
 
         {/* Load Modal */}
@@ -291,7 +288,7 @@ export default function SchemaBuilderApp() {
         <div className="flex-1 bg-gray-900 flex flex-col overflow-hidden">
           <div className="bg-gray-800 px-4 py-2 border-b border-gray-700">
             <h2 className="text-white font-medium text-sm">
-              {isJsonLdMode ? 'JSON-LD Context' : 'JSON Schema'}
+              JSON Schema Preview
             </h2>
           </div>
           <div className="flex-1 overflow-hidden">
