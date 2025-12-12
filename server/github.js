@@ -5,24 +5,26 @@ const router = express.Router();
 
 // GitHub repo configuration
 const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || 'Canadian-Open-Property-Association';
-const GITHUB_REPO_NAME = process.env.GITHUB_REPO_NAME || 'governance';
-const VCT_FOLDER_PATH = process.env.VCT_FOLDER_PATH || 'credentials/branding';
+const GITHUB_REPO_NAME = process.env.GITHUB_REPO_NAME || 'verifiable-credentials';
+const VCT_FOLDER_PATH = process.env.VCT_FOLDER_PATH || 'credentials/vct';
 const SCHEMA_FOLDER_PATH = process.env.SCHEMA_FOLDER_PATH || 'credentials/schemas';
 const CONTEXT_FOLDER_PATH = process.env.CONTEXT_FOLDER_PATH || 'credentials/contexts';
-const ENTITY_FOLDER_PATH = process.env.ENTITY_FOLDER_PATH || 'entities';
-const VOCAB_FOLDER_PATH = process.env.VOCAB_FOLDER_PATH || 'credentials/vocab';
+const ENTITY_FOLDER_PATH = process.env.ENTITY_FOLDER_PATH || 'credentials/entities';
+const VOCAB_FOLDER_PATH = process.env.VOCAB_FOLDER_PATH || 'credentials/contexts';
+const HARMONIZATION_FOLDER_PATH = process.env.HARMONIZATION_FOLDER_PATH || 'credentials/harmonization';
 const BASE_URL = process.env.BASE_URL || 'https://openpropertyassociation.ca';
 // Base branch for PRs - if set, use this instead of repo's default branch
 const GITHUB_BASE_BRANCH = process.env.GITHUB_BASE_BRANCH || null;
 
-// Get configuration (base URLs for VCT, Schema, Context, Entities, and Vocab)
+// Get configuration (base URLs for VCT, Schema, Context, Entities, Vocab, and Harmonization)
 router.get('/config', requireAuth, (req, res) => {
   res.json({
-    vctBaseUrl: `${BASE_URL}/credentials/branding/`,
-    schemaBaseUrl: `${BASE_URL}/credentials/schemas/`,
-    contextBaseUrl: `${BASE_URL}/credentials/contexts/`,
-    entityBaseUrl: `${BASE_URL}/entities/`,
+    vctBaseUrl: `${BASE_URL}/${VCT_FOLDER_PATH}/`,
+    schemaBaseUrl: `${BASE_URL}/${SCHEMA_FOLDER_PATH}/`,
+    contextBaseUrl: `${BASE_URL}/${CONTEXT_FOLDER_PATH}/`,
+    entityBaseUrl: `${BASE_URL}/${ENTITY_FOLDER_PATH}/`,
     vocabBaseUrl: `${BASE_URL}/${VOCAB_FOLDER_PATH}/`,
+    harmonizationBaseUrl: `${BASE_URL}/${HARMONIZATION_FOLDER_PATH}/`,
   });
 });
 
@@ -729,6 +731,115 @@ Created by @${user.login} using the [COPA Apps](https://apps.openpropertyassocia
   } catch (error) {
     console.error('Error creating Vocab PR:', error);
     res.status(500).json({ error: error.message || 'Failed to create vocabulary pull request' });
+  }
+});
+
+// ============================================
+// Harmonization Mappings Endpoints
+// ============================================
+
+// Save harmonization mappings to repository (creates branch + PR)
+router.post('/harmonization', requireAuth, async (req, res) => {
+  try {
+    const { content, title, description } = req.body;
+
+    if (!content) {
+      return res.status(400).json({ error: 'Content is required' });
+    }
+
+    const octokit = getOctokit(req);
+    const user = req.session.user;
+
+    // Determine the base branch for the PR
+    let baseBranch = GITHUB_BASE_BRANCH;
+    if (!baseBranch) {
+      const { data: repo } = await octokit.rest.repos.get({
+        owner: GITHUB_REPO_OWNER,
+        repo: GITHUB_REPO_NAME,
+      });
+      baseBranch = repo.default_branch;
+    }
+
+    // Get the latest commit SHA of the base branch
+    const { data: ref } = await octokit.rest.git.getRef({
+      owner: GITHUB_REPO_OWNER,
+      repo: GITHUB_REPO_NAME,
+      ref: `heads/${baseBranch}`,
+    });
+    const baseSha = ref.object.sha;
+
+    // Create a new branch
+    const timestamp = Date.now();
+    const branchName = `harmonization/update-mappings-${timestamp}`;
+
+    await octokit.rest.git.createRef({
+      owner: GITHUB_REPO_OWNER,
+      repo: GITHUB_REPO_NAME,
+      ref: `refs/heads/${branchName}`,
+      sha: baseSha,
+    });
+
+    // Check if file exists to get its SHA for update
+    let existingSha = null;
+    try {
+      const { data: existingFile } = await octokit.rest.repos.getContent({
+        owner: GITHUB_REPO_OWNER,
+        repo: GITHUB_REPO_NAME,
+        path: `${HARMONIZATION_FOLDER_PATH}/mappings.json`,
+        ref: baseBranch,
+      });
+      existingSha = existingFile.sha;
+    } catch (error) {
+      if (error.status !== 404) {
+        throw error;
+      }
+      // File doesn't exist, that's fine - we'll create it
+    }
+
+    // Create or update the file in the new branch
+    const filePath = `${HARMONIZATION_FOLDER_PATH}/mappings.json`;
+    const fileContent = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+    const encodedContent = Buffer.from(fileContent).toString('base64');
+
+    await octokit.rest.repos.createOrUpdateFileContents({
+      owner: GITHUB_REPO_OWNER,
+      repo: GITHUB_REPO_NAME,
+      path: filePath,
+      message: title || 'Update data harmonization mappings',
+      content: encodedContent,
+      branch: branchName,
+      ...(existingSha && { sha: existingSha }),
+    });
+
+    // Create a pull request
+    const prTitle = title || 'Update data harmonization mappings';
+    const prBody = description || `This PR updates the data harmonization mappings.
+
+Created by @${user.login} using the [COPA Apps](https://apps.openpropertyassociation.ca).`;
+
+    const { data: pr } = await octokit.rest.pulls.create({
+      owner: GITHUB_REPO_OWNER,
+      repo: GITHUB_REPO_NAME,
+      title: prTitle,
+      body: prBody,
+      head: branchName,
+      base: baseBranch,
+    });
+
+    res.json({
+      success: true,
+      pr: {
+        number: pr.number,
+        url: pr.html_url,
+        title: pr.title,
+      },
+      branch: branchName,
+      file: filePath,
+      uri: `${BASE_URL}/${filePath}`,
+    });
+  } catch (error) {
+    console.error('Error creating Harmonization PR:', error);
+    res.status(500).json({ error: error.message || 'Failed to create harmonization pull request' });
   }
 });
 

@@ -205,6 +205,13 @@ interface HarmonizationState {
   updateMapping: (id: string, updates: Partial<FieldMapping>) => Promise<void>;
   deleteMapping: (id: string) => Promise<void>;
 
+  // GitHub integration
+  saveToGitHub: (title: string, description?: string) => Promise<{
+    pr: { number: number; url: string; title: string };
+    branch: string;
+    file: string;
+  }>;
+
   // Helpers
   getDataFurnishers: () => Entity[];
   getSelectedEntity: () => Entity | null;

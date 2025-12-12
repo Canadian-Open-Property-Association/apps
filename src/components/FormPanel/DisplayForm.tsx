@@ -94,7 +94,7 @@ export default function DisplayForm() {
           onClick={() => setCardStylingCollapsed(!cardStylingCollapsed)}
           className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
         >
-          <h4 className="font-medium text-gray-800">Card Styling</h4>
+          <h3 className="text-lg font-semibold text-gray-800">Card Styling</h3>
           <svg
             className={`w-5 h-5 text-gray-500 transform transition-transform ${cardStylingCollapsed ? '' : 'rotate-180'}`}
             fill="none"
