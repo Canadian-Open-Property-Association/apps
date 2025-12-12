@@ -209,9 +209,17 @@ const requireProjectAuth = (req, res, next) => {
   next();
 };
 
-// List all assets
+// List all assets (optionally filter by entityId)
 app.get('/api/assets', (req, res) => {
   const meta = loadAssetsMeta();
+  const { entityId } = req.query;
+
+  // If entityId is provided, filter assets for that entity
+  if (entityId) {
+    const filteredAssets = meta.assets.filter(a => a.entityId === entityId);
+    return res.json(filteredAssets);
+  }
+
   res.json(meta.assets);
 });
 
@@ -242,12 +250,16 @@ app.post('/api/assets', requireProjectAuth, upload.single('file'), async (req, r
       size,
       hash: integrityHash,
       uri: `/assets/${filename}`, // Use relative path so it works on any deployment
+      localUri: `/assets/${filename}`, // Alias for consistency with EntityAsset interface
       createdAt: new Date().toISOString(),
       uploader: {
         id: String(req.session.user.id),
         login: req.session.user.login,
         name: req.session.user.name || undefined,
       },
+      // Optional fields from request body
+      entityId: req.body.entityId || undefined,
+      type: req.body.type || undefined,
     };
 
     // Save to metadata
@@ -297,11 +309,11 @@ app.delete('/api/assets/:id', requireProjectAuth, (req, res) => {
   }
 });
 
-// Rename asset (requires auth, only uploader can rename unless legacy asset)
+// Update asset metadata (requires auth, only uploader can update unless legacy asset)
 app.patch('/api/assets/:id', requireProjectAuth, (req, res) => {
   try {
     const { id } = req.params;
-    const { name } = req.body;
+    const { name, type, entityId } = req.body;
 
     const meta = loadAssetsMeta();
     const asset = meta.assets.find(a => a.id === id);
@@ -310,12 +322,17 @@ app.patch('/api/assets/:id', requireProjectAuth, (req, res) => {
       return res.status(404).json({ error: 'Asset not found' });
     }
 
-    // Check ownership: only uploader can rename, but allow any authenticated user for legacy assets without uploader
+    // Check ownership: only uploader can update, but allow any authenticated user for legacy assets without uploader
     if (asset.uploader && asset.uploader.id !== String(req.session.user.id)) {
-      return res.status(403).json({ error: 'You can only rename your own assets' });
+      return res.status(403).json({ error: 'You can only update your own assets' });
     }
 
-    asset.name = name;
+    // Update fields if provided
+    if (name !== undefined) asset.name = name;
+    if (type !== undefined) asset.type = type;
+    if (entityId !== undefined) asset.entityId = entityId;
+    asset.updatedAt = new Date().toISOString();
+
     saveAssetsMeta(meta);
 
     res.json(asset);

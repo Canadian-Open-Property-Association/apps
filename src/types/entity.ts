@@ -191,3 +191,41 @@ export const ENTITY_STATUS_CONFIG: Record<EntityStatus, { label: string; color: 
 export interface EntitySelection {
   entityId: string;
 }
+
+// ============================================
+// Entity Asset Types
+// For managing logos, backgrounds, and icons tied to entities
+// ============================================
+
+export type EntityAssetType = 'entity-logo' | 'credential-background' | 'credential-icon';
+
+export interface EntityAsset {
+  id: string;
+  name: string;
+  filename: string;
+  originalName: string;
+  type: EntityAssetType;
+  localUri: string;
+  publishedUri?: string;
+  isPublished: boolean;
+  mimetype: string;
+  size: number;
+  hash?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export const ENTITY_ASSET_TYPE_CONFIG: Record<EntityAssetType, { label: string; description: string }> = {
+  'entity-logo': {
+    label: 'Entity Logo',
+    description: 'Logo for this entity',
+  },
+  'credential-background': {
+    label: 'Credential Background',
+    description: 'Background image for credential cards',
+  },
+  'credential-icon': {
+    label: 'Credential Icon',
+    description: 'Icon for credential types',
+  },
+}

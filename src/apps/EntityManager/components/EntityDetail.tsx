@@ -3,6 +3,7 @@ import type { Entity, EntityType, FurnisherDataSchema } from '../../../types/ent
 import { ENTITY_TYPE_CONFIG, migrateDataSchema } from '../../../types/entity';
 import { useEntityStore } from '../../../store/entityStore';
 import DataSourcesSection from './DataSourcesSection';
+import AssetsSection from './AssetsSection';
 
 interface EntityDetailProps {
   entity: Entity;
@@ -105,9 +106,9 @@ const ALL_ENTITY_TYPES: EntityType[] = ['issuer', 'data-furnisher', 'network-par
 
 export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailProps) {
   const brandColour = entity.primaryColor || '#1a365d';
-  const { updateEntity } = useEntityStore();
+  const { updateEntity, selectEntity } = useEntityStore();
   const isDataFurnisher = entity.types?.includes('data-furnisher');
-  const [activeTab, setActiveTab] = useState<'about' | 'data-schema'>('about');
+  const [activeTab, setActiveTab] = useState<'about' | 'data-schema' | 'assets'>('about');
 
   // Inline editing states
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -322,20 +323,20 @@ export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailPr
           <p className="text-sm text-gray-600 mb-4 max-w-2xl">{entity.description}</p>
         )}
 
-        {/* Tabs - only show if data furnisher */}
-        {isDataFurnisher && (
-          <div className="border-b border-gray-200 mb-6">
-            <nav className="flex gap-6" aria-label="Tabs">
-              <button
-                onClick={() => setActiveTab('about')}
-                className={`py-3 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'about'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                About
-              </button>
+        {/* Tabs - always show for all entities */}
+        <div className="border-b border-gray-200 mb-6">
+          <nav className="flex gap-6" aria-label="Tabs">
+            <button
+              onClick={() => setActiveTab('about')}
+              className={`py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'about'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              About
+            </button>
+            {isDataFurnisher && (
               <button
                 onClick={() => setActiveTab('data-schema')}
                 className={`py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
@@ -351,12 +352,25 @@ export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailPr
                   {migrateDataSchema(entity.dataSchema).sources?.length || 0}
                 </span>
               </button>
-            </nav>
-          </div>
-        )}
+            )}
+            <button
+              onClick={() => setActiveTab('assets')}
+              className={`py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                activeTab === 'assets'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Assets
+            </button>
+          </nav>
+        </div>
 
       {/* Tab Content: About */}
-      {(!isDataFurnisher || activeTab === 'about') && (
+      {activeTab === 'about' && (
         <>
           {/* Details Grid */}
           <div className="grid grid-cols-2 gap-6">
@@ -618,6 +632,11 @@ export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailPr
       {/* Tab Content: Data Sources - Only shown for Data Furnisher entities */}
       {isDataFurnisher && activeTab === 'data-schema' && (
         <DataSourcesSection entity={entity} onUpdateSchema={handleUpdateSchema} />
+      )}
+
+      {/* Tab Content: Assets - Available for all entities */}
+      {activeTab === 'assets' && (
+        <AssetsSection entity={entity} onRefreshEntity={() => selectEntity(entity.id)} />
       )}
       </div>
     </div>
