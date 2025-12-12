@@ -1280,4 +1280,89 @@ router.delete('/vocab-types/:dataTypeId/properties/:propertyId', requireAuth, (r
   }
 });
 
+// -------------------- Property Favourites --------------------
+// Backend storage for property favourites (shared across all users)
+
+const getFavouritesFile = () => path.join(getDataDir(), 'property-favourites.json');
+
+// Initialize favourites file if it doesn't exist
+const ensureFavouritesFile = () => {
+  const file = getFavouritesFile();
+  if (!fs.existsSync(file)) {
+    fs.writeFileSync(file, JSON.stringify({ favourites: [] }, null, 2));
+  }
+};
+
+// Load favourites
+const loadFavourites = () => {
+  ensureFavouritesFile();
+  const data = JSON.parse(fs.readFileSync(getFavouritesFile(), 'utf-8'));
+  return data.favourites || [];
+};
+
+// Save favourites
+const saveFavourites = (favourites) => {
+  fs.writeFileSync(getFavouritesFile(), JSON.stringify({ favourites }, null, 2));
+};
+
+// GET /api/catalogue/favourites - List all favourited properties
+router.get('/favourites', (req, res) => {
+  try {
+    const favourites = loadFavourites();
+    res.json({ favourites });
+  } catch (error) {
+    console.error('Error listing favourites:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/catalogue/favourites - Add a property to favourites
+router.post('/favourites', (req, res) => {
+  try {
+    const { propertyFullId } = req.body;
+
+    if (!propertyFullId) {
+      return res.status(400).json({ error: 'propertyFullId is required' });
+    }
+
+    // Validate format: should be {vocabTypeId}.{propertyId}
+    if (!propertyFullId.includes('.')) {
+      return res.status(400).json({ error: 'Invalid propertyFullId format. Expected: {vocabTypeId}.{propertyId}' });
+    }
+
+    const favourites = loadFavourites();
+
+    if (!favourites.includes(propertyFullId)) {
+      favourites.push(propertyFullId);
+      saveFavourites(favourites);
+    }
+
+    res.json({ favourites });
+  } catch (error) {
+    console.error('Error adding favourite:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/catalogue/favourites/:propertyFullId - Remove a property from favourites
+router.delete('/favourites/:propertyFullId', (req, res) => {
+  try {
+    const { propertyFullId } = req.params;
+    const favourites = loadFavourites();
+
+    const index = favourites.indexOf(propertyFullId);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Favourite not found' });
+    }
+
+    favourites.splice(index, 1);
+    saveFavourites(favourites);
+
+    res.json({ favourites });
+  } catch (error) {
+    console.error('Error removing favourite:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

@@ -214,3 +214,16 @@ export function migrateVocabTypeTodomains(vocabType: Partial<VocabType>): VocabT
     domains: domains && domains.length > 0 ? domains : (category ? [category] : []),
   } as VocabType;
 }
+
+// ============================================
+// Flattened Property - for All Properties view
+// ============================================
+
+/**
+ * A property with parent vocab type context, for flat list views
+ */
+export interface FlattenedProperty extends VocabProperty {
+  vocabTypeId: string;       // Parent vocab type ID
+  vocabTypeName: string;     // Parent vocab type name for display
+  fullId: string;            // Combined ID: {vocabTypeId}.{propertyId}
+}

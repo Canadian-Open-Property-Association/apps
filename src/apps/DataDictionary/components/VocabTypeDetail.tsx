@@ -9,9 +9,6 @@ import MovePropertiesModal from './MovePropertiesModal';
 type SortField = 'name' | 'valueType' | 'required';
 type SortDirection = 'asc' | 'desc';
 
-// LocalStorage key for property favourites
-const PROPERTY_FAVOURITES_KEY = 'copa-dictionary-property-favourites';
-
 // Domain colors for badges
 const DOMAIN_COLORS: Record<string, string> = {
   property: '#10B981',
@@ -52,23 +49,14 @@ const VALUE_TYPE_LABELS: Record<string, string> = {
   phone: 'Phone',
 };
 
-// Load property favourites from localStorage (keyed by vocabTypeId)
-function loadPropertyFavourites(): Record<string, string[]> {
-  try {
-    const stored = localStorage.getItem(PROPERTY_FAVOURITES_KEY);
-    return stored ? JSON.parse(stored) : {};
-  } catch {
-    return {};
-  }
-}
-
-// Save property favourites to localStorage
-function savePropertyFavourites(favourites: Record<string, string[]>) {
-  localStorage.setItem(PROPERTY_FAVOURITES_KEY, JSON.stringify(favourites));
-}
-
 export default function VocabTypeDetail({ onEdit }: VocabTypeDetailProps) {
-  const { selectedVocabType, deleteProperty, domains } = useDictionaryStore();
+  const {
+    selectedVocabType,
+    deleteProperty,
+    domains,
+    togglePropertyFavourite: storeToggleFavourite,
+    isPropertyFavourite,
+  } = useDictionaryStore();
   const [showPropertyForm, setShowPropertyForm] = useState(false);
   const [editingProperty, setEditingProperty] = useState<VocabProperty | null>(null);
   const [previewProperty, setPreviewProperty] = useState<VocabProperty | null>(null);
@@ -78,32 +66,20 @@ export default function VocabTypeDetail({ onEdit }: VocabTypeDetailProps) {
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
-  // Property favourites state (keyed by vocab type ID)
-  const [allPropertyFavourites, setAllPropertyFavourites] = useState<Record<string, string[]>>(loadPropertyFavourites);
-
   // Ref for scrolling to top when vocab type changes
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Get favourites for current vocab type
-  const propertyFavourites = new Set(
-    selectedVocabType ? (allPropertyFavourites[selectedVocabType.id] || []) : []
-  );
-
-  // Toggle property favourite
+  // Toggle property favourite (calls store action)
   const togglePropertyFavourite = (e: React.MouseEvent, propertyId: string) => {
     e.stopPropagation();
     if (!selectedVocabType) return;
+    storeToggleFavourite(selectedVocabType.id, propertyId);
+  };
 
-    setAllPropertyFavourites(prev => {
-      const vocabTypeFavourites = prev[selectedVocabType.id] || [];
-      const updated = vocabTypeFavourites.includes(propertyId)
-        ? vocabTypeFavourites.filter(id => id !== propertyId)
-        : [...vocabTypeFavourites, propertyId];
-
-      const newState = { ...prev, [selectedVocabType.id]: updated };
-      savePropertyFavourites(newState);
-      return newState;
-    });
+  // Check if property is favourite (using store)
+  const isPropertyFav = (propertyId: string): boolean => {
+    if (!selectedVocabType) return false;
+    return isPropertyFavourite(selectedVocabType.id, propertyId);
   };
 
   // Reset scroll position and clear search when vocab type changes
@@ -154,8 +130,8 @@ export default function VocabTypeDetail({ onEdit }: VocabTypeDetailProps) {
 
   // Sort properties: favourites first, then by sort field or alphabetically
   properties = [...properties].sort((a, b) => {
-    const aFav = propertyFavourites.has(a.id);
-    const bFav = propertyFavourites.has(b.id);
+    const aFav = isPropertyFav(a.id);
+    const bFav = isPropertyFav(b.id);
 
     // Favourites always come first
     if (aFav && !bFav) return -1;
@@ -183,8 +159,8 @@ export default function VocabTypeDetail({ onEdit }: VocabTypeDetailProps) {
   });
 
   // Split into favourites and others for display
-  const favouriteProperties = properties.filter(p => propertyFavourites.has(p.id));
-  const otherProperties = properties.filter(p => !propertyFavourites.has(p.id));
+  const favouriteProperties = properties.filter(p => isPropertyFav(p.id));
+  const otherProperties = properties.filter(p => !isPropertyFav(p.id));
 
   // Handle column header click for sorting
   const handleSort = (field: SortField) => {
@@ -253,7 +229,7 @@ export default function VocabTypeDetail({ onEdit }: VocabTypeDetailProps) {
 
   // Render a property row
   const renderPropertyRow = (prop: VocabProperty) => {
-    const isFavourite = propertyFavourites.has(prop.id);
+    const isFavourite = isPropertyFav(prop.id);
 
     return (
       <tr

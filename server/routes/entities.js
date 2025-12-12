@@ -159,6 +159,7 @@ router.post('/', requireAuth, (req, res) => {
       contactName: req.body.contactName || '',
       did: req.body.did || '',
       regionsCovered: req.body.regionsCovered || [],
+      dataSchema: req.body.dataSchema || undefined,
       status: req.body.status || 'active',
       createdAt: now,
       updatedAt: now,
@@ -221,6 +222,7 @@ router.put('/:id', requireAuth, (req, res) => {
       did: req.body.did ?? entities[index].did,
       regionsCovered: req.body.regionsCovered ?? entities[index].regionsCovered,
       status: req.body.status ?? entities[index].status,
+      dataSchema: req.body.dataSchema ?? entities[index].dataSchema,
       updatedAt: new Date().toISOString(),
       updatedBy: {
         id: String(req.session.user.id),

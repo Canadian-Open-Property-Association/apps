@@ -5,12 +5,17 @@ import VocabTypeDetail from './components/VocabTypeDetail';
 import VocabTypeForm from './components/VocabTypeForm';
 import DictionaryToolbar from './components/DictionaryToolbar';
 import SaveToRepoModal from './components/SaveToRepoModal';
+import AllPropertiesView from './components/AllPropertiesView';
+
+type ViewMode = 'vocab-types' | 'all-properties';
 
 export default function DataDictionaryApp() {
   const {
     fetchVocabTypes,
     fetchCategories,
+    fetchPropertyFavourites,
     selectedVocabType,
+    selectVocabType,
     isLoading,
     error,
   } = useDictionaryStore();
@@ -18,12 +23,14 @@ export default function DataDictionaryApp() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingVocabType, setEditingVocabType] = useState<string | null>(null);
   const [showSaveToRepoModal, setShowSaveToRepoModal] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('vocab-types');
 
   // Load data on mount
   useEffect(() => {
     fetchVocabTypes();
     fetchCategories();
-  }, [fetchVocabTypes, fetchCategories]);
+    fetchPropertyFavourites();
+  }, [fetchVocabTypes, fetchCategories, fetchPropertyFavourites]);
 
   const handleAddVocabType = () => {
     setEditingVocabType(null);
@@ -42,6 +49,12 @@ export default function DataDictionaryApp() {
     setEditingVocabType(null);
   };
 
+  // Navigate to vocab type from All Properties view
+  const handleNavigateToProperty = (vocabTypeId: string) => {
+    selectVocabType(vocabTypeId);
+    setViewMode('vocab-types');
+  };
+
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {/* Toolbar */}
@@ -57,20 +70,65 @@ export default function DataDictionaryApp() {
         </div>
       )}
 
-      {/* Main content - 2 panel layout */}
+      {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left panel - Vocab Type List */}
-        <div className="w-80 border-r border-gray-200 bg-white overflow-auto">
-          {isLoading ? (
-            <div className="p-4 text-center text-gray-500">Loading...</div>
-          ) : (
-            <VocabTypeList />
-          )}
+        {/* Left panel - Navigation & List */}
+        <div className="w-80 border-r border-gray-200 bg-white flex flex-col overflow-hidden">
+          {/* View Mode Tabs */}
+          <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => setViewMode('vocab-types')}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                viewMode === 'vocab-types'
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+                Vocab Types
+              </div>
+            </button>
+            <button
+              onClick={() => setViewMode('all-properties')}
+              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+                viewMode === 'all-properties'
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+                All Properties
+              </div>
+            </button>
+          </div>
+
+          {/* List content based on view mode */}
+          <div className="flex-1 overflow-auto">
+            {viewMode === 'vocab-types' ? (
+              isLoading ? (
+                <div className="p-4 text-center text-gray-500">Loading...</div>
+              ) : (
+                <VocabTypeList />
+              )
+            ) : (
+              <div className="p-4 text-sm text-gray-500 text-center">
+                <p>View all properties in the main panel</p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right panel - Detail View */}
         <div className="flex-1 overflow-auto">
-          {selectedVocabType ? (
+          {viewMode === 'all-properties' ? (
+            <AllPropertiesView onNavigateToProperty={handleNavigateToProperty} />
+          ) : selectedVocabType ? (
             <VocabTypeDetail onEdit={handleEditVocabType} />
           ) : (
             <div className="h-full flex items-center justify-center text-gray-400">

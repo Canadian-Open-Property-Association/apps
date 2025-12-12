@@ -36,6 +36,8 @@ export default function SwaggerImportWizard({ onImport, onClose }: SwaggerImport
   const [selectedSchemas, setSelectedSchemas] = useState<Set<string>>(new Set());
   const [sourceName, setSourceName] = useState('');
   const [expandedSchemas, setExpandedSchemas] = useState<Set<string>>(new Set());
+  const [collapsedTags, setCollapsedTags] = useState<Set<string>>(new Set());
+  const [hoveredDescription, setHoveredDescription] = useState<string | null>(null);
 
   const currentStepIndex = STEPS.indexOf(step);
 
@@ -96,6 +98,43 @@ export default function SwaggerImportWizard({ onImport, onClose }: SwaggerImport
       }
       return next;
     });
+  };
+
+  const toggleTagCollapse = (tag: string) => {
+    setCollapsedTags(prev => {
+      const next = new Set(prev);
+      if (next.has(tag)) {
+        next.delete(tag);
+      } else {
+        next.add(tag);
+      }
+      return next;
+    });
+  };
+
+  const selectAllInTag = (_tag: string, endpoints: { id: string }[]) => {
+    setSelectedEndpoints(prev => {
+      const next = new Set(prev);
+      endpoints.forEach(ep => next.add(ep.id));
+      return next;
+    });
+  };
+
+  const deselectAllInTag = (_tag: string, endpoints: { id: string }[]) => {
+    setSelectedEndpoints(prev => {
+      const next = new Set(prev);
+      endpoints.forEach(ep => next.delete(ep.id));
+      return next;
+    });
+  };
+
+  const isTagFullySelected = (endpoints: { id: string }[]): boolean => {
+    return endpoints.every(ep => selectedEndpoints.has(ep.id));
+  };
+
+  const isTagPartiallySelected = (endpoints: { id: string }[]): boolean => {
+    const selectedCount = endpoints.filter(ep => selectedEndpoints.has(ep.id)).length;
+    return selectedCount > 0 && selectedCount < endpoints.length;
   };
 
   const selectAllSchemas = () => {
@@ -276,37 +315,90 @@ export default function SwaggerImportWizard({ onImport, onClose }: SwaggerImport
             Found {spec.endpoints.length} endpoints. You can optionally select which endpoints to reference (this is informational only - fields are extracted from schemas).
           </p>
 
-          <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
-            {tags.map(tag => (
-              <div key={tag} className="border-b border-gray-100 last:border-b-0">
-                <div className="px-3 py-2 bg-gray-50 text-sm font-medium text-gray-700">
-                  {tag} ({groupedEndpoints[tag].length})
-                </div>
-                {groupedEndpoints[tag].map(endpoint => (
-                  <label
-                    key={endpoint.id}
-                    className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                  >
+          <div className="max-h-80 overflow-y-auto border border-gray-200 rounded-lg">
+            {tags.map(tag => {
+              const tagEndpoints = groupedEndpoints[tag];
+              const isCollapsed = collapsedTags.has(tag);
+              const isFullySelected = isTagFullySelected(tagEndpoints);
+              const isPartiallySelected = isTagPartiallySelected(tagEndpoints);
+
+              return (
+                <div key={tag} className="border-b border-gray-100 last:border-b-0">
+                  {/* Tag Header - Collapsible with Select All */}
+                  <div className="px-3 py-2 bg-gray-50 flex items-center gap-2 sticky top-0 z-10">
+                    <button
+                      onClick={() => toggleTagCollapse(tag)}
+                      className="text-gray-400 hover:text-gray-600 p-0.5"
+                    >
+                      <svg
+                        className={`w-4 h-4 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
                     <input
                       type="checkbox"
-                      checked={selectedEndpoints.has(endpoint.id)}
-                      onChange={() => toggleEndpoint(endpoint.id)}
-                      className="w-4 h-4 rounded border-gray-300 text-blue-600"
+                      checked={isFullySelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = isPartiallySelected;
+                      }}
+                      onChange={() => {
+                        if (isFullySelected) {
+                          deselectAllInTag(tag, tagEndpoints);
+                        } else {
+                          selectAllInTag(tag, tagEndpoints);
+                        }
+                      }}
+                      className="w-4 h-4 rounded border-gray-300 text-blue-600 flex-shrink-0"
                     />
-                    <span
-                      className="px-2 py-0.5 text-xs font-bold rounded text-white"
-                      style={{ backgroundColor: getMethodColour(endpoint.method) }}
-                    >
-                      {endpoint.method}
+                    <span className="text-sm font-medium text-gray-700 flex-1">{tag}</span>
+                    <span className="text-xs text-gray-500">
+                      {tagEndpoints.filter(ep => selectedEndpoints.has(ep.id)).length}/{tagEndpoints.length}
                     </span>
-                    <span className="text-sm font-mono text-gray-700">{endpoint.path}</span>
-                    {endpoint.summary && (
-                      <span className="text-xs text-gray-500 truncate">{endpoint.summary}</span>
-                    )}
-                  </label>
-                ))}
-              </div>
-            ))}
+                  </div>
+
+                  {/* Endpoints - Collapsible */}
+                  {!isCollapsed && tagEndpoints.map(endpoint => (
+                    <label
+                      key={endpoint.id}
+                      className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer pl-10"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedEndpoints.has(endpoint.id)}
+                        onChange={() => toggleEndpoint(endpoint.id)}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 flex-shrink-0"
+                      />
+                      <span
+                        className="px-2 py-0.5 text-xs font-bold rounded text-white flex-shrink-0"
+                        style={{ backgroundColor: getMethodColour(endpoint.method) }}
+                      >
+                        {endpoint.method}
+                      </span>
+                      <span className="text-sm font-mono text-gray-700 flex-shrink-0">{endpoint.path}</span>
+                      {endpoint.summary && (
+                        <span
+                          className="text-xs text-gray-500 truncate flex-1 cursor-help relative"
+                          title={endpoint.summary}
+                          onMouseEnter={() => setHoveredDescription(endpoint.id)}
+                          onMouseLeave={() => setHoveredDescription(null)}
+                        >
+                          {endpoint.summary}
+                          {hoveredDescription === endpoint.id && endpoint.summary.length > 50 && (
+                            <span className="absolute left-0 top-full mt-1 z-20 bg-gray-900 text-white text-xs rounded px-2 py-1 max-w-xs whitespace-normal shadow-lg">
+                              {endpoint.summary}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -351,11 +443,11 @@ export default function SwaggerImportWizard({ onImport, onClose }: SwaggerImport
                   type="checkbox"
                   checked={selectedSchemas.has(schema.id)}
                   onChange={() => toggleSchema(schema.id)}
-                  className="w-4 h-4 rounded border-gray-300 text-blue-600"
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 flex-shrink-0"
                 />
                 <button
                   onClick={() => toggleSchemaExpand(schema.id)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 flex-shrink-0"
                 >
                   <svg
                     className={`w-4 h-4 transition-transform ${expandedSchemas.has(schema.id) ? 'rotate-90' : ''}`}
@@ -366,7 +458,7 @@ export default function SwaggerImportWizard({ onImport, onClose }: SwaggerImport
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <span className="font-medium text-gray-800">{schema.name}</span>
                   <span className="text-xs text-gray-500 ml-2">
                     {schema.properties.length} properties

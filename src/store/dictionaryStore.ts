@@ -8,6 +8,7 @@ import type {
   DomainWithTypes,
   DictionaryStats,
   DictionaryExport,
+  FlattenedProperty,
 } from '../types/dictionary';
 
 const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:5174';
@@ -157,6 +158,38 @@ const dictionaryApi = {
     if (!response.ok) throw new Error('Failed to fetch stats');
     return response.json();
   },
+
+  // Property Favourites (backend-stored, shared across users)
+  async listFavourites(): Promise<string[]> {
+    const response = await fetch(`${API_BASE}/api/dictionary/favourites`, {
+      credentials: 'include',
+    });
+    if (!response.ok) throw new Error('Failed to fetch favourites');
+    const data = await response.json();
+    return data.favourites || [];
+  },
+
+  async addFavourite(propertyFullId: string): Promise<string[]> {
+    const response = await fetch(`${API_BASE}/api/dictionary/favourites`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ propertyFullId }),
+    });
+    if (!response.ok) throw new Error('Failed to add favourite');
+    const data = await response.json();
+    return data.favourites || [];
+  },
+
+  async removeFavourite(propertyFullId: string): Promise<string[]> {
+    const response = await fetch(`${API_BASE}/api/dictionary/favourites/${encodeURIComponent(propertyFullId)}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    if (!response.ok) throw new Error('Failed to remove favourite');
+    const data = await response.json();
+    return data.favourites || [];
+  },
 };
 
 // ============================================
@@ -170,6 +203,9 @@ interface DictionaryState {
   /** @deprecated Use domains */
   categories: VocabCategory[];
   selectedVocabType: VocabType | null;
+
+  // Property Favourites (backend-stored, shared across all users)
+  propertyFavourites: Set<string>;  // Set of "{vocabTypeId}.{propertyId}"
 
   // Loading states
   isLoading: boolean;
@@ -207,6 +243,11 @@ interface DictionaryState {
   /** @deprecated Use createDomain */
   createCategory: (category: Partial<VocabCategory>) => Promise<VocabCategory>;
 
+  // Property Favourites Actions
+  fetchPropertyFavourites: () => Promise<void>;
+  togglePropertyFavourite: (vocabTypeId: string, propertyId: string) => Promise<void>;
+  isPropertyFavourite: (vocabTypeId: string, propertyId: string) => boolean;
+
   // Search & Export
   setSearchQuery: (query: string) => void;
   search: (query: string) => Promise<void>;
@@ -223,6 +264,12 @@ interface DictionaryState {
 
   // Helper: Get filtered vocab types based on selected domain
   getFilteredVocabTypes: () => VocabType[];
+
+  // Helper: Get all properties across all vocab types (flattened)
+  getAllProperties: () => FlattenedProperty[];
+
+  // Helper: Get only favourited properties (flattened)
+  getFavouriteProperties: () => FlattenedProperty[];
 }
 
 // ============================================
@@ -235,6 +282,7 @@ export const useDictionaryStore = create<DictionaryState>((set, get) => ({
   domains: [],
   categories: [],  // Deprecated alias for domains
   selectedVocabType: null,
+  propertyFavourites: new Set<string>(),
   isLoading: false,
   isVocabTypeLoading: false,
   error: null,
@@ -495,5 +543,84 @@ export const useDictionaryStore = create<DictionaryState>((set, get) => ({
       // Legacy: fall back to category field
       return vt.category === selectedDomainFilter;
     });
+  },
+
+  // -------------------- Property Favourites --------------------
+
+  // Fetch favourites from backend
+  fetchPropertyFavourites: async () => {
+    try {
+      const favourites = await dictionaryApi.listFavourites();
+      set({ propertyFavourites: new Set(favourites) });
+    } catch (error) {
+      console.error('Error fetching property favourites:', error);
+    }
+  },
+
+  // Toggle a property's favourite status
+  togglePropertyFavourite: async (vocabTypeId: string, propertyId: string) => {
+    const fullId = `${vocabTypeId}.${propertyId}`;
+    const { propertyFavourites } = get();
+
+    // Optimistic update
+    const newFavourites = new Set(propertyFavourites);
+    const isFavourite = newFavourites.has(fullId);
+
+    if (isFavourite) {
+      newFavourites.delete(fullId);
+    } else {
+      newFavourites.add(fullId);
+    }
+    set({ propertyFavourites: newFavourites });
+
+    try {
+      // Sync with backend
+      if (isFavourite) {
+        await dictionaryApi.removeFavourite(fullId);
+      } else {
+        await dictionaryApi.addFavourite(fullId);
+      }
+    } catch (error) {
+      // Revert on error
+      console.error('Error toggling favourite:', error);
+      set({ propertyFavourites });
+    }
+  },
+
+  // Check if a property is favourited
+  isPropertyFavourite: (vocabTypeId: string, propertyId: string) => {
+    const fullId = `${vocabTypeId}.${propertyId}`;
+    return get().propertyFavourites.has(fullId);
+  },
+
+  // -------------------- All Properties Helpers --------------------
+
+  // Get all properties across all vocab types (flattened)
+  getAllProperties: () => {
+    const { vocabTypes } = get();
+    const flattened: FlattenedProperty[] = [];
+
+    if (!Array.isArray(vocabTypes)) {
+      return flattened;
+    }
+
+    for (const vt of vocabTypes) {
+      for (const prop of vt.properties || []) {
+        flattened.push({
+          ...prop,
+          vocabTypeId: vt.id,
+          vocabTypeName: vt.name,
+          fullId: `${vt.id}.${prop.id}`,
+        });
+      }
+    }
+
+    return flattened.sort((a, b) => a.name.localeCompare(b.name));
+  },
+
+  // Get only favourited properties (flattened)
+  getFavouriteProperties: () => {
+    const { propertyFavourites } = get();
+    return get().getAllProperties().filter(p => propertyFavourites.has(p.fullId));
   },
 }));
