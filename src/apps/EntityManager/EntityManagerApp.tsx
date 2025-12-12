@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useEntityStore } from '../../store/entityStore';
+import { useHarmonizationStore } from '../../store/harmonizationStore';
 import EntityList from './components/EntityList';
 import EntityDetail from './components/EntityDetail';
 import EntityForm from './components/EntityForm';
@@ -16,13 +17,16 @@ export default function EntityManagerApp() {
     exportAll,
   } = useEntityStore();
 
+  const { fetchFieldFavourites } = useHarmonizationStore();
+
   const [showEntityForm, setShowEntityForm] = useState(false);
   const [editingEntityId, setEditingEntityId] = useState<string | null>(null);
   const [showSaveToRepoModal, setShowSaveToRepoModal] = useState(false);
 
   useEffect(() => {
     fetchEntities();
-  }, [fetchEntities]);
+    fetchFieldFavourites();
+  }, [fetchEntities, fetchFieldFavourites]);
 
   const handleAddEntity = () => {
     setEditingEntityId(null);

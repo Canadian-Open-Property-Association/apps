@@ -149,6 +149,7 @@ export default function DataSourcesSection({ entity, onUpdateSchema }: DataSourc
           {sources.map((source) => (
             <DataSourceCard
               key={source.id}
+              entityId={entity.id}
               source={source}
               onEdit={() => handleEditSource(source)}
               onDelete={() => handleDeleteSource(source.id)}

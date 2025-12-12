@@ -7,6 +7,46 @@ import { migrateDataSchema } from '../types/entity';
 const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:5174';
 
 // ============================================
+// Furnisher Field Favourites API
+// ============================================
+
+const fieldFavouritesApi = {
+  async list(): Promise<string[]> {
+    const response = await fetch(`${API_BASE}/api/catalogue/furnisher-field-favourites`, {
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      if (response.status === 404) return [];
+      throw new Error('Failed to fetch field favourites');
+    }
+    const data = await response.json();
+    return data.favourites || [];
+  },
+
+  async add(fieldFullId: string): Promise<string[]> {
+    const response = await fetch(`${API_BASE}/api/catalogue/furnisher-field-favourites`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ fieldFullId }),
+    });
+    if (!response.ok) throw new Error('Failed to add field favourite');
+    const data = await response.json();
+    return data.favourites || [];
+  },
+
+  async remove(fieldFullId: string): Promise<string[]> {
+    const response = await fetch(`${API_BASE}/api/catalogue/furnisher-field-favourites/${encodeURIComponent(fieldFullId)}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    if (!response.ok) throw new Error('Failed to remove field favourite');
+    const data = await response.json();
+    return data.favourites || [];
+  },
+};
+
+// ============================================
 // Data Harmonization API
 // Maps furnisher fields to COPA vocabulary
 // ============================================
@@ -121,6 +161,9 @@ interface HarmonizationState {
   entities: Entity[];
   vocabTypes: VocabType[];
 
+  // Furnisher field favourites
+  fieldFavourites: Set<string>;  // Format: "{entityId}.{sourceId}.{fieldId}"
+
   // Selection state
   selectedEntityId: string | null;
   selectedVocabTypeId: string | null;
@@ -141,6 +184,11 @@ interface HarmonizationState {
   fetchMappingsWithDetails: () => Promise<void>;
   fetchEntities: () => Promise<void>;
   fetchVocabTypes: () => Promise<void>;
+
+  // Field favourites actions
+  fetchFieldFavourites: () => Promise<void>;
+  toggleFieldFavourite: (entityId: string, sourceId: string, fieldId: string) => Promise<void>;
+  isFieldFavourite: (entityId: string, sourceId: string, fieldId: string) => boolean;
 
   // Selection
   selectEntity: (id: string | null) => void;
@@ -178,6 +226,7 @@ export const useHarmonizationStore = create<HarmonizationState>((set, get) => ({
   mappingsWithDetails: [],
   entities: [],
   vocabTypes: [],
+  fieldFavourites: new Set<string>(),
   selectedEntityId: null,
   selectedVocabTypeId: null,
   selectedMappingId: null,
@@ -246,6 +295,49 @@ export const useHarmonizationStore = create<HarmonizationState>((set, get) => ({
       console.error('Error fetching vocab types:', error);
       set({ isVocabTypesLoading: false });
     }
+  },
+
+  // Fetch field favourites
+  fetchFieldFavourites: async () => {
+    try {
+      const favourites = await fieldFavouritesApi.list();
+      set({ fieldFavourites: new Set(favourites) });
+    } catch (error) {
+      console.error('Error fetching field favourites:', error);
+    }
+  },
+
+  // Toggle field favourite
+  toggleFieldFavourite: async (entityId: string, sourceId: string, fieldId: string) => {
+    const fullId = `${entityId}.${sourceId}.${fieldId}`;
+    const { fieldFavourites } = get();
+
+    // Optimistic update
+    const newFavourites = new Set(fieldFavourites);
+    if (newFavourites.has(fullId)) {
+      newFavourites.delete(fullId);
+    } else {
+      newFavourites.add(fullId);
+    }
+    set({ fieldFavourites: newFavourites });
+
+    try {
+      if (fieldFavourites.has(fullId)) {
+        await fieldFavouritesApi.remove(fullId);
+      } else {
+        await fieldFavouritesApi.add(fullId);
+      }
+    } catch (error) {
+      // Revert on error
+      console.error('Error toggling field favourite:', error);
+      set({ fieldFavourites });
+    }
+  },
+
+  // Check if field is favourite
+  isFieldFavourite: (entityId: string, sourceId: string, fieldId: string) => {
+    const fullId = `${entityId}.${sourceId}.${fieldId}`;
+    return get().fieldFavourites.has(fullId);
   },
 
   // Selection actions

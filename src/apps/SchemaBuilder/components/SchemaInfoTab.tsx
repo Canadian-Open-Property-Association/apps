@@ -13,6 +13,7 @@
 import { useSchemaStore } from '../../../store/schemaStore';
 import { generateArtifactName, generateContextUrl } from '../../../types/schema';
 import VocabularyManager from './VocabularyManager';
+import GovernanceDocsList from './GovernanceDocsList';
 
 // Predefined categories aligned with Data Catalogue (for JSON-LD Context mode)
 const SCHEMA_CATEGORIES = [
@@ -27,6 +28,8 @@ const SCHEMA_CATEGORIES = [
 export default function SchemaInfoTab() {
   const metadata = useSchemaStore((state) => state.metadata);
   const updateMetadata = useSchemaStore((state) => state.updateMetadata);
+  const currentProjectId = useSchemaStore((state) => state.currentProjectId);
+  const saveSchema = useSchemaStore((state) => state.saveSchema);
 
   const isJsonLdMode = metadata.mode === 'jsonld-context';
 
@@ -48,6 +51,10 @@ export default function SchemaInfoTab() {
     // Auto-suggest credential name if empty (for JSON-LD mode)
     if (isJsonLdMode && !metadata.credentialName) {
       updateMetadata({ credentialName: suggestCredentialName(title) });
+    }
+    // Update the project name if we have an existing project
+    if (currentProjectId && title.trim()) {
+      saveSchema(title.trim());
     }
   };
 
@@ -163,16 +170,10 @@ export default function SchemaInfoTab() {
         </>
       )}
 
-      {/* JSON Schema Mode: Simplified - just title and description */}
+      {/* JSON Schema Mode: Governance Docs */}
       {!isJsonLdMode && (
-        <div className="p-4 text-sm text-gray-500">
-          <p>
-            Define the credential subject properties using the Properties tab.
-            The schema validates the <code className="bg-gray-100 px-1 rounded">credentialSubject</code> claims.
-          </p>
-          <p className="mt-2 text-xs">
-            JWT wrapper claims (iss, iat, exp, vct) are spec-defined and not included in the schema.
-          </p>
+        <div className="border-b border-gray-200">
+          <GovernanceDocsList />
         </div>
       )}
     </div>

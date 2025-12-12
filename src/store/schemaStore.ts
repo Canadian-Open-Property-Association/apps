@@ -324,6 +324,30 @@ export const useSchemaStore = create<SchemaStore>()(
           return { properties, isDirty: true };
         }),
 
+      reorderProperties: (activeId: string, overId: string) =>
+        set((state) => {
+          if (activeId === overId) return state;
+
+          const properties = deepClone(state.properties);
+          const activeParent = findParentArray(properties, activeId);
+          const overParent = findParentArray(properties, overId);
+
+          // Only allow reordering within the same parent array (same level)
+          if (activeParent && overParent && activeParent.array === overParent.array) {
+            const [item] = activeParent.array.splice(activeParent.index, 1);
+            // Recalculate overIndex after removal
+            const overIndex = activeParent.array.findIndex(p => p.id === overId);
+            if (overIndex !== -1) {
+              activeParent.array.splice(overIndex, 0, item);
+            } else {
+              // If over item not found, append to end
+              activeParent.array.push(item);
+            }
+          }
+
+          return { properties, isDirty: true };
+        }),
+
       // Tree UI actions
       selectProperty: (id: string | null) => set({ selectedPropertyId: id }),
 

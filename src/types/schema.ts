@@ -224,6 +224,7 @@ export interface SchemaStore {
   updateProperty: (id: string, updates: Partial<SchemaProperty>) => void;
   deleteProperty: (id: string) => void;
   moveProperty: (id: string, direction: 'up' | 'down') => void;
+  reorderProperties: (activeId: string, overId: string) => void;
 
   // Tree UI actions
   selectProperty: (id: string | null) => void;

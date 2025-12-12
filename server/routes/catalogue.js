@@ -1365,4 +1365,91 @@ router.delete('/favourites/:propertyFullId', (req, res) => {
   }
 });
 
+// -------------------- Furnisher Field Favourites --------------------
+// Backend storage for furnisher field favourites (shared across all users)
+// Format: {entityId}.{sourceId}.{fieldId}
+
+const getFieldFavouritesFile = () => path.join(getDataDir(), 'furnisher-field-favourites.json');
+
+// Initialize furnisher field favourites file if it doesn't exist
+const ensureFieldFavouritesFile = () => {
+  const file = getFieldFavouritesFile();
+  if (!fs.existsSync(file)) {
+    fs.writeFileSync(file, JSON.stringify({ favourites: [] }, null, 2));
+  }
+};
+
+// Load furnisher field favourites
+const loadFieldFavourites = () => {
+  ensureFieldFavouritesFile();
+  const data = JSON.parse(fs.readFileSync(getFieldFavouritesFile(), 'utf-8'));
+  return data.favourites || [];
+};
+
+// Save furnisher field favourites
+const saveFieldFavourites = (favourites) => {
+  fs.writeFileSync(getFieldFavouritesFile(), JSON.stringify({ favourites }, null, 2));
+};
+
+// GET /api/catalogue/furnisher-field-favourites - List all favourited furnisher fields
+router.get('/furnisher-field-favourites', (req, res) => {
+  try {
+    const favourites = loadFieldFavourites();
+    res.json({ favourites });
+  } catch (error) {
+    console.error('Error listing furnisher field favourites:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/catalogue/furnisher-field-favourites - Add a furnisher field to favourites
+router.post('/furnisher-field-favourites', (req, res) => {
+  try {
+    const { fieldFullId } = req.body;
+
+    if (!fieldFullId) {
+      return res.status(400).json({ error: 'fieldFullId is required' });
+    }
+
+    // Validate format: should be {entityId}.{sourceId}.{fieldId}
+    const parts = fieldFullId.split('.');
+    if (parts.length < 3) {
+      return res.status(400).json({ error: 'Invalid fieldFullId format. Expected: {entityId}.{sourceId}.{fieldId}' });
+    }
+
+    const favourites = loadFieldFavourites();
+
+    if (!favourites.includes(fieldFullId)) {
+      favourites.push(fieldFullId);
+      saveFieldFavourites(favourites);
+    }
+
+    res.json({ favourites });
+  } catch (error) {
+    console.error('Error adding furnisher field favourite:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/catalogue/furnisher-field-favourites/:fieldFullId - Remove a furnisher field from favourites
+router.delete('/furnisher-field-favourites/:fieldFullId', (req, res) => {
+  try {
+    const { fieldFullId } = req.params;
+    const favourites = loadFieldFavourites();
+
+    const index = favourites.indexOf(fieldFullId);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Furnisher field favourite not found' });
+    }
+
+    favourites.splice(index, 1);
+    saveFieldFavourites(favourites);
+
+    res.json({ favourites });
+  } catch (error) {
+    console.error('Error removing furnisher field favourite:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

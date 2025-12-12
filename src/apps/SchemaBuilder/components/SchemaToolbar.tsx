@@ -11,6 +11,7 @@ export default function SchemaToolbar() {
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [showSaveToRepoModal, setShowSaveToRepoModal] = useState(false);
   const [saveName, setSaveName] = useState('');
+  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
 
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
@@ -44,6 +45,9 @@ export default function SchemaToolbar() {
   const handleSave = async () => {
     if (currentProjectId) {
       await saveSchema(currentProjectName);
+      // Show save success feedback
+      setShowSaveSuccess(true);
+      setTimeout(() => setShowSaveSuccess(false), 2000);
     } else {
       setSaveName(currentProjectName);
       setShowSaveModal(true);
@@ -55,6 +59,9 @@ export default function SchemaToolbar() {
       await saveSchema(saveName.trim());
       setShowSaveModal(false);
       setSaveName('');
+      // Show save success feedback
+      setShowSaveSuccess(true);
+      setTimeout(() => setShowSaveSuccess(false), 2000);
     }
   };
 
@@ -90,12 +97,22 @@ export default function SchemaToolbar() {
         {/* Save */}
         <button
           onClick={handleSave}
-          className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-1"
+          className={`px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-1 transition-colors ${
+            showSaveSuccess
+              ? 'text-green-700 bg-green-100 border border-green-300'
+              : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+          }`}
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-          </svg>
-          Save
+          {showSaveSuccess ? (
+            <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+            </svg>
+          )}
+          {showSaveSuccess ? 'Saved!' : 'Save'}
         </button>
 
         {/* Load */}

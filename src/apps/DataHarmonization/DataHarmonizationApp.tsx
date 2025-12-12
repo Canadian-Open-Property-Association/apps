@@ -3,7 +3,7 @@ import { useHarmonizationStore } from '../../store/harmonizationStore';
 import HarmonizationToolbar from './components/HarmonizationToolbar';
 import EntityList from './components/EntityList';
 import FurnisherDetailPanel from './components/FurnisherDetailPanel';
-import PropertyPickerModal from './components/PropertyPickerModal';
+import PropertyPickerPanel from './components/PropertyPickerPanel';
 import AllMappingsView from './components/AllMappingsView';
 
 export default function DataHarmonizationApp() {
@@ -11,6 +11,7 @@ export default function DataHarmonizationApp() {
     fetchMappings,
     fetchEntities,
     fetchVocabTypes,
+    fetchFieldFavourites,
     viewMode,
     setViewMode,
     mappingFieldContext,
@@ -26,7 +27,8 @@ export default function DataHarmonizationApp() {
     fetchMappings();
     fetchEntities();
     fetchVocabTypes();
-  }, [fetchMappings, fetchEntities, fetchVocabTypes]);
+    fetchFieldFavourites();
+  }, [fetchMappings, fetchEntities, fetchVocabTypes, fetchFieldFavourites]);
 
   const selectedEntity = getSelectedEntity();
 
@@ -35,12 +37,14 @@ export default function DataHarmonizationApp() {
     return (
       <>
         <AllMappingsView onBack={() => setViewMode('furnisher-detail')} />
-        {/* Property Picker Modal */}
+        {/* Property Picker Panel (inline) - also shown in All Mappings view */}
         {mappingFieldContext && (
-          <PropertyPickerModal
-            context={mappingFieldContext}
-            onClose={closeMappingModal}
-          />
+          <div className="fixed right-0 top-0 bottom-0 w-96 bg-white shadow-xl border-l border-gray-200 z-40">
+            <PropertyPickerPanel
+              context={mappingFieldContext}
+              onClose={closeMappingModal}
+            />
+          </div>
         )}
       </>
     );
@@ -58,7 +62,7 @@ export default function DataHarmonizationApp() {
         </div>
       )}
 
-      {/* Main content - 2 panel layout */}
+      {/* Main content - 2 or 3 panel layout depending on mapping context */}
       <div className="flex-1 flex overflow-hidden p-4 gap-4">
         {/* Left panel - Data Furnishers */}
         <div className="w-72 flex-shrink-0 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col">
@@ -77,7 +81,7 @@ export default function DataHarmonizationApp() {
           </div>
         </div>
 
-        {/* Right panel - Furnisher Detail or Empty State */}
+        {/* Middle panel - Furnisher Detail or Empty State */}
         <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col overflow-hidden">
           {isLoading ? (
             <div className="flex-1 flex items-center justify-center">
@@ -99,15 +103,17 @@ export default function DataHarmonizationApp() {
             </div>
           )}
         </div>
-      </div>
 
-      {/* Property Picker Modal */}
-      {mappingFieldContext && (
-        <PropertyPickerModal
-          context={mappingFieldContext}
-          onClose={closeMappingModal}
-        />
-      )}
+        {/* Right panel - Property Picker (conditional) */}
+        {mappingFieldContext && (
+          <div className="w-96 flex-shrink-0 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col overflow-hidden">
+            <PropertyPickerPanel
+              context={mappingFieldContext}
+              onClose={closeMappingModal}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
