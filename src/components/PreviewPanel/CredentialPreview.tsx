@@ -307,7 +307,12 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
   const getClaimValue = (claimPath: string | undefined): string | undefined => {
     if (!claimPath) return undefined;
     // Remove the $. prefix if present
-    const normalizedPath = claimPath.startsWith('$.') ? claimPath.slice(2) : claimPath;
+    let normalizedPath = claimPath.startsWith('$.') ? claimPath.slice(2) : claimPath;
+    // Remove credentialSubject. prefix to match how sample data is stored
+    // (formatPropertyPath removes credentialSubject from the path)
+    if (normalizedPath.startsWith('credentialSubject.')) {
+      normalizedPath = normalizedPath.slice('credentialSubject.'.length);
+    }
     return sampleData[normalizedPath];
   };
 
