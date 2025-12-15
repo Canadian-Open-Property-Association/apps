@@ -2,7 +2,6 @@
 // Separated from catalogue.ts to focus on mapping/harmonization only
 
 import type { UserRef } from './dictionary';
-import type { DataSourceType } from './entity';
 
 // ============================================
 // FieldMapping - links a furnisher field to COPA vocab
@@ -16,10 +15,9 @@ export interface FieldMapping {
   entityId: string;                // Reference to Entity
   entityName?: string;             // Denormalized for display
 
-  // NEW: Data source context within the entity
+  // Data source context within the entity
   sourceId: string;                // Reference to FurnisherDataSource
   sourceName?: string;             // Denormalized for display
-  sourceType: DataSourceType;      // 'direct-feed' | 'credential'
 
   furnisherFieldId: string;        // Reference to FurnisherField in the source
   furnisherFieldName?: string;     // Denormalized for display
@@ -127,7 +125,6 @@ export interface MappingWithDetails extends FieldMapping {
   source?: {
     id: string;
     name: string;
-    type: DataSourceType;
   };
   vocabType?: {
     id: string;

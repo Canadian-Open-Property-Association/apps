@@ -92,63 +92,19 @@ export default function FurnisherDataSchemaSection({ entity, onUpdateSchema }: F
           <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          API Information
+          Notes
         </h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">API Documentation URL</label>
-            <input
-              type="url"
-              value={schema.apiDocumentationUrl || ''}
-              onChange={(e) => handleUpdateMetadata('apiDocumentationUrl', e.target.value)}
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => e.stopPropagation()}
-              placeholder="https://docs.example.com/api"
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">API Endpoint</label>
-            <input
-              type="url"
-              value={schema.apiEndpoint || ''}
-              onChange={(e) => handleUpdateMetadata('apiEndpoint', e.target.value)}
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => e.stopPropagation()}
-              placeholder="https://api.example.com/v1/data"
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Update Frequency</label>
-            <select
-              value={schema.updateFrequency || ''}
-              onChange={(e) => handleUpdateMetadata('updateFrequency', e.target.value)}
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-            >
-              <option value="">Select frequency...</option>
-              <option value="realtime">Realtime</option>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-              <option value="quarterly">Quarterly</option>
-              <option value="annually">Annually</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1">Notes</label>
-            <input
-              type="text"
-              value={schema.notes || ''}
-              onChange={(e) => handleUpdateMetadata('notes', e.target.value)}
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => e.stopPropagation()}
-              placeholder="Integration notes..."
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-            />
-          </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1">Notes</label>
+          <input
+            type="text"
+            value={schema.notes || ''}
+            onChange={(e) => handleUpdateMetadata('notes', e.target.value)}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            placeholder="Integration notes..."
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+          />
         </div>
       </div>
 
@@ -191,7 +147,6 @@ export default function FurnisherDataSchemaSection({ entity, onUpdateSchema }: F
                   <th className="px-4 py-2 text-left font-medium">Field Name</th>
                   <th className="px-4 py-2 text-left font-medium">Display Name</th>
                   <th className="px-4 py-2 text-left font-medium">Type</th>
-                  <th className="px-4 py-2 text-left font-medium">API Path</th>
                   <th className="px-4 py-2 text-right font-medium">Actions</th>
                 </tr>
               </thead>
@@ -209,13 +164,6 @@ export default function FurnisherDataSchemaSection({ entity, onUpdateSchema }: F
                       <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
                         {DATA_TYPE_LABELS[field.dataType || 'string'] || field.dataType}
                       </span>
-                    </td>
-                    <td className="px-4 py-2">
-                      {field.apiPath ? (
-                        <code className="text-xs text-gray-500">{field.apiPath}</code>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
                     </td>
                     <td className="px-4 py-2 text-right">
                       <button

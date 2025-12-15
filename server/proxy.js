@@ -209,18 +209,24 @@ const requireProjectAuth = (req, res, next) => {
   next();
 };
 
-// List all assets (optionally filter by entityId)
+// List all assets (optionally filter by entityId and/or type)
 app.get('/api/assets', (req, res) => {
   const meta = loadAssetsMeta();
-  const { entityId } = req.query;
+  const { entityId, type } = req.query;
 
-  // If entityId is provided, filter assets for that entity
+  let filteredAssets = meta.assets;
+
+  // Filter by entityId if provided
   if (entityId) {
-    const filteredAssets = meta.assets.filter(a => a.entityId === entityId);
-    return res.json(filteredAssets);
+    filteredAssets = filteredAssets.filter(a => a.entityId === entityId);
   }
 
-  res.json(meta.assets);
+  // Filter by type if provided (e.g., "entity-logo", "credential-background", "credential-icon")
+  if (type) {
+    filteredAssets = filteredAssets.filter(a => a.type === type);
+  }
+
+  res.json(filteredAssets);
 });
 
 // Upload new asset (requires auth to track uploader)

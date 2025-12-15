@@ -1,4 +1,4 @@
-import type { FurnisherField, FurnisherDataSource, DirectFeedConfig } from '../../../types/entity';
+import type { FurnisherField, FurnisherDataSource } from '../../../types/entity';
 
 // ============================================
 // Types for parsed OpenAPI spec
@@ -149,7 +149,6 @@ export function propertyToField(prop: ParsedProperty): FurnisherField {
     dataType: mapDataType(prop.type, prop.format),
     sampleValue: prop.example !== undefined ? String(prop.example) : undefined,
     required: prop.required,
-    apiPath: prop.name,
   };
 }
 
@@ -162,6 +161,7 @@ export function schemaToFields(schema: ParsedSchema): FurnisherField[] {
 
 /**
  * Create a FurnisherDataSource from parsed OpenAPI data
+ * Now creates a credential source with the imported fields
  */
 export function createDataSource(
   name: string,
@@ -181,19 +181,12 @@ export function createDataSource(
     }
   }
 
-  // Build DirectFeedConfig
-  const directFeedConfig: DirectFeedConfig = {
-    apiDocumentationUrl: spec.originalUrl,
-    apiEndpoint: spec.servers[0]?.url || undefined,
-  };
-
   return {
     id: generateId('source'),
     name,
     description: spec.info.description || `Imported from ${spec.info.title}`,
-    type: 'direct-feed',
-    directFeedConfig,
     fields: Array.from(fieldsMap.values()),
+    notes: `Imported from OpenAPI spec: ${spec.originalUrl}`,
     createdAt: new Date().toISOString(),
   };
 }

@@ -146,7 +146,10 @@ export default function EntityManagerApp() {
 
       {/* Save to Repo Modal */}
       {showSaveToRepoModal && (
-        <SaveToRepoModal onClose={() => setShowSaveToRepoModal(false)} />
+        <SaveToRepoModal
+          selectedEntityId={selectedEntity?.id}
+          onClose={() => setShowSaveToRepoModal(false)}
+        />
       )}
     </div>
   );

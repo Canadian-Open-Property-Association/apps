@@ -12,40 +12,28 @@ export interface UserRef {
 
 // ============================================
 // Data Source Types
-// For data-furnisher entities - supports multiple named sources
-// Each source can be either a Direct Feed (API) or Credential (VC from external wallet)
+// For data-furnisher entities - supports multiple named credential sources
 // ============================================
 
-export type DataSourceType = 'direct-feed' | 'credential';
-
-// Base interface for furnisher fields (same for both source types)
+// Base interface for furnisher fields (credential claims)
 export interface FurnisherField {
   id: string;
-  name: string;                    // Field/claim name (e.g., "assessed_val" or "given_name")
-  displayName?: string;            // Human readable (e.g., "Assessed Value")
+  name: string;                    // Field/claim name (e.g., "given_name")
+  displayName?: string;            // Human readable (e.g., "Given Name")
   description?: string;
   dataType?: 'string' | 'number' | 'integer' | 'boolean' | 'date' | 'datetime' | 'array' | 'object';
   sampleValue?: string;
   required?: boolean;
   notes?: string;
-  // For direct feeds only:
-  apiPath?: string;                // JSON path in API response (e.g., "data.property.value")
 }
 
-// Configuration specific to Direct Data Feed sources
-export interface DirectFeedConfig {
-  apiDocumentationUrl?: string;    // Link to their API docs
-  apiEndpoint?: string;            // Base endpoint URL
-  updateFrequency?: 'realtime' | 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annually';
-  authMethod?: string;             // e.g., "API Key", "OAuth2", "mTLS"
-}
-
-// Configuration specific to Credential sources
+// Configuration for Credential sources
 export interface CredentialSourceConfig {
   credentialName: string;          // Human readable (e.g., "BC Person Credential")
   issuerDid: string;               // DID of the credential issuer
   schemaUrl?: string;              // URL to JSON Schema
   vctUrl?: string;                 // URL to VCT/Credential Type definition
+  brandingUrl?: string;            // URL to branding/display file
   trustFramework?: string;         // e.g., "BC Digital Trust", "Pan-Canadian Trust Framework"
   governanceDocUrl?: string;       // Link to governance documentation
   supportedWallets?: string[];     // e.g., ["BC Wallet", "COPA Wallet"]
@@ -54,12 +42,10 @@ export interface CredentialSourceConfig {
 // A named data source within an entity
 export interface FurnisherDataSource {
   id: string;
-  name: string;                    // e.g., "Assessment Data", "Person Credential"
+  name: string;                    // e.g., "Person Credential"
   description?: string;
-  type: DataSourceType;            // 'direct-feed' | 'credential'
 
-  // Type-specific configuration
-  directFeedConfig?: DirectFeedConfig;
+  // Credential configuration
   credentialConfig?: CredentialSourceConfig;
 
   // Fields/claims this source provides
@@ -71,16 +57,12 @@ export interface FurnisherDataSource {
   updatedAt?: string;
 }
 
-// Updated FurnisherDataSchema - now supports multiple sources
+// FurnisherDataSchema - supports multiple credential sources
 export interface FurnisherDataSchema {
   sources: FurnisherDataSource[];  // Multiple named sources
 
   // Legacy fields (for backward compatibility - will be migrated to sources)
   fields?: FurnisherField[];       // @deprecated - use sources[].fields
-  apiDocumentationUrl?: string;    // @deprecated - use sources[].directFeedConfig
-  apiEndpoint?: string;            // @deprecated
-  updateFrequency?: 'realtime' | 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'annually'; // @deprecated
-  lastUpdated?: string;            // @deprecated
   notes?: string;                  // Keep for general entity-level notes
 }
 
@@ -95,18 +77,12 @@ export function migrateDataSchema(schema: FurnisherDataSchema | undefined): Furn
     return schema;
   }
 
-  // Migrate legacy fields to a single "Data Feed" direct feed source
+  // Migrate legacy fields to a single credential source
   if (schema.fields && schema.fields.length > 0) {
     return {
       sources: [{
         id: `source-${Date.now()}`,
-        name: 'Data Feed',
-        type: 'direct-feed',
-        directFeedConfig: {
-          apiDocumentationUrl: schema.apiDocumentationUrl,
-          apiEndpoint: schema.apiEndpoint,
-          updateFrequency: schema.updateFrequency,
-        },
+        name: 'Credential',
         fields: schema.fields,
       }],
       notes: schema.notes,
@@ -201,6 +177,7 @@ export type EntityAssetType = 'entity-logo' | 'credential-background' | 'credent
 
 export interface EntityAsset {
   id: string;
+  entityId?: string;             // The entity this asset belongs to
   name: string;
   filename: string;
   originalName: string;

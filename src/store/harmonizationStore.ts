@@ -144,7 +144,6 @@ export interface MappingFieldContext {
   entityName: string;
   sourceId: string;
   sourceName: string;
-  sourceType: 'direct-feed' | 'credential';
   field: FurnisherField;
 }
 

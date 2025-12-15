@@ -22,15 +22,6 @@ const DATA_TYPE_LABELS: Record<string, string> = {
   object: 'Object',
 };
 
-const FREQUENCY_LABELS: Record<string, string> = {
-  realtime: 'Realtime',
-  daily: 'Daily',
-  weekly: 'Weekly',
-  monthly: 'Monthly',
-  quarterly: 'Quarterly',
-  annually: 'Annually',
-};
-
 export default function DataSourceCard({ entityId, source, onEdit, onDelete, onUpdateSource }: DataSourceCardProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [showFieldForm, setShowFieldForm] = useState(false);
@@ -39,8 +30,6 @@ export default function DataSourceCard({ entityId, source, onEdit, onDelete, onU
   const { isFieldFavourite, toggleFieldFavourite } = useHarmonizationStore();
 
   const fields = source.fields || [];
-  const isDirectFeed = source.type === 'direct-feed';
-  const isCredential = source.type === 'credential';
 
   const handleAddField = () => {
     setEditingField(null);
@@ -76,20 +65,16 @@ export default function DataSourceCard({ entityId, source, onEdit, onDelete, onU
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
       {/* Header */}
       <div
-        className={`px-4 py-3 flex items-center justify-between cursor-pointer ${
-          isDirectFeed ? 'bg-green-50 border-l-4 border-green-500' : 'bg-purple-50 border-l-4 border-purple-500'
-        }`}
+        className="px-4 py-3 flex items-center justify-between cursor-pointer bg-purple-50 border-l-4 border-purple-500"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center gap-3">
-          <span className="text-xl">{isDirectFeed ? '📡' : '🎫'}</span>
+          <span className="text-xl">🎫</span>
           <div>
             <div className="flex items-center gap-2">
               <span className="font-medium text-gray-900">{source.name}</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${
-                isDirectFeed ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'
-              }`}>
-                {isDirectFeed ? 'Direct Feed' : 'Credential'}
+              <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                Credential
               </span>
             </div>
             {source.description && (
@@ -99,7 +84,7 @@ export default function DataSourceCard({ entityId, source, onEdit, onDelete, onU
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded">
-            {fields.length} {fields.length === 1 ? (isCredential ? 'claim' : 'field') : (isCredential ? 'claims' : 'fields')}
+            {fields.length} {fields.length === 1 ? 'claim' : 'claims'}
           </span>
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(); }}
@@ -133,47 +118,9 @@ export default function DataSourceCard({ entityId, source, onEdit, onDelete, onU
       {/* Expanded Content */}
       {isExpanded && (
         <div className="p-4 space-y-4">
-          {/* Source Configuration Summary */}
-          <div className="bg-gray-50 rounded-lg p-3">
-            {isDirectFeed && source.directFeedConfig && (
-              <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                {source.directFeedConfig.apiEndpoint && (
-                  <div>
-                    <span className="text-xs text-gray-500">API Endpoint:</span>
-                    <p className="text-gray-700 font-mono text-xs truncate">{source.directFeedConfig.apiEndpoint}</p>
-                  </div>
-                )}
-                {source.directFeedConfig.apiDocumentationUrl && (
-                  <div>
-                    <span className="text-xs text-gray-500">Documentation:</span>
-                    <p>
-                      <a
-                        href={source.directFeedConfig.apiDocumentationUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 text-xs"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        View Docs ↗
-                      </a>
-                    </p>
-                  </div>
-                )}
-                {source.directFeedConfig.updateFrequency && (
-                  <div>
-                    <span className="text-xs text-gray-500">Update Frequency:</span>
-                    <p className="text-gray-700 text-xs">{FREQUENCY_LABELS[source.directFeedConfig.updateFrequency] || source.directFeedConfig.updateFrequency}</p>
-                  </div>
-                )}
-                {source.directFeedConfig.authMethod && (
-                  <div>
-                    <span className="text-xs text-gray-500">Auth Method:</span>
-                    <p className="text-gray-700 text-xs">{source.directFeedConfig.authMethod}</p>
-                  </div>
-                )}
-              </div>
-            )}
-            {isCredential && source.credentialConfig && (
+          {/* Credential Configuration Summary */}
+          {source.credentialConfig && (
+            <div className="bg-gray-50 rounded-lg p-3">
               <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
                 <div>
                   <span className="text-xs text-gray-500">Credential Name:</span>
@@ -221,6 +168,22 @@ export default function DataSourceCard({ entityId, source, onEdit, onDelete, onU
                     </p>
                   </div>
                 )}
+                {source.credentialConfig.brandingUrl && (
+                  <div>
+                    <span className="text-xs text-gray-500">Branding:</span>
+                    <p>
+                      <a
+                        href={source.credentialConfig.brandingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 text-xs"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        View Branding ↗
+                      </a>
+                    </p>
+                  </div>
+                )}
                 {source.credentialConfig.governanceDocUrl && (
                   <div>
                     <span className="text-xs text-gray-500">Governance:</span>
@@ -250,15 +213,13 @@ export default function DataSourceCard({ entityId, source, onEdit, onDelete, onU
                   </div>
                 )}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Fields/Claims Table */}
+          {/* Claims Table */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-xs font-medium text-gray-500 uppercase">
-                {isCredential ? 'Claims' : 'Fields'}
-              </h4>
+              <h4 className="text-xs font-medium text-gray-500 uppercase">Claims</h4>
               <button
                 onClick={handleAddField}
                 className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
@@ -266,18 +227,18 @@ export default function DataSourceCard({ entityId, source, onEdit, onDelete, onU
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                 </svg>
-                Add {isCredential ? 'Claim' : 'Field'}
+                Add Claim
               </button>
             </div>
 
             {fields.length === 0 ? (
               <div className="text-center py-6 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-                <p className="text-sm text-gray-500">No {isCredential ? 'claims' : 'fields'} defined yet</p>
+                <p className="text-sm text-gray-500">No claims defined yet</p>
                 <button
                   onClick={handleAddField}
                   className="mt-2 text-xs text-blue-600 hover:text-blue-800"
                 >
-                  Add your first {isCredential ? 'claim' : 'field'}
+                  Add your first claim
                 </button>
               </div>
             ) : (
@@ -286,10 +247,9 @@ export default function DataSourceCard({ entityId, source, onEdit, onDelete, onU
                   <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
                     <tr>
                       <th className="px-2 py-2 text-center font-medium w-8"></th>
-                      <th className="px-3 py-2 text-left font-medium">{isCredential ? 'Claim Name' : 'Field Name'}</th>
+                      <th className="px-3 py-2 text-left font-medium">Claim Name</th>
                       <th className="px-3 py-2 text-left font-medium">Display Name</th>
                       <th className="px-3 py-2 text-left font-medium">Type</th>
-                      {isDirectFeed && <th className="px-3 py-2 text-left font-medium">API Path</th>}
                       <th className="px-3 py-2 text-right font-medium">Actions</th>
                     </tr>
                   </thead>
@@ -321,15 +281,6 @@ export default function DataSourceCard({ entityId, source, onEdit, onDelete, onU
                             {DATA_TYPE_LABELS[field.dataType || 'string'] || field.dataType}
                           </span>
                         </td>
-                        {isDirectFeed && (
-                          <td className="px-3 py-2">
-                            {field.apiPath ? (
-                              <code className="text-xs text-gray-500">{field.apiPath}</code>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
-                          </td>
-                        )}
                         <td className="px-3 py-2 text-right">
                           <button
                             onClick={() => handleEditField(field)}
@@ -377,7 +328,6 @@ export default function DataSourceCard({ entityId, source, onEdit, onDelete, onU
             setShowFieldForm(false);
             setEditingField(null);
           }}
-          sourceType={source.type}
         />
       )}
     </div>

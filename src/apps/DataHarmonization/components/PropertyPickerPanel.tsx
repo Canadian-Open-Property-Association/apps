@@ -97,7 +97,6 @@ export default function PropertyPickerPanel({ context, onClose }: PropertyPicker
         entityName: context.entityName,
         sourceId: context.sourceId,
         sourceName: context.sourceName,
-        sourceType: context.sourceType,
         furnisherFieldId: context.field.id,
         furnisherFieldName: context.field.displayName || context.field.name,
         fieldPath,

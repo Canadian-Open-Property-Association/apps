@@ -31,7 +31,6 @@ export default function FieldMappingRow({ entity, source, field }: FieldMappingR
       entityName: entity.name,
       sourceId: source.id,
       sourceName: source.name,
-      sourceType: source.type,
       field: field,
     });
   };

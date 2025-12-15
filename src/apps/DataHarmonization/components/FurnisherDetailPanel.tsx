@@ -215,29 +215,17 @@ function SourceCard({ entity, source, filterField }: SourceCardProps) {
       <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Source Type Icon */}
-            {source.type === 'credential' ? (
-              <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                </svg>
-              </div>
-            ) : (
-              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
-                </svg>
-              </div>
-            )}
+            {/* Source Type Icon - Credential */}
+            <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+              <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+            </div>
             <div>
               <h3 className="font-medium text-gray-900">{source.name}</h3>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                  source.type === 'credential'
-                    ? 'bg-purple-100 text-purple-700'
-                    : 'bg-blue-100 text-blue-700'
-                }`}>
-                  {source.type === 'credential' ? 'Credential' : 'Direct Feed'}
+                <span className="text-xs px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                  Credential
                 </span>
                 <span className="text-xs text-gray-500">
                   {fields.length !== allFields.length
@@ -266,14 +254,9 @@ function SourceCard({ entity, source, filterField }: SourceCardProps) {
         </div>
 
         {/* Source Details */}
-        {(source.directFeedConfig?.apiEndpoint || source.credentialConfig?.issuerDid) && (
+        {source.credentialConfig?.issuerDid && (
           <div className="mt-2 text-xs text-gray-500 font-mono truncate">
-            {source.type === 'direct-feed' && source.directFeedConfig?.apiEndpoint && (
-              <span>{source.directFeedConfig.apiEndpoint}</span>
-            )}
-            {source.type === 'credential' && source.credentialConfig?.issuerDid && (
-              <span>{source.credentialConfig.issuerDid}</span>
-            )}
+            <span>{source.credentialConfig.issuerDid}</span>
           </div>
         )}
       </div>

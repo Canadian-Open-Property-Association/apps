@@ -844,6 +844,141 @@ Created by @${user.login} using the [COPA Apps](https://apps.openpropertyassocia
 });
 
 // ============================================
+// Entity Diff Endpoint (for PR creation with diff view)
+// ============================================
+
+// Compare local entities with GitHub entities and return diff
+router.post('/entity-diff', requireAuth, async (req, res) => {
+  try {
+    const { localEntities } = req.body;
+
+    if (!localEntities || !Array.isArray(localEntities)) {
+      return res.status(400).json({ error: 'localEntities array is required' });
+    }
+
+    const octokit = getOctokit(req);
+
+    // Fetch remote entities from GitHub
+    let remoteEntities = [];
+    try {
+      const { data } = await octokit.rest.repos.getContent({
+        owner: GITHUB_REPO_OWNER,
+        repo: GITHUB_REPO_NAME,
+        path: `${ENTITY_FOLDER_PATH}/entities.json`,
+        ...(GITHUB_BASE_BRANCH && { ref: GITHUB_BASE_BRANCH }),
+      });
+
+      const content = Buffer.from(data.content, 'base64').toString('utf-8');
+      const entityData = JSON.parse(content);
+      remoteEntities = entityData.entities || [];
+    } catch (error) {
+      if (error.status !== 404) {
+        throw error;
+      }
+      // File doesn't exist yet, that's fine - all local entities are "added"
+    }
+
+    // Create maps for comparison
+    const remoteMap = new Map(remoteEntities.map(e => [e.id, e]));
+    const localMap = new Map(localEntities.map(e => [e.id, e]));
+
+    // Categorize entities
+    const added = [];
+    const modified = [];
+    const unchanged = [];
+    const deleted = [];
+
+    // Check local entities against remote
+    for (const localEntity of localEntities) {
+      const remoteEntity = remoteMap.get(localEntity.id);
+      if (!remoteEntity) {
+        added.push({
+          id: localEntity.id,
+          name: localEntity.name,
+          types: localEntity.types,
+        });
+      } else {
+        // Compare entities - simple JSON string comparison
+        const localStr = JSON.stringify(localEntity);
+        const remoteStr = JSON.stringify(remoteEntity);
+        if (localStr !== remoteStr) {
+          modified.push({
+            id: localEntity.id,
+            name: localEntity.name,
+            types: localEntity.types,
+            changes: getEntityChanges(remoteEntity, localEntity),
+          });
+        } else {
+          unchanged.push({
+            id: localEntity.id,
+            name: localEntity.name,
+            types: localEntity.types,
+          });
+        }
+      }
+    }
+
+    // Check for deleted entities (in remote but not local)
+    for (const remoteEntity of remoteEntities) {
+      if (!localMap.has(remoteEntity.id)) {
+        deleted.push({
+          id: remoteEntity.id,
+          name: remoteEntity.name,
+          types: remoteEntity.types,
+        });
+      }
+    }
+
+    res.json({
+      added,
+      modified,
+      unchanged,
+      deleted,
+      summary: {
+        addedCount: added.length,
+        modifiedCount: modified.length,
+        unchangedCount: unchanged.length,
+        deletedCount: deleted.length,
+        totalLocal: localEntities.length,
+        totalRemote: remoteEntities.length,
+      },
+    });
+  } catch (error) {
+    console.error('Error computing entity diff:', error);
+    res.status(500).json({ error: error.message || 'Failed to compute entity diff' });
+  }
+});
+
+// Helper: Get human-readable changes between two entities
+function getEntityChanges(remote, local) {
+  const changes = [];
+
+  // Simple field comparison
+  const fieldsToCheck = ['name', 'description', 'website', 'contactEmail', 'contactPhone', 'contactName', 'did', 'status', 'logoUri'];
+  for (const field of fieldsToCheck) {
+    if (remote[field] !== local[field]) {
+      changes.push(`${field} changed`);
+    }
+  }
+
+  // Types comparison
+  const remoteTypes = (remote.types || []).sort().join(',');
+  const localTypes = (local.types || []).sort().join(',');
+  if (remoteTypes !== localTypes) {
+    changes.push('types changed');
+  }
+
+  // Data schema comparison (simplified)
+  const remoteSourceCount = remote.dataSchema?.sources?.length || 0;
+  const localSourceCount = local.dataSchema?.sources?.length || 0;
+  if (remoteSourceCount !== localSourceCount) {
+    changes.push(`data sources: ${remoteSourceCount} → ${localSourceCount}`);
+  }
+
+  return changes.length > 0 ? changes : ['content changed'];
+}
+
+// ============================================
 // Simple Entities Endpoint (for Asset Manager)
 // ============================================
 
