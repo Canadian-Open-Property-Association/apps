@@ -186,7 +186,7 @@ export default function EntityManagerApp() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden bg-gray-50">
           <MapView entities={entities} onSelectEntity={handleMapSelectEntity} />
         </div>
       )}
