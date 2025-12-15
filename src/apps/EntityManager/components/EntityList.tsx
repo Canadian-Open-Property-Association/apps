@@ -1,23 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useEntityStore } from '../../../store/entityStore';
-import type { Entity, EntityType, EntityAsset } from '../../../types/entity';
-import { ENTITY_TYPE_CONFIG } from '../../../types/entity';
+import type { Entity, EntityAsset } from '../../../types/entity';
 
 interface EntityListProps {
   onEditEntity: (id: string) => void;
 }
 
 const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:5174';
-
-function getTypeColor(type: EntityType): string {
-  const colors: Record<EntityType, string> = {
-    'issuer': 'bg-blue-100 text-blue-800',
-    'data-furnisher': 'bg-green-100 text-green-800',
-    'network-partner': 'bg-purple-100 text-purple-800',
-    'service-provider': 'bg-orange-100 text-orange-800',
-  };
-  return colors[type] || 'bg-gray-100 text-gray-800';
-}
 
 export default function EntityList({ onEditEntity }: EntityListProps) {
   const { entities, selectedEntity, selectEntity, searchQuery, setSearchQuery, deleteEntity } = useEntityStore();
@@ -163,24 +152,7 @@ export default function EntityList({ onEditEntity }: EntityListProps) {
               </div>
 
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-medium text-gray-900 truncate">{entity.name}</h4>
-                </div>
-
-                {entity.description && (
-                  <p className="text-xs text-gray-500 mt-0.5 truncate">{entity.description}</p>
-                )}
-
-                <div className="flex items-center gap-1 mt-1 flex-wrap">
-                  {entity.types?.map((type) => (
-                    <span
-                      key={type}
-                      className={`text-xs px-2 py-0.5 rounded-full ${getTypeColor(type)}`}
-                    >
-                      {ENTITY_TYPE_CONFIG[type]?.label}
-                    </span>
-                  ))}
-                </div>
+                <h4 className="text-sm font-medium text-gray-900">{entity.name}</h4>
               </div>
 
               {/* Actions */}

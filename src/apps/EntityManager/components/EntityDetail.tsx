@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import type { Entity, EntityType, FurnisherDataSchema, EntityAsset } from '../../../types/entity';
-import { ENTITY_TYPE_CONFIG, migrateDataSchema, DATA_PROVIDER_TYPE_CONFIG, ALL_DATA_PROVIDER_TYPES } from '../../../types/entity';
+import type { Entity, FurnisherDataSchema, EntityAsset } from '../../../types/entity';
+import { migrateDataSchema, DATA_PROVIDER_TYPE_CONFIG, ALL_DATA_PROVIDER_TYPES } from '../../../types/entity';
 import { useEntityStore } from '../../../store/entityStore';
+import { CANADIAN_REGIONS, normalizeRegions } from '../../../constants/regions';
 import DataSourcesSection from './DataSourcesSection';
 import AssetsSection from './AssetsSection';
 
@@ -93,45 +94,9 @@ function resolveLogoUri(logoUri: string | undefined): string | undefined {
   return `/assets/${logoUri}`;
 }
 
-function getTypeColor(type: EntityType): string {
-  const colors: Record<EntityType, string> = {
-    'issuer': 'bg-blue-100 text-blue-800',
-    'data-furnisher': 'bg-green-100 text-green-800',
-    'network-partner': 'bg-purple-100 text-purple-800',
-    'service-provider': 'bg-orange-100 text-orange-800',
-  };
-  return colors[type] || 'bg-gray-100 text-gray-800';
-}
-
-// All available entity types
-const ALL_ENTITY_TYPES: EntityType[] = ['issuer', 'data-furnisher', 'network-partner', 'service-provider'];
-
-// Canadian province/territory codes
-const CANADIAN_REGIONS = ['BC', 'AB', 'SK', 'MB', 'ON', 'QC', 'NB', 'NS', 'PE', 'NL', 'YT', 'NT', 'NU'];
-
-// Normalize region code to standard 2-letter format (e.g., "CA-BC" -> "BC", "ca-bc" -> "BC")
-function normalizeRegion(region: string): string {
-  const upper = region.toUpperCase();
-  // If it's in CA-XX format, extract the province code
-  if (upper.startsWith('CA-')) {
-    return upper.slice(3);
-  }
-  return upper;
-}
-
-// Normalize all regions in an array to standard format
-function normalizeRegions(regions: string[] | undefined): string[] {
-  if (!regions) return [];
-  // Normalize and deduplicate
-  const normalized = new Set(regions.map(normalizeRegion));
-  // Only keep valid Canadian region codes
-  return Array.from(normalized).filter(r => CANADIAN_REGIONS.includes(r));
-}
-
 export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailProps) {
   const brandColour = entity.primaryColor || '#1a365d';
   const { updateEntity, selectEntity } = useEntityStore();
-  const isDataFurnisher = entity.types?.includes('data-furnisher');
   const [activeTab, setActiveTab] = useState<'about' | 'data-schema' | 'assets'>('about');
 
   // Inline editing states
@@ -145,9 +110,6 @@ export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailPr
   // Entity description editing state
   const [editingDescription, setEditingDescription] = useState(false);
   const [editedDescription, setEditedDescription] = useState(entity.description || '');
-
-  // Entity types editing state (used in Entity Classification section)
-  const [selectedTypes, setSelectedTypes] = useState<EntityType[]>(entity.types || []);
 
   // Track the current entity ID to reset tab only when switching entities
   const currentEntityIdRef = useRef(entity.id);
@@ -210,7 +172,6 @@ export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailPr
       setEditedName(entity.name);
       setEditingDescription(false);
       setEditedDescription(entity.description || '');
-      setSelectedTypes(entity.types || []);
     }
   }, [entity.id]);
 
@@ -227,13 +188,6 @@ export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailPr
       setEditedDescription(entity.description || '');
     }
   }, [entity.description, editingDescription]);
-
-  // Sync selectedTypes when entity.types changes (e.g., after save)
-  useEffect(() => {
-    if (editingSection !== 'classification') {
-      setSelectedTypes(entity.types || []);
-    }
-  }, [entity.types, editingSection]);
 
   const handleUpdateSchema = async (schema: FurnisherDataSchema) => {
     try {
@@ -300,19 +254,6 @@ export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailPr
 
   const updateFormField = (field: keyof Entity, value: string | undefined) => {
     setEditFormData(prev => ({ ...prev, [field]: value || undefined }));
-  };
-
-  // Entity type toggle handler (used in Entity Classification section)
-  const toggleType = (type: EntityType) => {
-    setSelectedTypes(prev => {
-      if (prev.includes(type)) {
-        // Don't allow removing the last type
-        if (prev.length === 1) return prev;
-        return prev.filter(t => t !== type);
-      } else {
-        return [...prev, type];
-      }
-    });
   };
 
   return (
@@ -410,17 +351,6 @@ export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailPr
             </div>
           )}
 
-          {/* Entity Types - Read-only badges */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {entity.types?.map((type) => (
-              <span
-                key={type}
-                className={`text-xs px-2 py-0.5 rounded-full ${getTypeColor(type)}`}
-              >
-                {ENTITY_TYPE_CONFIG[type]?.label}
-              </span>
-            ))}
-          </div>
         </div>
 
         {/* Description - editable inline */}
@@ -493,24 +423,22 @@ export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailPr
             >
               About
             </button>
-            {isDataFurnisher && (
-              <button
-                type="button"
-                onClick={() => handleTabChange('data-schema')}
-                className={`py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
-                  activeTab === 'data-schema'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Data Sources
-                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                  activeTab === 'data-schema' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'
-                }`}>
-                  {migrateDataSchema(entity.dataSchema).sources?.length || 0}
-                </span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => handleTabChange('data-schema')}
+              className={`py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                activeTab === 'data-schema'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Data Sources
+              <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                activeTab === 'data-schema' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'
+              }`}>
+                {migrateDataSchema(entity.dataSchema).sources?.length || 0}
+              </span>
+            </button>
             <button
               type="button"
               onClick={() => handleTabChange('assets')}
@@ -710,20 +638,18 @@ export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailPr
             </div>
           </EditableSection>
 
-          {/* Entity Classification Section */}
+          {/* Coverage & Data Types Section */}
           <div className="mt-6">
             <EditableSection
-              title="Entity Classification"
+              title="Coverage & Data Types"
               icon={
-                <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               }
               isEditing={editingSection === 'classification'}
               onEdit={() => {
                 setEditingSection('classification');
-                setSelectedTypes(entity.types || []);
-                // Normalize regions when starting to edit to clean up any mixed formats
                 setEditFormData({
                   ...entity,
                   regionsCovered: normalizeRegions(entity.regionsCovered)
@@ -732,7 +658,6 @@ export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailPr
               onSave={async () => {
                 try {
                   await updateEntity(entity.id, {
-                    types: selectedTypes,
                     regionsCovered: editFormData.regionsCovered,
                     dataProviderTypes: editFormData.dataProviderTypes
                   });
@@ -744,175 +669,116 @@ export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailPr
               }}
               onCancel={() => {
                 setEditingSection(null);
-                setSelectedTypes(entity.types || []);
                 setEditFormData({});
               }}
               editContent={
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-2">Entity Types</label>
-                    <div className="flex flex-wrap gap-2">
-                      {ALL_ENTITY_TYPES.map((type) => {
-                        const isSelected = selectedTypes.includes(type);
-                        const config = ENTITY_TYPE_CONFIG[type];
+                    <span className="block text-xs font-medium text-gray-600 mb-2">Regions Covered</span>
+                    <div className="grid grid-cols-4 gap-2">
+                      {CANADIAN_REGIONS.map((region) => {
+                        const isSelected = editFormData.regionsCovered?.includes(region.code);
                         return (
-                          <button
-                            key={type}
-                            onClick={() => toggleType(type)}
-                            className={`text-xs px-3 py-1.5 rounded-full border-2 transition-all ${
+                          <div
+                            key={region.code}
+                            onClick={() => {
+                              const current = editFormData.regionsCovered || [];
+                              if (isSelected) {
+                                setEditFormData(prev => ({ ...prev, regionsCovered: current.filter(r => r !== region.code) }));
+                              } else {
+                                setEditFormData(prev => ({ ...prev, regionsCovered: [...current, region.code] }));
+                              }
+                            }}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded border cursor-pointer transition-colors select-none ${
                               isSelected
-                                ? `${getTypeColor(type)} border-current`
-                                : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                                ? 'bg-green-50 border-green-300 text-green-800'
+                                : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
                             }`}
                           >
-                            <span className="flex items-center gap-1.5">
-                              {isSelected && (
-                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
-                              )}
-                              {config?.label}
-                            </span>
-                          </button>
+                            <span className="text-sm">{region.code}</span>
+                            {isSelected && (
+                              <svg className="w-3 h-3 text-green-600 ml-auto" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </div>
                         );
                       })}
                     </div>
-                    {selectedTypes.length === 1 && (
-                      <p className="text-xs text-gray-400 mt-2">At least one type is required</p>
-                    )}
                   </div>
 
-                  {/* Regions - only if data-furnisher is selected */}
-                  {selectedTypes.includes('data-furnisher') && (
-                    <div>
-                      <span className="block text-xs font-medium text-gray-600 mb-2">Regions Covered</span>
-                      <div className="grid grid-cols-4 gap-2">
-                        {CANADIAN_REGIONS.map((region) => {
-                          // Use normalized check to handle mixed formats (CA-BC, BC, etc.)
-                          const isSelected = editFormData.regionsCovered?.includes(region);
-                          return (
-                            <div
-                              key={region}
-                              onClick={() => {
-                                const current = editFormData.regionsCovered || [];
-                                if (isSelected) {
-                                  setEditFormData(prev => ({ ...prev, regionsCovered: current.filter(r => r !== region) }));
-                                } else {
-                                  setEditFormData(prev => ({ ...prev, regionsCovered: [...current, region] }));
-                                }
-                              }}
-                              className={`flex items-center gap-2 px-3 py-1.5 rounded border cursor-pointer transition-colors select-none ${
-                                isSelected
-                                  ? 'bg-green-50 border-green-300 text-green-800'
-                                  : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
-                              }`}
-                            >
-                              <span className="text-sm">{region}</span>
-                              {isSelected && (
-                                <svg className="w-3 h-3 text-green-600 ml-auto" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
+                  <div>
+                    <span className="block text-xs font-medium text-gray-600 mb-2">Data Provider Types</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      {ALL_DATA_PROVIDER_TYPES.map((providerType) => {
+                        const isSelected = editFormData.dataProviderTypes?.includes(providerType);
+                        const config = DATA_PROVIDER_TYPE_CONFIG[providerType];
+                        return (
+                          <div
+                            key={providerType}
+                            onClick={() => {
+                              const current = editFormData.dataProviderTypes || [];
+                              if (isSelected) {
+                                setEditFormData(prev => ({ ...prev, dataProviderTypes: current.filter(t => t !== providerType) }));
+                              } else {
+                                setEditFormData(prev => ({ ...prev, dataProviderTypes: [...current, providerType] }));
+                              }
+                            }}
+                            className={`flex items-center gap-2 px-3 py-2 rounded border cursor-pointer transition-colors select-none ${
+                              isSelected
+                                ? 'bg-blue-50 border-blue-300 text-blue-800'
+                                : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                            }`}
+                          >
+                            <span className="text-sm">{config.label}</span>
+                            {isSelected && (
+                              <svg className="w-3 h-3 text-blue-600 ml-auto" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                  )}
-
-                  {/* Data Provider Types - only if data-furnisher is selected */}
-                  {selectedTypes.includes('data-furnisher') && (
-                    <div>
-                      <span className="block text-xs font-medium text-gray-600 mb-2">Data Provider Types</span>
-                      <div className="grid grid-cols-2 gap-2">
-                        {ALL_DATA_PROVIDER_TYPES.map((providerType) => {
-                          const isSelected = editFormData.dataProviderTypes?.includes(providerType);
-                          const config = DATA_PROVIDER_TYPE_CONFIG[providerType];
-                          return (
-                            <div
-                              key={providerType}
-                              onClick={() => {
-                                const current = editFormData.dataProviderTypes || [];
-                                if (isSelected) {
-                                  setEditFormData(prev => ({ ...prev, dataProviderTypes: current.filter(t => t !== providerType) }));
-                                } else {
-                                  setEditFormData(prev => ({ ...prev, dataProviderTypes: [...current, providerType] }));
-                                }
-                              }}
-                              className={`flex items-center gap-2 px-3 py-2 rounded border cursor-pointer transition-colors select-none ${
-                                isSelected
-                                  ? 'bg-blue-50 border-blue-300 text-blue-800'
-                                  : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
-                              }`}
-                            >
-                              <span className="text-sm">{config.label}</span>
-                              {isSelected && (
-                                <svg className="w-3 h-3 text-blue-600 ml-auto" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </div>
               }
             >
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs text-gray-500">Entity Types</label>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {entity.types?.map((type) => (
-                      <span
-                        key={type}
-                        className={`text-xs px-2 py-0.5 rounded-full ${getTypeColor(type)}`}
-                      >
-                        {ENTITY_TYPE_CONFIG[type]?.label}
-                      </span>
-                    ))}
-                  </div>
+                  <label className="text-xs text-gray-500">Regions Covered</label>
+                  {entity.regionsCovered && entity.regionsCovered.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {normalizeRegions(entity.regionsCovered).map((region) => (
+                        <span
+                          key={region}
+                          className="px-2 py-0.5 text-xs bg-green-50 border border-green-200 text-green-800 rounded"
+                        >
+                          {region}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-400">No regions specified</p>
+                  )}
                 </div>
-                {isDataFurnisher && (
-                  <>
-                    <div>
-                      <label className="text-xs text-gray-500">Regions Covered</label>
-                      {entity.regionsCovered && entity.regionsCovered.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5 mt-1">
-                          {/* Normalize regions for display to show consistent format */}
-                          {normalizeRegions(entity.regionsCovered).map((region) => (
-                            <span
-                              key={region}
-                              className="px-2 py-0.5 text-xs bg-green-50 border border-green-200 text-green-800 rounded"
-                            >
-                              {region}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-gray-400">No regions specified</p>
-                      )}
+                <div>
+                  <label className="text-xs text-gray-500">Data Provider Types</label>
+                  {entity.dataProviderTypes && entity.dataProviderTypes.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {entity.dataProviderTypes.map((providerType) => (
+                        <span
+                          key={providerType}
+                          className="px-2 py-0.5 text-xs bg-blue-50 border border-blue-200 text-blue-800 rounded"
+                        >
+                          {DATA_PROVIDER_TYPE_CONFIG[providerType]?.label}
+                        </span>
+                      ))}
                     </div>
-                    <div>
-                      <label className="text-xs text-gray-500">Data Provider Types</label>
-                      {entity.dataProviderTypes && entity.dataProviderTypes.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5 mt-1">
-                          {entity.dataProviderTypes.map((providerType) => (
-                            <span
-                              key={providerType}
-                              className="px-2 py-0.5 text-xs bg-blue-50 border border-blue-200 text-blue-800 rounded"
-                            >
-                              {DATA_PROVIDER_TYPE_CONFIG[providerType]?.label}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-gray-400">No data provider types specified</p>
-                      )}
-                    </div>
-                  </>
-                )}
+                  ) : (
+                    <p className="text-sm text-gray-400">No data provider types specified</p>
+                  )}
+                </div>
               </div>
             </EditableSection>
           </div>
@@ -945,8 +811,8 @@ export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailPr
         </>
       )}
 
-      {/* Tab Content: Data Sources - Only shown for Data Furnisher entities */}
-      {isDataFurnisher && activeTab === 'data-schema' && (
+      {/* Tab Content: Data Sources */}
+      {activeTab === 'data-schema' && (
         <DataSourcesSection entity={entity} onUpdateSchema={handleUpdateSchema} />
       )}
 

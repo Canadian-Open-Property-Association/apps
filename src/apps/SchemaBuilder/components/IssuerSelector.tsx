@@ -1,7 +1,7 @@
 /**
  * IssuerSelector - Dropdown for selecting an issuer entity
  *
- * Fetches entities with 'issuer' type from the Entity Library
+ * Fetches entities from the Data Furnisher Manager
  * and allows selection for the schema's default issuer.
  */
 
@@ -22,9 +22,9 @@ export default function IssuerSelector({ value, onChange, disabled }: IssuerSele
     fetchEntities();
   }, [fetchEntities]);
 
-  // Filter to only include entities with 'issuer' type
+  // Filter to only include active entities
   const issuers = useMemo(() => {
-    return entities.filter(e => e.types?.includes('issuer') && e.status === 'active');
+    return entities.filter(e => e.status === 'active');
   }, [entities]);
 
   const handleChange = (entityId: string) => {
@@ -54,7 +54,7 @@ export default function IssuerSelector({ value, onChange, disabled }: IssuerSele
         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
       >
         <option value="">
-          {isLoading ? 'Loading issuers...' : 'Select an issuer...'}
+          {isLoading ? 'Loading entities...' : 'Select an entity...'}
         </option>
         {issuers.map(issuer => (
           <option key={issuer.id} value={issuer.id}>

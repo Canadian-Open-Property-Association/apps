@@ -401,10 +401,10 @@ export const useHarmonizationStore = create<HarmonizationState>((set, get) => ({
     return response.json();
   },
 
-  // Helper: Get only data furnisher entities
+  // Helper: Get all entities (all are data furnishers now)
   getDataFurnishers: () => {
     const { entities } = get();
-    return entities.filter(e => e.types?.includes('data-furnisher'));
+    return entities;
   },
 
   // Helper: Get selected entity

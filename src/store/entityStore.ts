@@ -1,18 +1,13 @@
 import { create } from 'zustand';
-import type { Entity, EntityType, EntitySelection } from '../types/entity';
+import type { Entity, EntitySelection } from '../types/entity';
 
 const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:5174';
 
 // API helpers
 const entityApi = {
   // List entities
-  async listEntities(types?: EntityType[]): Promise<Entity[]> {
-    const params = new URLSearchParams();
-    if (types && types.length > 0) {
-      params.set('types', types.join(','));
-    }
-
-    const response = await fetch(`${API_BASE}/api/entities?${params}`, {
+  async listEntities(): Promise<Entity[]> {
+    const response = await fetch(`${API_BASE}/api/entities`, {
       credentials: 'include',
     });
     if (!response.ok) throw new Error('Failed to fetch entities');
@@ -104,8 +99,7 @@ interface EntityState {
   entities: Entity[];
   selectedEntity: Entity | null;
 
-  // Filter state (multiple types)
-  typeFilters: EntityType[];
+  // Filter state
   searchQuery: string;
 
   // Selection
@@ -116,10 +110,9 @@ interface EntityState {
   error: string | null;
 
   // Actions
-  fetchEntities: (types?: EntityType[]) => Promise<void>;
+  fetchEntities: () => Promise<void>;
   selectEntity: (id: string) => Promise<void>;
   clearSelection: () => void;
-  setTypeFilters: (types: EntityType[]) => void;
   setSearchQuery: (query: string) => void;
 
   // CRUD
@@ -138,18 +131,16 @@ export const useEntityStore = create<EntityState>((set, get) => ({
   // Initial state
   entities: [],
   selectedEntity: null,
-  typeFilters: [],
   searchQuery: '',
   selection: null,
   isLoading: false,
   error: null,
 
   // Fetch all entities
-  fetchEntities: async (types?: EntityType[]) => {
+  fetchEntities: async () => {
     set({ isLoading: true, error: null });
     try {
-      const filterTypes = types || get().typeFilters;
-      const entities = await entityApi.listEntities(filterTypes.length > 0 ? filterTypes : undefined);
+      const entities = await entityApi.listEntities();
       set({ entities, isLoading: false });
     } catch (error) {
       set({
@@ -176,11 +167,6 @@ export const useEntityStore = create<EntityState>((set, get) => ({
 
   clearSelection: () => {
     set({ selectedEntity: null, selection: null });
-  },
-
-  setTypeFilters: (types: EntityType[]) => {
-    set({ typeFilters: types });
-    get().fetchEntities(types);
   },
 
   setSearchQuery: (query: string) => {

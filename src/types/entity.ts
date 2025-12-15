@@ -1,6 +1,5 @@
 // Entity Management Types
-
-export type EntityType = 'issuer' | 'data-furnisher' | 'network-partner' | 'service-provider';
+// All entities are Data Furnishers - no entity type system needed
 
 export type EntityStatus = 'active' | 'pending' | 'inactive';
 
@@ -107,7 +106,6 @@ export function migrateDataSchema(schema: FurnisherDataSchema | undefined): Furn
 export interface Entity {
   id: string;                    // Unique identifier (slug format: copa-entity-name)
   name: string;                  // Display name
-  types: EntityType[];           // Entity can have multiple types
   description?: string;
 
   // Visual Identity
@@ -123,7 +121,7 @@ export interface Entity {
   // Technical Identity
   did?: string;                  // Decentralized Identifier
 
-  // Data Furnisher specific (only relevant if types includes 'data-furnisher')
+  // Data Furnisher fields (all entities are furnishers)
   regionsCovered?: string[];     // Regions/provinces this entity covers
   dataProviderTypes?: DataProviderType[];  // Types of data this furnisher provides
   dataSchema?: FurnisherDataSchema;  // Field definitions for this furnisher's data
@@ -135,30 +133,6 @@ export interface Entity {
   createdBy?: UserRef;
   updatedBy?: UserRef;
 }
-
-// Entity type display configuration
-export const ENTITY_TYPE_CONFIG: Record<EntityType, { label: string; pluralLabel: string; color: string }> = {
-  'issuer': {
-    label: 'Issuer',
-    pluralLabel: 'Issuers',
-    color: 'blue',
-  },
-  'data-furnisher': {
-    label: 'Data Furnisher',
-    pluralLabel: 'Data Furnishers',
-    color: 'green',
-  },
-  'network-partner': {
-    label: 'Network Partner',
-    pluralLabel: 'Network Partners',
-    color: 'purple',
-  },
-  'service-provider': {
-    label: 'Service Provider',
-    pluralLabel: 'Service Providers',
-    color: 'orange',
-  },
-};
 
 // Data provider type display configuration
 export const DATA_PROVIDER_TYPE_CONFIG: Record<DataProviderType, { label: string; description: string }> = {
