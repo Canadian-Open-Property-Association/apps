@@ -148,13 +148,9 @@ router.post('/', requireAuth, (req, res) => {
       return slug ? `copa-${slug}` : '';
     };
 
-    // Support both 'types' array and legacy 'type' field
-    const types = req.body.types || (req.body.type ? [req.body.type] : []);
-
     const newEntity = {
       id: req.body.id || generateId(req.body.name),
       name: req.body.name,
-      types: types,
       description: req.body.description || '',
       logoUri: req.body.logoUri || '',
       primaryColor: req.body.primaryColor || '',
@@ -178,10 +174,6 @@ router.post('/', requireAuth, (req, res) => {
 
     if (!newEntity.name) {
       return res.status(400).json({ error: 'Name is required' });
-    }
-
-    if (!newEntity.types || newEntity.types.length === 0) {
-      return res.status(400).json({ error: 'At least one type is required' });
     }
 
     // Check for duplicate ID

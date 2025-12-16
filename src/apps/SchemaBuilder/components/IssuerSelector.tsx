@@ -1,7 +1,7 @@
 /**
  * IssuerSelector - Dropdown for selecting an issuer entity
  *
- * Fetches entities from the Data Furnisher Manager
+ * Fetches entities from the Entity Manager
  * and allows selection for the schema's default issuer.
  */
 

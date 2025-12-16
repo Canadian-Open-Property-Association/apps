@@ -172,7 +172,7 @@ export default function AssetForm() {
         ) : entities.length === 0 ? (
           <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
             <p className="text-sm text-yellow-800">
-              No entities found. Create entities in the Data Furnisher Manager first.
+              No entities found. Create entities in the Entity Manager first.
             </p>
           </div>
         ) : (

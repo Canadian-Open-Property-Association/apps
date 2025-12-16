@@ -137,7 +137,7 @@ function App() {
           path="/apps/entity-manager/*"
           element={
             <AuthGuard>
-              <PlatformShell appName="Data Furnisher Manager" appIcon={EntityManagerIcon}>
+              <PlatformShell appName="Entity Manager" appIcon={EntityManagerIcon}>
                 <EntityManagerApp />
               </PlatformShell>
             </AuthGuard>
