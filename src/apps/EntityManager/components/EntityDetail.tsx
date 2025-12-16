@@ -115,6 +115,7 @@ export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailPr
 
   // Status editing state
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const statusDropdownRef = useRef<HTMLDivElement>(null);
 
   // Track the current entity ID to reset tab only when switching entities
   const currentEntityIdRef = useRef(entity.id);
@@ -193,6 +194,23 @@ export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailPr
       setEditedDescription(entity.description || '');
     }
   }, [entity.description, editingDescription]);
+
+  // Close status dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(event.target as Node)) {
+        setShowStatusDropdown(false);
+      }
+    };
+
+    if (showStatusDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showStatusDropdown]);
 
   const handleUpdateSchema = async (schema: FurnisherDataSchema) => {
     try {
@@ -387,7 +405,7 @@ export default function EntityDetail({ entity, onEdit: _onEdit }: EntityDetailPr
           )}
 
           {/* Status Badge - editable */}
-          <div className="relative">
+          <div className="relative" ref={statusDropdownRef}>
             {(() => {
               const statusConfig = getStatusConfig(entity.status);
               const colorClasses = getStatusColorClasses(statusConfig.color);

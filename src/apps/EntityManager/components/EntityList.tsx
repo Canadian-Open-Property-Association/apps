@@ -139,9 +139,10 @@ export default function EntityList({ onEditEntity, onAddEntity }: EntityListProp
             onClick={() => selectEntity(entity.id)}
             className={`group px-4 py-3 border-b border-gray-100 cursor-pointer transition-colors ${
               selectedEntity?.id === entity.id
-                ? 'bg-blue-50 border-l-4 border-l-blue-600'
+                ? 'bg-blue-50 border-l-4'
                 : 'hover:bg-gray-50'
             }`}
+            style={selectedEntity?.id === entity.id ? { borderLeftColor: entity.primaryColor || '#2563eb' } : undefined}
           >
             <div className="flex items-start gap-3">
               {/* Logo or initials */}
