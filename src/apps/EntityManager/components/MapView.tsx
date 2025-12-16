@@ -36,8 +36,21 @@ interface MapViewProps {
 export default function MapView({ entities, onSelectEntity }: MapViewProps) {
   const [selectedProvince, setSelectedProvince] = useState<string | null>(null);
   const [selectedDataTypes, setSelectedDataTypes] = useState<DataProviderType[]>([]);
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
   const [logoAssets, setLogoAssets] = useState<Record<string, string>>({});
   const { settings } = useFurnisherSettingsStore();
+
+  // Get selected entity
+  const selectedEntity = useMemo(() => {
+    if (!selectedEntityId) return null;
+    return entities.find(e => e.id === selectedEntityId) || null;
+  }, [entities, selectedEntityId]);
+
+  // Get provinces covered by selected entity
+  const selectedEntityProvinces = useMemo(() => {
+    if (!selectedEntity) return new Set<string>();
+    return new Set(normalizeRegions(selectedEntity.regionsCovered));
+  }, [selectedEntity]);
 
   // Fetch entity-logo assets for all entities
   useEffect(() => {
@@ -190,11 +203,17 @@ export default function MapView({ entities, onSelectEntity }: MapViewProps) {
             <div className="divide-y divide-gray-100">
               {provinceFurnishers.map(entity => {
                 const logoUrl = getLogoUrl(entity);
+                const isSelected = selectedEntityId === entity.id;
                 return (
                   <button
                     key={entity.id}
-                    onClick={() => onSelectEntity(entity.id)}
-                    className="w-full p-3 text-left hover:bg-gray-50 transition-colors"
+                    onClick={() => setSelectedEntityId(isSelected ? null : entity.id)}
+                    className={`w-full p-3 text-left transition-colors border-l-4 ${
+                      isSelected
+                        ? 'bg-blue-50 border-l-blue-500'
+                        : 'hover:bg-gray-50 border-l-transparent'
+                    }`}
+                    style={isSelected && entity.primaryColor ? { borderLeftColor: entity.primaryColor } : undefined}
                   >
                     <div className="flex items-center gap-3">
                       {logoUrl ? (
@@ -229,9 +248,15 @@ export default function MapView({ entities, onSelectEntity }: MapViewProps) {
                           )}
                         </div>
                       </div>
-                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
+                      {isSelected ? (
+                        <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                        </svg>
+                      )}
                     </div>
                   </button>
                 );
@@ -277,11 +302,12 @@ export default function MapView({ entities, onSelectEntity }: MapViewProps) {
                 {type.label}
               </button>
             ))}
-            {(selectedDataTypes.length > 0 || selectedProvince) && (
+            {(selectedDataTypes.length > 0 || selectedProvince || selectedEntityId) && (
               <button
                 onClick={() => {
                   setSelectedDataTypes([]);
                   setSelectedProvince(null);
+                  setSelectedEntityId(null);
                 }}
                 className="ml-2 text-xs text-gray-500 hover:text-gray-700 underline"
               >
@@ -298,6 +324,7 @@ export default function MapView({ entities, onSelectEntity }: MapViewProps) {
             // Only deselect if clicking directly on the map container (not on a province)
             if (e.target === e.currentTarget) {
               setSelectedProvince(null);
+              setSelectedEntityId(null);
             }
           }}
         >
@@ -317,39 +344,64 @@ export default function MapView({ entities, onSelectEntity }: MapViewProps) {
                 width="3000"
                 height="3000"
                 fill="transparent"
-                onClick={() => setSelectedProvince(null)}
+                onClick={() => {
+                  setSelectedProvince(null);
+                  setSelectedEntityId(null);
+                }}
               />
               <Geographies geography={CANADA_TOPO_URL}>
                 {({ geographies }) =>
                   geographies.map((geo) => {
                     const provinceName = (geo.properties.name || geo.properties.NAME || '') as string;
                     const code = PROVINCE_NAME_TO_CODE[provinceName];
-                    const isSelected = selectedProvince === code;
+                    const isProvinceSelected = selectedProvince === code;
+                    const isEntityCovered = selectedEntityProvinces.has(code);
+                    const entityColor = selectedEntity?.primaryColor || '#f59e0b';
+
+                    // Determine fill color based on selection state
+                    const getFillColor = () => {
+                      if (isEntityCovered) return entityColor;
+                      if (isProvinceSelected) return '#3b82f6';
+                      return getProvinceColor(code);
+                    };
+
+                    const getHoverColor = () => {
+                      if (isEntityCovered) return entityColor;
+                      if (isProvinceSelected) return '#2563eb';
+                      return '#93c5fd';
+                    };
 
                     return (
                       <Geography
                         key={geo.rsmKey}
                         geography={geo}
-                        onClick={() => setSelectedProvince(isSelected ? null : code)}
+                        onClick={() => {
+                          if (selectedEntityId) {
+                            // If entity is selected, clicking a province deselects the entity
+                            setSelectedEntityId(null);
+                          } else {
+                            setSelectedProvince(isProvinceSelected ? null : code);
+                          }
+                        }}
                         style={{
                           default: {
-                            fill: isSelected ? '#3b82f6' : getProvinceColor(code),
-                            stroke: '#ffffff',
-                            strokeWidth: 0.75,
+                            fill: getFillColor(),
+                            stroke: isEntityCovered ? '#ffffff' : '#ffffff',
+                            strokeWidth: isEntityCovered ? 1.5 : 0.75,
                             outline: 'none',
                             cursor: 'pointer',
                           },
                           hover: {
-                            fill: isSelected ? '#2563eb' : '#93c5fd',
+                            fill: getHoverColor(),
                             stroke: '#ffffff',
-                            strokeWidth: 0.75,
+                            strokeWidth: isEntityCovered ? 1.5 : 0.75,
                             outline: 'none',
                             cursor: 'pointer',
                           },
                           pressed: {
-                            fill: '#3b82f6',
+                            fill: isEntityCovered ? entityColor : '#3b82f6',
                             stroke: '#ffffff',
-                            strokeWidth: 0.75,
+                            strokeWidth: isEntityCovered ? 1.5 : 0.75,
                             outline: 'none',
                           },
                         }}
@@ -361,8 +413,8 @@ export default function MapView({ entities, onSelectEntity }: MapViewProps) {
             </ZoomableGroup>
           </ComposableMap>
 
-          {/* Province Info Tooltip */}
-          {selectedProvince && (
+          {/* Province Info Tooltip - only show when no entity is selected */}
+          {selectedProvince && !selectedEntityId && (
             <div className="absolute bottom-4 left-4 bg-white rounded-lg shadow-lg border border-gray-200 px-4 py-3 z-10">
               <div className="flex items-center gap-3">
                 <div>
@@ -377,6 +429,81 @@ export default function MapView({ entities, onSelectEntity }: MapViewProps) {
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Selected Entity Card */}
+          {selectedEntity && (
+            <div className="absolute bottom-4 left-4 right-4 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+              <div className="p-4">
+                <div className="flex items-start gap-3">
+                  {/* Logo */}
+                  {getLogoUrl(selectedEntity) ? (
+                    <img
+                      src={getLogoUrl(selectedEntity)!}
+                      alt=""
+                      className="w-12 h-12 object-contain rounded bg-gray-50 flex-shrink-0"
+                    />
+                  ) : (
+                    <div
+                      className="w-12 h-12 rounded flex items-center justify-center text-white text-sm font-semibold flex-shrink-0"
+                      style={{ backgroundColor: selectedEntity.primaryColor || '#6b7280' }}
+                    >
+                      {selectedEntity.name.substring(0, 2).toUpperCase()}
+                    </div>
+                  )}
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h4 className="font-semibold text-gray-900">{selectedEntity.name}</h4>
+                        <p className="text-sm text-gray-500 mt-0.5">
+                          Covers {selectedEntityProvinces.size} province{selectedEntityProvinces.size !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setSelectedEntityId(null)}
+                        className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100 flex-shrink-0"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    {/* Data types */}
+                    {selectedEntity.dataProviderTypes && selectedEntity.dataProviderTypes.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {selectedEntity.dataProviderTypes.map(type => (
+                          <span
+                            key={type}
+                            className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded"
+                          >
+                            {getDataTypeLabel(type)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Covered regions */}
+                    <div className="text-xs text-gray-500 mt-2">
+                      {Array.from(selectedEntityProvinces).map(code => getRegionName(code)).join(', ')}
+                    </div>
+                  </div>
+                </div>
+
+                {/* View Details button */}
+                <button
+                  onClick={() => onSelectEntity(selectedEntity.id)}
+                  className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  View Details
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                   </svg>
                 </button>
               </div>
