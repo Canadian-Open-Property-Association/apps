@@ -123,14 +123,27 @@ export default function MapView({ entities, onSelectEntity }: MapViewProps) {
     return Math.max(1, ...Object.values(provinceCount));
   }, [provinceCount]);
 
-  // Get color based on count
+  // 8-color scale from gray to green
+  const COLOR_SCALE = [
+    '#e5e7eb', // gray-200 (0 furnishers)
+    '#d1fae5', // emerald-100
+    '#a7f3d0', // emerald-200
+    '#6ee7b7', // emerald-300
+    '#34d399', // emerald-400
+    '#10b981', // emerald-500
+    '#059669', // emerald-600
+    '#047857', // emerald-700
+  ];
+
+  // Get color based on count using 8-step scale
   const getProvinceColor = (code: string) => {
     const count = provinceCount[code] || 0;
-    if (count === 0) return '#e5e7eb'; // gray-200
-    const intensity = Math.min(count / maxCount, 1);
-    // Gradient from light green to dark green
-    const lightness = 85 - (intensity * 45);
-    return `hsl(142, 60%, ${lightness}%)`;
+    if (count === 0) return COLOR_SCALE[0];
+
+    // Calculate which color bucket this count falls into (1-7)
+    const bucketSize = maxCount / 7;
+    const bucket = Math.min(Math.ceil(count / bucketSize), 7);
+    return COLOR_SCALE[bucket];
   };
 
   // Toggle data type filter
@@ -269,17 +282,25 @@ export default function MapView({ entities, onSelectEntity }: MapViewProps) {
           {/* Legend */}
           <div className="flex items-center gap-3">
             <span className="text-xs text-gray-500">Coverage:</span>
-            <div className="flex items-center gap-1">
-              <div className="w-4 h-4 rounded" style={{ background: 'hsl(142, 60%, 85%)' }} />
-              <div className="w-4 h-4 rounded" style={{ background: 'hsl(142, 60%, 65%)' }} />
-              <div className="w-4 h-4 rounded" style={{ background: 'hsl(142, 60%, 45%)' }} />
+            <div className="flex items-center gap-0.5">
+              {COLOR_SCALE.map((color, i) => (
+                <div key={i} className="w-3 h-4 first:rounded-l last:rounded-r" style={{ background: color }} />
+              ))}
             </div>
-            <span className="text-xs text-gray-500">Low → High</span>
+            <span className="text-xs text-gray-500">None → High</span>
           </div>
         </div>
 
         {/* Map */}
-        <div className="flex-1 bg-gradient-to-b from-blue-50 to-blue-100 relative min-h-0">
+        <div
+          className="flex-1 bg-gradient-to-b from-blue-50 to-blue-100 relative min-h-0"
+          onClick={(e) => {
+            // Only deselect if clicking directly on the map container (not on a province)
+            if (e.target === e.currentTarget) {
+              setSelectedProvince(null);
+            }
+          }}
+        >
           <ComposableMap
             projection="geoMercator"
             projectionConfig={{
@@ -289,6 +310,15 @@ export default function MapView({ entities, onSelectEntity }: MapViewProps) {
             style={{ width: '100%', height: '100%' }}
           >
             <ZoomableGroup center={[-95, 60]} zoom={1} minZoom={0.8} maxZoom={4}>
+              {/* Background rect to capture clicks outside provinces */}
+              <rect
+                x="-1000"
+                y="-1000"
+                width="3000"
+                height="3000"
+                fill="transparent"
+                onClick={() => setSelectedProvince(null)}
+              />
               <Geographies geography={CANADA_TOPO_URL}>
                 {({ geographies }) =>
                   geographies.map((geo) => {
