@@ -85,35 +85,31 @@ function AutoSizeText({
   );
 }
 
-// Zone overlay mode: 'off' = hidden, 'labels' = outlines only, 'interactive' = clickable
-type ZoneOverlayMode = 'off' | 'labels' | 'interactive';
+// Zone overlay visibility: simple on/off toggle
 
-// Dynamic zones overlay for custom templates
+// Dynamic zones overlay for custom templates (interactive, clickable zones)
 interface DynamicZonesOverlayProps {
   zones: Zone[];
   face: 'front' | 'back';
-  mode: ZoneOverlayMode;
 }
 
-function DynamicZonesOverlay({ zones, face, mode }: DynamicZonesOverlayProps) {
+function DynamicZonesOverlay({ zones, face }: DynamicZonesOverlayProps) {
   const hoveredZoneId = useZoneSelectionStore((state) => state.hoveredZoneId);
   const selectedZoneId = useZoneSelectionStore((state) => state.selectedZoneId);
   const setHoveredZone = useZoneSelectionStore((state) => state.setHoveredZone);
   const setSelectedZone = useZoneSelectionStore((state) => state.setSelectedZone);
 
-  const isInteractive = mode === 'interactive';
-
   return (
     <div className="absolute inset-0 z-10">
       {zones.map((zone, index) => {
         const color = getZoneColor(index);
-        const isHovered = isInteractive && hoveredZoneId === zone.id;
-        const isSelected = isInteractive && selectedZoneId === zone.id;
+        const isHovered = hoveredZoneId === zone.id;
+        const isSelected = selectedZoneId === zone.id;
 
         return (
           <div
             key={zone.id}
-            className={`absolute flex items-center justify-center transition-all duration-150 ${isInteractive ? 'cursor-pointer' : 'pointer-events-none'}`}
+            className="absolute flex items-center justify-center transition-all duration-150 cursor-pointer"
             style={{
               left: `${zone.position.x}%`,
               top: `${zone.position.y}%`,
@@ -127,13 +123,11 @@ function DynamicZonesOverlay({ zones, face, mode }: DynamicZonesOverlayProps) {
               zIndex: isHovered || isSelected ? 20 : 10,
               boxShadow: isHovered || isSelected ? `0 0 8px ${color}` : 'none',
             }}
-            onMouseEnter={() => isInteractive && setHoveredZone(zone.id)}
-            onMouseLeave={() => isInteractive && setHoveredZone(null)}
+            onMouseEnter={() => setHoveredZone(zone.id)}
+            onMouseLeave={() => setHoveredZone(null)}
             onClick={(e) => {
-              if (isInteractive) {
-                e.stopPropagation();
-                setSelectedZone(zone.id, face);
-              }
+              e.stopPropagation();
+              setSelectedZone(zone.id, face);
             }}
           >
             <span
@@ -157,18 +151,7 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
   const currentVct = useVctStore((state) => state.currentVct);
   const sampleData = useVctStore((state) => state.sampleData);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [zoneOverlayMode, setZoneOverlayMode] = useState<ZoneOverlayMode>('off');
-
-  // Cycle through zone overlay modes: off -> labels -> interactive -> off
-  const cycleZoneMode = () => {
-    setZoneOverlayMode((prev) => {
-      switch (prev) {
-        case 'off': return 'labels';
-        case 'labels': return 'interactive';
-        case 'interactive': return 'off';
-      }
-    });
-  };
+  const [showZones, setShowZones] = useState(true);
 
   // Zone template state
   const selectedTemplateId = useZoneTemplateStore((state) => state.selectedTemplateId);
@@ -323,8 +306,8 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
             ) : (
               <div className="relative">
                 {renderDynamicCardFront()}
-                {zoneOverlayMode !== 'off' && selectedTemplate && (
-                  <DynamicZonesOverlay zones={selectedTemplate.front.zones} face="front" mode={zoneOverlayMode} />
+                {showZones && selectedTemplate && (
+                  <DynamicZonesOverlay zones={selectedTemplate.front.zones} face="front" />
                 )}
               </div>
             )}
@@ -343,8 +326,8 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
             ) : (
               <div className="relative">
                 {renderDynamicCardBack()}
-                {zoneOverlayMode !== 'off' && selectedTemplate && (
-                  <DynamicZonesOverlay zones={selectedTemplate.back.zones} face="back" mode={zoneOverlayMode} />
+                {showZones && selectedTemplate && (
+                  <DynamicZonesOverlay zones={selectedTemplate.back.zones} face="back" />
                 )}
               </div>
             )}
@@ -361,21 +344,19 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
             )}
             {selectedTemplate && ` • ${selectedTemplate.name}`}
           </p>
-          <button
-            onClick={cycleZoneMode}
-            className={`text-xs px-2 py-1 rounded border transition-colors ${
-              zoneOverlayMode === 'interactive'
-                ? 'bg-blue-100 border-blue-300 text-blue-700'
-                : zoneOverlayMode === 'labels'
-                ? 'bg-purple-100 border-purple-300 text-purple-700'
-                : 'bg-gray-100 border-gray-300 text-gray-600 hover:bg-gray-200'
-            }`}
-            title="Click to cycle: Off → Labels → Interactive → Off"
-          >
-            {zoneOverlayMode === 'off' && '⊞ Show Zones'}
-            {zoneOverlayMode === 'labels' && '⊞ Zone Labels'}
-            {zoneOverlayMode === 'interactive' && '⊞ Click Zones'}
-          </button>
+          {selectedTemplate && (
+            <button
+              onClick={() => setShowZones(!showZones)}
+              className={`text-xs px-2 py-1 rounded border transition-colors ${
+                showZones
+                  ? 'bg-blue-100 border-blue-300 text-blue-700'
+                  : 'bg-gray-100 border-gray-300 text-gray-600 hover:bg-gray-200'
+              }`}
+              title={showZones ? 'Hide zone overlay to see clean card' : 'Show zones for editing'}
+            >
+              {showZones ? '⊞ Hide Zones' : '⊞ Show Zones'}
+            </button>
+          )}
         </div>
       </div>
     );
