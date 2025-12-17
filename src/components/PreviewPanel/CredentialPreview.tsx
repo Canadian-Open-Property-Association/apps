@@ -16,6 +16,7 @@ import { resolveAssetCriteria } from '../../services/assetResolver';
 interface CredentialPreviewProps {
   locale: string;
   cardSide?: 'front' | 'back';
+  onZoneSelect?: (face: 'front' | 'back') => void;
 }
 
 // Component that auto-sizes text to fit within a container on one line
@@ -91,9 +92,10 @@ function AutoSizeText({
 interface DynamicZonesOverlayProps {
   zones: Zone[];
   face: 'front' | 'back';
+  onZoneClick?: (face: 'front' | 'back') => void;
 }
 
-function DynamicZonesOverlay({ zones, face }: DynamicZonesOverlayProps) {
+function DynamicZonesOverlay({ zones, face, onZoneClick }: DynamicZonesOverlayProps) {
   const hoveredZoneId = useZoneSelectionStore((state) => state.hoveredZoneId);
   const selectedZoneId = useZoneSelectionStore((state) => state.selectedZoneId);
   const setHoveredZone = useZoneSelectionStore((state) => state.setHoveredZone);
@@ -128,6 +130,7 @@ function DynamicZonesOverlay({ zones, face }: DynamicZonesOverlayProps) {
             onClick={(e) => {
               e.stopPropagation();
               setSelectedZone(zone.id, face);
+              onZoneClick?.(face);
             }}
           >
             <span
@@ -147,11 +150,14 @@ function DynamicZonesOverlay({ zones, face }: DynamicZonesOverlayProps) {
   );
 }
 
-export default function CredentialPreview({ locale, cardSide }: CredentialPreviewProps) {
+// Preview mode: 'zones' shows interactive overlay, 'labels' shows zone name placeholders, 'clean' hides everything
+type PreviewMode = 'zones' | 'labels' | 'clean';
+
+export default function CredentialPreview({ locale, cardSide, onZoneSelect }: CredentialPreviewProps) {
   const currentVct = useVctStore((state) => state.currentVct);
   const sampleData = useVctStore((state) => state.sampleData);
   const [isFlipped, setIsFlipped] = useState(false);
-  const [showZones, setShowZones] = useState(true);
+  const [previewMode, setPreviewMode] = useState<PreviewMode>('zones');
 
   // Zone template state
   const selectedTemplateId = useZoneTemplateStore((state) => state.selectedTemplateId);
@@ -306,8 +312,8 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
             ) : (
               <div className="relative">
                 {renderDynamicCardFront()}
-                {showZones && selectedTemplate && (
-                  <DynamicZonesOverlay zones={selectedTemplate.front.zones} face="front" />
+                {previewMode === 'zones' && selectedTemplate && (
+                  <DynamicZonesOverlay zones={selectedTemplate.front.zones} face="front" onZoneClick={onZoneSelect} />
                 )}
               </div>
             )}
@@ -326,8 +332,8 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
             ) : (
               <div className="relative">
                 {renderDynamicCardBack()}
-                {showZones && selectedTemplate && (
-                  <DynamicZonesOverlay zones={selectedTemplate.back.zones} face="back" />
+                {previewMode === 'zones' && selectedTemplate && (
+                  <DynamicZonesOverlay zones={selectedTemplate.back.zones} face="back" onZoneClick={onZoneSelect} />
                 )}
               </div>
             )}
@@ -346,15 +352,34 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
           </p>
           {selectedTemplate && (
             <button
-              onClick={() => setShowZones(!showZones)}
+              onClick={() => {
+                // Cycle: zones → labels → clean → zones
+                setPreviewMode((prev) => {
+                  switch (prev) {
+                    case 'zones': return 'labels';
+                    case 'labels': return 'clean';
+                    case 'clean': return 'zones';
+                  }
+                });
+              }}
               className={`text-xs px-2 py-1 rounded border transition-colors ${
-                showZones
+                previewMode === 'zones'
                   ? 'bg-blue-100 border-blue-300 text-blue-700'
+                  : previewMode === 'labels'
+                  ? 'bg-purple-100 border-purple-300 text-purple-700'
                   : 'bg-gray-100 border-gray-300 text-gray-600 hover:bg-gray-200'
               }`}
-              title={showZones ? 'Hide zone overlay to see clean card' : 'Show zones for editing'}
+              title={
+                previewMode === 'zones'
+                  ? 'Click to show labels only'
+                  : previewMode === 'labels'
+                  ? 'Click to see clean card'
+                  : 'Click to show interactive zones'
+              }
             >
-              {showZones ? '⊞ Hide Zones' : '⊞ Show Zones'}
+              {previewMode === 'zones' && '⊞ Zones'}
+              {previewMode === 'labels' && '◫ Labels'}
+              {previewMode === 'clean' && '▢ Clean'}
             </button>
           )}
         </div>
@@ -535,9 +560,9 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
                     style={{ width: '100%' }}
                   />
                 )
-              ) : (
+              ) : previewMode !== 'clean' ? (
                 <span className="text-xs opacity-30 truncate">{zone.name}</span>
-              )}
+              ) : null}
             </div>
           );
         })}
@@ -659,9 +684,9 @@ export default function CredentialPreview({ locale, cardSide }: CredentialPrevie
                       style={{ width: '100%' }}
                     />
                   )
-                ) : (
+                ) : previewMode !== 'clean' ? (
                   <span className="text-xs opacity-30 truncate">{zone.name}</span>
-                )}
+                ) : null}
               </div>
             );
           })

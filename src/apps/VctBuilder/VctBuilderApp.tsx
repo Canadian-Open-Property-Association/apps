@@ -476,7 +476,15 @@ export default function VctBuilderApp() {
               )}
             </div>
           </div>
-          <CredentialPreview locale={previewLocale} cardSide={cardSide} />
+          <CredentialPreview
+            locale={previewLocale}
+            cardSide={cardSide}
+            onZoneSelect={(face) => {
+              if (hasZoneTemplateSelected) {
+                setActiveSection(face);
+              }
+            }}
+          />
         </div>
         )}
       </main>
