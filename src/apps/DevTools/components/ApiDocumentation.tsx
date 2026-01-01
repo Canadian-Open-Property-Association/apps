@@ -15,7 +15,7 @@ export default function ApiDocumentation() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">API Reference</h1>
         <p className="text-gray-600">
-          Interactive API documentation for the COPA Developer Tools platform.
+          Interactive API documentation for the Cornerstone Network Apps platform.
           Use "Try it out" to test endpoints directly.
         </p>
       </div>

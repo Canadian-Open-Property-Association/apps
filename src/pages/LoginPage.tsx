@@ -27,12 +27,12 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <img
             src="/favicon.png"
-            alt="COPA"
+            alt="Cornerstone"
             className="w-16 h-16 mx-auto mb-4"
           />
           <h1 className="text-3xl font-bold text-slate-800 mb-2">Cornerstone Network Apps</h1>
           <p className="text-slate-600">
-            A digital trust toolkit for the COPA ecosystem
+            A digital trust toolkit for the Cornerstone Network ecosystem
           </p>
         </div>
 
@@ -60,7 +60,7 @@ export default function LoginPage() {
             rel="noopener noreferrer"
             className="text-blue-600 hover:text-blue-800 underline"
           >
-            COPA governance repository
+            Cornerstone governance repository
           </a>{' '}
           to use this tool.
         </p>

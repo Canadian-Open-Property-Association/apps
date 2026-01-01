@@ -17,6 +17,7 @@ interface OrbitalSegmentProps {
   getLogoUrl: (entity: Entity) => string | null;
   onEntityClick: (entity: Entity, event: React.MouseEvent) => void;
   onSegmentClick: (dataType: DataProviderType, event: React.MouseEvent) => void;
+  onEntityHover?: (entity: Entity | null, x: number, y: number) => void;
   selectedEntityId?: string | null;
   isExpanded?: boolean;
   isFaded?: boolean;
@@ -82,6 +83,7 @@ export default function OrbitalSegment({
   getLogoUrl,
   onEntityClick,
   onSegmentClick,
+  onEntityHover,
   selectedEntityId,
   isExpanded = false,
   isFaded = false,
@@ -111,25 +113,21 @@ export default function OrbitalSegment({
   // Calculate entity size based on available space
   const baseSize = isExpanded ? 56 : 44;
   const minSize = 24; // Minimum entity size
-  const padding = 12; // Minimum space between entities
+  const minSpacing = 8; // Minimum gap between entities
 
   // Calculate optimal entity size to fit all entities in the segment area
   let entitySize = baseSize;
 
   if (entities.length > 0) {
     // Calculate how many can fit in a grid pattern within the segment
-    const availableArea = arcLength * arcThickness * 0.6; // Use 60% of theoretical area
+    const availableArea = arcLength * arcThickness * 0.5; // Use 50% of theoretical area for safety
     const areaPerEntity = availableArea / entities.length;
-    const sizeFromArea = Math.sqrt(areaPerEntity) - padding;
+    const sizeFromArea = Math.sqrt(areaPerEntity) - minSpacing * 2;
     entitySize = Math.max(minSize, Math.min(baseSize, sizeFromArea));
   }
 
-  // Generate positions distributed throughout the segment
+  // Generate positions distributed throughout the segment with no overlaps
   const entityPositions = entities.map((entity, i) => {
-    // Use a pseudo-random but deterministic distribution based on entity index
-    // This creates a scattered look while being reproducible
-    const seed = i * 7 + entities.length * 3;
-
     // Distribute entities at varying radii and angles
     let angle: number;
     let radius: number;
@@ -139,32 +137,46 @@ export default function OrbitalSegment({
       angle = (startAngle + endAngle) / 2;
       radius = midRadius;
     } else if (entities.length <= 3) {
-      // 2-3 entities: spread along the arc at mid-radius
+      // 2-3 entities: spread evenly along the arc at mid-radius
       const angleStep = angleRange / (entities.length + 1);
       angle = startAngle + 5 + angleStep * (i + 1);
-      radius = midRadius + ((seed % 3) - 1) * (arcThickness * 0.15);
+      // Slight radius variation but keep them well-spaced
+      const radiusOffset = entities.length === 2 ? ((i % 2) * 2 - 1) * 15 : (i - 1) * 20;
+      radius = midRadius + radiusOffset;
     } else {
-      // Multiple entities: distribute in a grid-like pattern throughout segment
-      // Create multiple "lanes" at different radii
-      const numLanes = Math.min(3, Math.ceil(Math.sqrt(entities.length)));
-      const lane = i % numLanes;
-      const posInLane = Math.floor(i / numLanes);
-      const entitiesInLane = Math.ceil(entities.length / numLanes);
+      // Multiple entities: strict grid-based layout to prevent overlaps
+      // Calculate how many lanes (radial rings) we need
+      const entitySpacing = entitySize + minSpacing;
+      const numLanes = Math.max(2, Math.min(4, Math.ceil(arcThickness / entitySpacing)));
 
-      // Calculate radius for this lane (inner to outer)
-      const laneSpacing = (arcThickness - entitySize - 10) / Math.max(numLanes, 1);
-      radius = effectiveInnerRadius + entitySize / 2 + 8 + lane * laneSpacing;
+      // Calculate how many entities per lane
+      const entitiesPerLane = Math.ceil(entities.length / numLanes);
 
-      // Add some variation to radius
-      radius += ((seed % 5) - 2) * 8;
+      // Determine which lane and position this entity is in
+      const lane = Math.floor(i / entitiesPerLane);
+      const posInLane = i % entitiesPerLane;
+      const actualEntitiesInThisLane = Math.min(entitiesPerLane, entities.length - lane * entitiesPerLane);
+
+      // Calculate radius for this lane with proper spacing
+      const laneSpacing = (arcThickness - entitySize) / Math.max(numLanes - 1, 1);
+      radius = effectiveInnerRadius + entitySize / 2 + 5 + lane * laneSpacing;
       radius = Math.max(effectiveInnerRadius + entitySize / 2 + 5, Math.min(effectiveOuterRadius - entitySize / 2 - 5, radius));
 
-      // Calculate angle for position in lane
-      const laneAngleStep = entitiesInLane > 1 ? angleRange / (entitiesInLane + 1) : angleRange / 2;
-      angle = startAngle + 5 + laneAngleStep * (posInLane + 1);
+      // Calculate the arc length at this radius and required angular spacing
+      const arcLengthAtRadius = (angleRange * Math.PI / 180) * radius;
+      const minAngularSpacing = (entitySpacing / radius) * (180 / Math.PI);
 
-      // Add slight angle variation to avoid perfect grid
-      angle += ((seed % 7) - 3) * 1.5;
+      // Distribute entities evenly within the lane
+      if (actualEntitiesInThisLane === 1) {
+        angle = (startAngle + endAngle) / 2;
+      } else {
+        const totalAngularSpan = Math.min(angleRange - 10, minAngularSpacing * (actualEntitiesInThisLane - 1));
+        const angleStart = startAngle + 5 + (angleRange - 10 - totalAngularSpan) / 2;
+        const angleStep = totalAngularSpan / (actualEntitiesInThisLane - 1);
+        angle = angleStart + posInLane * angleStep;
+      }
+
+      // Ensure angle is within bounds
       angle = Math.max(startAngle + 5, Math.min(endAngle - 5, angle));
     }
 
@@ -275,6 +287,7 @@ export default function OrbitalSegment({
           x={x}
           y={y}
           onClick={(e) => onEntityClick(entity, e)}
+          onHover={onEntityHover}
           isSelected={selectedEntityId === entity.id}
           animationDelay={i * 0.1}
           size={size}

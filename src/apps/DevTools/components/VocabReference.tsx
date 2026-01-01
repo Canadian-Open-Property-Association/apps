@@ -135,7 +135,7 @@ export default function VocabReference() {
               serves via
             </div>
             <div className="flex items-start gap-3">
-              <span className="text-blue-600 font-medium w-32">COPA Website</span>
+              <span className="text-blue-600 font-medium w-32">Cornerstone Website</span>
               <span className="text-gray-600">Public URLs resolve to hosted artifacts</span>
             </div>
           </div>

@@ -2,7 +2,7 @@
  * DevToolsApp - Developer Tools & API Documentation
  *
  * Provides API documentation, VDR conventions, and vocabulary reference
- * for developers integrating with the COPA ecosystem.
+ * for developers integrating with the Cornerstone Network ecosystem.
  */
 
 import { useState } from 'react';

@@ -55,7 +55,7 @@ export default function PlatformBar({ appName, appIcon }: PlatformBarProps) {
         <div className="flex items-center gap-2">
           <img
             src="/favicon.png"
-            alt="COPA"
+            alt="Cornerstone"
             className="w-6 h-6"
           />
           <span className={`font-medium ${appName ? 'text-sm text-gray-500' : 'text-lg text-gray-800 font-semibold'}`}>Cornerstone Network Apps</span>

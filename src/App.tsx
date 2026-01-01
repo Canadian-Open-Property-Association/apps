@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import AppSelectionPage from './pages/AppSelectionPage';
+import PublicFormPage from './pages/PublicFormPage';
 import AuthGuard from './components/Auth/AuthGuard';
 import AdminGuard from './components/Auth/AdminGuard';
 import PlatformShell from './components/Platform/PlatformShell';
@@ -70,6 +71,7 @@ function App() {
         {/* Public routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/auth-callback" element={<AuthCallbackPage />} />
+        <Route path="/f/:slug" element={<PublicFormPage />} />
 
         {/* Protected routes */}
         <Route

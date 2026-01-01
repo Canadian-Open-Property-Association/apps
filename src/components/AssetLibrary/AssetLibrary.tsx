@@ -512,7 +512,7 @@ export default function AssetLibrary({
         {activeTab === 'published' && source === 'both' && (
           <div className="px-6 py-3 bg-blue-50 border-b border-blue-100">
             <p className="text-sm text-blue-700">
-              These assets are published to the COPA Verifiable Data Registry and available for use in credentials.
+              These assets are published to the Cornerstone Verifiable Data Registry and available for use in credentials.
             </p>
           </div>
         )}

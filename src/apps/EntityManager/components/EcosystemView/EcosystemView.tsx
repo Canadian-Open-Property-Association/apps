@@ -35,6 +35,7 @@ export default function EcosystemView({
   const [internalSelectedId, setInternalSelectedId] = useState<string | null>(null);
   const [expandedSegment, setExpandedSegment] = useState<DataProviderType | null>(null);
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
+  const [hoveredEntity, setHoveredEntity] = useState<{ entity: Entity; x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
@@ -144,6 +145,15 @@ export default function EcosystemView({
     setExpandedSegment((prev) => (prev === dataType ? null : dataType));
     // Clear context menu when expanding
     setContextMenu(null);
+  };
+
+  // Handle entity hover for tooltip
+  const handleEntityHover = (entity: Entity | null, x: number, y: number) => {
+    if (entity) {
+      setHoveredEntity({ entity, x, y });
+    } else {
+      setHoveredEntity(null);
+    }
   };
 
   // Handle center node click
@@ -447,6 +457,7 @@ export default function EcosystemView({
               getLogoUrl={getEntityLogoUrl}
               onEntityClick={handleEntityClick}
               onSegmentClick={handleSegmentClick}
+              onEntityHover={handleEntityHover}
               selectedEntityId={selectedEntityId}
               isExpanded={expandedSegment === type}
               isFaded={expandedSegment !== null && expandedSegment !== type}
@@ -467,6 +478,32 @@ export default function EcosystemView({
               onClick={handleCenterClick}
             />
           </g>
+
+          {/* Tooltip layer - rendered last so it's always on top */}
+          {hoveredEntity && (
+            <g transform={`translate(${hoveredEntity.x}, ${hoveredEntity.y})`} className="pointer-events-none">
+              <rect
+                x={-60}
+                y={-24}
+                width={120}
+                height={24}
+                rx={4}
+                fill="#1e293b"
+              />
+              <text
+                x={0}
+                y={-12}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fill="white"
+                style={{ fontSize: '11px' }}
+              >
+                {hoveredEntity.entity.name.length > 18
+                  ? hoveredEntity.entity.name.substring(0, 18) + '...'
+                  : hoveredEntity.entity.name}
+              </text>
+            </g>
+          )}
         </svg>
       )}
 

@@ -100,6 +100,20 @@ export async function initializeDatabase() {
       CREATE INDEX IF NOT EXISTS idx_forms_slug ON forms(slug);
       CREATE INDEX IF NOT EXISTS idx_forms_github_user ON forms(github_user_id);
       CREATE INDEX IF NOT EXISTS idx_forms_status ON forms(status);
+
+      -- Submissions table for storing form responses
+      CREATE TABLE IF NOT EXISTS submissions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        form_id UUID NOT NULL REFERENCES forms(id) ON DELETE CASCADE,
+        session_id UUID NOT NULL,
+        is_test BOOLEAN NOT NULL DEFAULT false,
+        field_values JSONB NOT NULL,
+        proof_presentations JSONB,
+        submitted_at TIMESTAMP DEFAULT NOW() NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_submissions_form ON submissions(form_id);
+      CREATE INDEX IF NOT EXISTS idx_submissions_submitted_at ON submissions(submitted_at);
     `);
 
     console.log('Forms Builder: Database tables initialized');

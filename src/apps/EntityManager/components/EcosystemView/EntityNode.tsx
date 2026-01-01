@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import type { Entity } from '../../../../types/entity';
+import { useState } from 'react';
 
 interface EntityNodeProps {
   entity: Entity;
@@ -10,6 +10,7 @@ interface EntityNodeProps {
   isSelected?: boolean;
   animationDelay?: number;
   size?: number;
+  onHover?: (entity: Entity | null, x: number, y: number) => void;
 }
 
 export default function EntityNode({
@@ -21,18 +22,30 @@ export default function EntityNode({
   isSelected = false,
   animationDelay = 0,
   size = 48,
+  onHover,
 }: EntityNodeProps) {
-  const [showTooltip, setShowTooltip] = useState(false);
   const [imageError, setImageError] = useState(false);
 
   const halfSize = size / 2;
+
+  const handleMouseEnter = () => {
+    if (onHover) {
+      onHover(entity, x, y - halfSize - 12);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (onHover) {
+      onHover(null, 0, 0);
+    }
+  };
 
   return (
     <g
       transform={`translate(${x}, ${y})`}
       onClick={onClick}
-      onMouseEnter={() => setShowTooltip(true)}
-      onMouseLeave={() => setShowTooltip(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       className="cursor-pointer entity-node"
     >
       {/* Inner group for animation - separates position from animation transform */}
@@ -100,30 +113,6 @@ export default function EntityNode({
           </text>
         )}
       </g>
-
-      {/* Tooltip - outside animation group so it doesn't float */}
-      {showTooltip && (
-        <g transform={`translate(0, ${-halfSize - 12})`}>
-          <rect
-            x={-60}
-            y={-24}
-            width={120}
-            height={24}
-            rx={4}
-            className="fill-slate-800"
-          />
-          <text
-            x={0}
-            y={-12}
-            textAnchor="middle"
-            dominantBaseline="central"
-            className="fill-white text-xs pointer-events-none select-none"
-            style={{ fontSize: '11px' }}
-          >
-            {entity.name.length > 18 ? entity.name.substring(0, 18) + '...' : entity.name}
-          </text>
-        </g>
-      )}
     </g>
   );
 }

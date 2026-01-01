@@ -127,7 +127,7 @@ export default function PropertyPickerPanel({ context, onClose }: PropertyPicker
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold text-gray-900">
-              {existingMapping ? 'Change Mapping' : 'Map to COPA Property'}
+              {existingMapping ? 'Change Mapping' : 'Map to Vocabulary Property'}
             </h3>
           </div>
           <button

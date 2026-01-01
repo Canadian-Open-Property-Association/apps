@@ -18,7 +18,7 @@ const TRUST_FRAMEWORKS = [
 
 const WALLET_OPTIONS = [
   'BC Wallet',
-  'COPA Wallet',
+  'Cornerstone Wallet',
   'Microsoft Entra Verified ID',
   'Other',
 ];

@@ -55,7 +55,7 @@ const apps: AppCard[] = [
   {
     id: 'data-dictionary',
     name: 'Data Dictionary',
-    description: "Define COPA's canonical vocabulary - data types, properties, and constraints for credentials",
+    description: "Define the network's canonical vocabulary - data types, properties, and constraints for credentials",
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -79,7 +79,7 @@ const apps: AppCard[] = [
   {
     id: 'data-harmonization',
     name: 'Data Harmonization',
-    description: 'Map data furnisher fields to COPA vocabulary terms for consistent credential data',
+    description: 'Map data furnisher fields to canonical vocabulary terms for consistent credential data',
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
@@ -369,7 +369,7 @@ export default function AppSelectionPage() {
 
         {/* Footer */}
         <div className="mt-12 text-center text-sm text-gray-500">
-          <p>Part of the COPA Credential Ecosystem</p>
+          <p>Part of the Cornerstone Network Credential Ecosystem</p>
         </div>
       </div>
     </div>
