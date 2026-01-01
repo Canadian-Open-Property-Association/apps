@@ -9,8 +9,9 @@ import EntityToolbar from './components/EntityToolbar';
 import SaveToRepoModal from './components/SaveToRepoModal';
 import SettingsModal from './components/SettingsModal';
 import MapView from './components/MapView';
+import EcosystemView from './components/EcosystemView';
 
-type ViewMode = 'list' | 'map';
+type ViewMode = 'list' | 'map' | 'ecosystem';
 
 export default function EntityManagerApp() {
   const {
@@ -168,6 +169,22 @@ export default function EntityManagerApp() {
               Map
             </span>
           </button>
+          <button
+            onClick={() => setViewMode('ecosystem')}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              viewMode === 'ecosystem'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <span className="flex items-center gap-1.5">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3" strokeWidth={2} />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M4.93 19.07l1.41-1.41m11.32-11.32l1.41-1.41" />
+              </svg>
+              Ecosystem
+            </span>
+          </button>
         </div>
 
         {/* Actions */}
@@ -178,8 +195,8 @@ export default function EntityManagerApp() {
         />
       </div>
 
-      {/* Main Content - List or Map View */}
-      {viewMode === 'list' ? (
+      {/* Main Content - List, Map, or Ecosystem View */}
+      {viewMode === 'list' && (
         <div className="flex-1 flex overflow-hidden p-4 gap-4">
           {/* Left Panel - Entity List */}
           <div className="w-80 flex-shrink-0 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col">
@@ -191,12 +208,38 @@ export default function EntityManagerApp() {
             {renderDetailPanel()}
           </div>
         </div>
-      ) : (
+      )}
+
+      {viewMode === 'map' && (
         <div className="flex-1 overflow-hidden bg-gray-50">
           <MapView
             entities={entities}
             onSelectEntity={handleMapSelectEntity}
             onAddEntity={handleAddEntity}
+          />
+        </div>
+      )}
+
+      {viewMode === 'ecosystem' && (
+        <div className="flex-1 overflow-hidden">
+          <EcosystemView
+            entities={entities}
+            onSelectEntity={(entityId) => {
+              selectEntity(entityId);
+              setViewMode('list');
+            }}
+            onNavigateToMap={(filter) => {
+              if (filter?.entityId) {
+                selectEntity(filter.entityId);
+              }
+              setViewMode('map');
+            }}
+            onNavigateToList={(filter) => {
+              if (filter?.entityId) {
+                selectEntity(filter.entityId);
+              }
+              setViewMode('list');
+            }}
           />
         </div>
       )}

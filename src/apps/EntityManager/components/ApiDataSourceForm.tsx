@@ -27,10 +27,12 @@ export default function ApiDataSourceForm({ source, onSave, onClose }: ApiDataSo
       newErrors.name = 'Source name is required';
     }
 
-    // Validate fields - at least need valid attribute names
-    const invalidFields = fields.filter(f => !f.name || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(f.name));
+    // Validate fields - only check fields that have a name entered
+    const fieldsWithNames = fields.filter(f => f.name && f.name.trim());
+    const invalidFields = fieldsWithNames.filter(f => !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(f.name));
     if (invalidFields.length > 0) {
-      newErrors.fields = 'All fields must have valid attribute names (letters, numbers, underscores, starting with a letter)';
+      const invalidNames = invalidFields.map(f => `"${f.name}"`).join(', ');
+      newErrors.fields = `Invalid attribute name(s): ${invalidNames}. Names must start with a letter or underscore and contain only letters, numbers, and underscores.`;
     }
 
     setErrors(newErrors);

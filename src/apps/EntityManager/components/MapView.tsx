@@ -4,6 +4,7 @@ import type { Entity, DataProviderType } from '../../../types/entity';
 import { DATA_PROVIDER_TYPE_CONFIG, ALL_DATA_PROVIDER_TYPES } from '../../../types/entity';
 import { CANADIAN_REGIONS, getRegionName, normalizeRegions } from '../../../constants/regions';
 import { useFurnisherSettingsStore } from '../../../store/furnisherSettingsStore';
+import { useLogoStore } from '../../../store/logoStore';
 
 // Excel-style filter dropdown component
 interface FilterDropdownProps {
@@ -163,8 +164,6 @@ const PROVINCE_NAME_TO_CODE: Record<string, string> = {
   'Yukon': 'YT',
 };
 
-const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:5174';
-
 interface MapViewProps {
   entities: Entity[];
   onSelectEntity: (entityId: string) => void;
@@ -176,9 +175,9 @@ export default function MapView({ entities, onSelectEntity, onAddEntity }: MapVi
   const [selectedDataTypes, setSelectedDataTypes] = useState<DataProviderType[]>([]);
   const [selectedEntityTypes, setSelectedEntityTypes] = useState<string[]>([]);
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
-  const [logoAssets, setLogoAssets] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState('');
   const { settings } = useFurnisherSettingsStore();
+  const { fetchLogos, getLogoUrl: getLogoFromStore } = useLogoStore();
 
   // Get selected entity
   const selectedEntity = useMemo(() => {
@@ -192,41 +191,14 @@ export default function MapView({ entities, onSelectEntity, onAddEntity }: MapVi
     return new Set(normalizeRegions(selectedEntity.regionsCovered));
   }, [selectedEntity]);
 
-  // Fetch entity-logo assets for all entities
+  // Fetch logos from shared store
   useEffect(() => {
-    const fetchLogoAssets = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/assets?type=entity-logo`, { credentials: 'include' });
-        if (res.ok) {
-          const assets = await res.json();
-          const logoMap: Record<string, string> = {};
-          for (const asset of assets) {
-            if (asset.entityId && asset.localUri) {
-              logoMap[asset.entityId] = asset.localUri;
-            }
-          }
-          setLogoAssets(logoMap);
-        }
-      } catch (err) {
-        console.error('Failed to fetch logo assets:', err);
-      }
-    };
-    fetchLogoAssets();
-  }, []);
+    fetchLogos();
+  }, [entities, fetchLogos]);
 
   // Get logo URL for an entity
   const getLogoUrl = (entity: Entity): string | null => {
-    // First check asset library
-    if (logoAssets[entity.id]) {
-      return logoAssets[entity.id];
-    }
-    // Fall back to entity.logoUri
-    if (entity.logoUri) {
-      if (entity.logoUri.startsWith('http')) return entity.logoUri;
-      if (entity.logoUri.startsWith('/')) return entity.logoUri;
-      return `/assets/${entity.logoUri}`;
-    }
-    return null;
+    return getLogoFromStore(entity.id, entity.logoUri);
   };
 
   // Get data provider types from settings or fallback

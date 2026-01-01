@@ -114,6 +114,21 @@ export default function EntityForm({ entityId, onClose, onCreated }: EntityFormP
 
   // Handle entity type toggle (multi-select)
   const handleEntityTypeToggle = (typeId: string) => {
+    // Enforce single network-operator constraint
+    if (typeId === 'network-operator') {
+      const isCurrentlySelected = formData.entityTypes?.includes(typeId);
+      if (!isCurrentlySelected) {
+        // Check if another entity already has network-operator
+        const existingOperator = entities.find(
+          (e) => e.id !== formData.id && e.entityTypes?.includes('network-operator')
+        );
+        if (existingOperator) {
+          setError(`Only one network operator is allowed. "${existingOperator.name}" is already the network operator.`);
+          return;
+        }
+      }
+    }
+
     setFormData((prev) => {
       const isCurrentlySelected = prev.entityTypes?.includes(typeId);
       const newEntityTypes = isCurrentlySelected
@@ -131,6 +146,9 @@ export default function EntityForm({ entityId, onClose, onCreated }: EntityFormP
         serviceProviderTypes: hasServiceProvider ? prev.serviceProviderTypes : [],
       };
     });
+
+    // Clear any previous error when successfully toggling
+    setError(null);
   };
 
   // Check if any of the selected entity types includes a specific type

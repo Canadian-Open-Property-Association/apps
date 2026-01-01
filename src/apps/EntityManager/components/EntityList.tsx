@@ -1,19 +1,17 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { useEntityStore } from '../../../store/entityStore';
 import { useFurnisherSettingsStore } from '../../../store/furnisherSettingsStore';
-import type { Entity, EntityAsset } from '../../../types/entity';
+import { useLogoStore } from '../../../store/logoStore';
+import type { Entity } from '../../../types/entity';
 
 interface EntityListProps {
   onAddEntity: () => void;
 }
 
-const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:5174';
-
 export default function EntityList({ onAddEntity }: EntityListProps) {
   const { entities, selectedEntity, selectEntity, searchQuery, setSearchQuery } = useEntityStore();
   const { settings } = useFurnisherSettingsStore();
-  const [logoAssets, setLogoAssets] = useState<Record<string, string>>({});
-  const [logoVersion, setLogoVersion] = useState(0);
+  const { fetchLogos, getLogoUrl } = useLogoStore();
   const entityRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const listContainerRef = useRef<HTMLDivElement>(null);
 
@@ -35,38 +33,10 @@ export default function EntityList({ onAddEntity }: EntityListProps) {
     return typeId;
   };
 
-  // Fetch entity-logo assets for all entities
-  const fetchLogoAssets = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/assets?type=entity-logo`, { credentials: 'include' });
-      if (!res.ok) return;
-      const assets: EntityAsset[] = await res.json();
-
-      const logoMap: Record<string, string> = {};
-      assets.forEach((asset) => {
-        // Assets have entityId stored - use it to map to entity
-        if (asset.entityId && asset.type === 'entity-logo') {
-          logoMap[asset.entityId] = asset.localUri;
-        }
-      });
-      setLogoAssets(logoMap);
-    } catch (err) {
-      console.error('Failed to fetch logo assets:', err);
-    }
-  };
-
+  // Fetch logos from shared store
   useEffect(() => {
-    fetchLogoAssets();
-  }, [entities, logoVersion]);
-
-  // Listen for logo updates from AssetsSection
-  useEffect(() => {
-    const handleLogoUpdate = () => {
-      setLogoVersion(v => v + 1);
-    };
-    window.addEventListener('entity-logo-updated', handleLogoUpdate);
-    return () => window.removeEventListener('entity-logo-updated', handleLogoUpdate);
-  }, []);
+    fetchLogos();
+  }, [entities, fetchLogos]);
 
   // Auto-scroll to selected entity when it changes
   useEffect(() => {
@@ -77,16 +47,11 @@ export default function EntityList({ onAddEntity }: EntityListProps) {
   }, [selectedEntity?.id]);
 
   // Get logo URL for an entity - prefer local asset, fall back to entity.logoUri
-  const getEntityLogo = (entity: Entity): string | undefined => {
-    // First try local asset library
-    if (logoAssets[entity.id]) {
-      return logoAssets[entity.id];
-    }
-    // Fall back to entity.logoUri (which may be set from local assets anyway)
-    return entity.logoUri;
+  const getEntityLogo = (entity: Entity): string | null => {
+    return getLogoUrl(entity.id, entity.logoUri);
   };
 
-  // Filter entities by search query and sort alphabetically
+  // Filter entities by search query and sort with network-operator first, then alphabetically
   const filteredEntities = entities
     .filter((entity) => {
       if (!searchQuery || searchQuery.length < 2) return true;
@@ -97,7 +62,15 @@ export default function EntityList({ onAddEntity }: EntityListProps) {
         entity.id.toLowerCase().includes(query)
       );
     })
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => {
+      // Network operator always comes first
+      const aIsOperator = a.entityTypes?.includes('network-operator');
+      const bIsOperator = b.entityTypes?.includes('network-operator');
+      if (aIsOperator && !bIsOperator) return -1;
+      if (!aIsOperator && bIsOperator) return 1;
+      // Otherwise sort alphabetically
+      return a.name.localeCompare(b.name);
+    });
 
   return (
     <div className="flex flex-col h-full">
