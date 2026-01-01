@@ -12,6 +12,8 @@ import {
   FormField,
   FormFieldType,
   FIELD_TYPE_LABELS,
+  PREDICATE_OPERATOR_LABELS,
+  PredicateOperator,
   createEmptyField,
   createEmptySection,
 } from '../../../types/forms';
@@ -867,6 +869,169 @@ export default function FormBuilder() {
                         No options defined
                       </p>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {/* Verified Credential Configuration */}
+              {selectedField.type === 'verified-credential' && (
+                <div className="border-t pt-4">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+                    <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    Credential Proof Configuration
+                  </h4>
+
+                  {/* Attribute Path */}
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Attribute to Verify
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedField.credentialConfig?.attributePath || ''}
+                      onChange={(e) =>
+                        handleUpdateField(selectedSectionId!, selectedField.id, {
+                          credentialConfig: {
+                            ...selectedField.credentialConfig,
+                            attributePath: e.target.value,
+                          },
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                      placeholder="e.g., credit_score, annual_income"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      The credential attribute that will be verified
+                    </p>
+                  </div>
+
+                  {/* Predicate Configuration */}
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Predicate Rule
+                    </label>
+                    <div className="flex gap-2">
+                      <select
+                        value={selectedField.credentialConfig?.predicate?.operator || '=='}
+                        onChange={(e) =>
+                          handleUpdateField(selectedSectionId!, selectedField.id, {
+                            credentialConfig: {
+                              ...selectedField.credentialConfig,
+                              predicate: {
+                                operator: e.target.value as PredicateOperator,
+                                value: selectedField.credentialConfig?.predicate?.value ?? '',
+                              },
+                            },
+                          })
+                        }
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        {(Object.entries(PREDICATE_OPERATOR_LABELS) as [PredicateOperator, string][]).map(
+                          ([op, label]) => (
+                            <option key={op} value={op}>
+                              {op} ({label})
+                            </option>
+                          )
+                        )}
+                      </select>
+                      <input
+                        type="text"
+                        value={String(selectedField.credentialConfig?.predicate?.value ?? '')}
+                        onChange={(e) => {
+                          // Try to parse as number, boolean, or keep as string
+                          let value: string | number | boolean = e.target.value;
+                          if (e.target.value === 'true') value = true;
+                          else if (e.target.value === 'false') value = false;
+                          else if (!isNaN(Number(e.target.value)) && e.target.value !== '') {
+                            value = Number(e.target.value);
+                          }
+                          handleUpdateField(selectedSectionId!, selectedField.id, {
+                            credentialConfig: {
+                              ...selectedField.credentialConfig,
+                              predicate: {
+                                operator: selectedField.credentialConfig?.predicate?.operator || '==',
+                                value,
+                              },
+                            },
+                          });
+                        }}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono"
+                        placeholder="e.g., 680, true, 50000"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      The condition the credential attribute must satisfy
+                    </p>
+                  </div>
+
+                  {/* Accepted Issuers */}
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Accepted Issuers (optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedField.credentialConfig?.acceptedIssuers?.join(', ') || ''}
+                      onChange={(e) =>
+                        handleUpdateField(selectedSectionId!, selectedField.id, {
+                          credentialConfig: {
+                            ...selectedField.credentialConfig,
+                            acceptedIssuers: e.target.value
+                              .split(',')
+                              .map((s) => s.trim())
+                              .filter((s) => s.length > 0),
+                          },
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      placeholder="e.g., Equifax, TransUnion, CRA"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Comma-separated list of trusted credential issuers
+                    </p>
+                  </div>
+
+                  {/* Schema/CredDef IDs */}
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Schema ID (optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedField.credentialConfig?.schemaId || ''}
+                      onChange={(e) =>
+                        handleUpdateField(selectedSectionId!, selectedField.id, {
+                          credentialConfig: {
+                            ...selectedField.credentialConfig,
+                            schemaId: e.target.value,
+                          },
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-xs"
+                      placeholder="did:indy:..."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Credential Definition ID (optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={selectedField.credentialConfig?.credDefId || ''}
+                      onChange={(e) =>
+                        handleUpdateField(selectedSectionId!, selectedField.id, {
+                          credentialConfig: {
+                            ...selectedField.credentialConfig,
+                            credDefId: e.target.value,
+                          },
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-xs"
+                      placeholder="did:indy:..."
+                    />
                   </div>
                 </div>
               )}

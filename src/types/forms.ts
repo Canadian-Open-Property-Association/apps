@@ -18,12 +18,24 @@ export type FormFieldType =
   | 'checkbox'
   | 'verified-credential';
 
+// Predicate operators for proof fields
+export type PredicateOperator = '==' | '!=' | '>=' | '<=' | '>' | '<';
+
+// Predicate configuration for verified-credential fields
+export interface PredicateConfig {
+  operator: PredicateOperator;
+  value: number | boolean | string;
+  // For dynamic values (future enhancement)
+  valueSource?: 'static' | 'field_reference' | 'form_variable';
+  referencedField?: string;
+}
+
 // Form field definition
 export interface FormField {
   id: string;
   type: FormFieldType;
   label: string;
-  name: string; // JSON key for this field
+  name: string; // JSON key for this field - supports dot notation (e.g., "eligibility.residency_proof")
   description?: string;
   placeholder?: string;
   required: boolean;
@@ -45,6 +57,12 @@ export interface FormField {
     schemaId?: string;
     credDefId?: string;
     requiredAttributes?: string[];
+    // Predicate rule for the proof
+    predicate?: PredicateConfig;
+    // Accepted issuers (DIDs or names)
+    acceptedIssuers?: string[];
+    // Which attribute path to verify
+    attributePath?: string;
   };
 }
 
@@ -178,4 +196,62 @@ export function createEmptySection(): FormSection {
     title: 'New Section',
     fields: [],
   };
+}
+
+// Predicate operator labels for UI
+export const PREDICATE_OPERATOR_LABELS: Record<PredicateOperator, string> = {
+  '==': 'equals',
+  '!=': 'not equals',
+  '>=': 'greater than or equal',
+  '<=': 'less than or equal',
+  '>': 'greater than',
+  '<': 'less than',
+};
+
+/**
+ * Unflatten a flat object with dot-notation keys into a nested object.
+ * Example: { "eligibility.residency_proof": true } => { eligibility: { residency_proof: true } }
+ */
+export function unflattenFormData(flatData: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(flatData)) {
+    const keys = key.split('.');
+    let current = result;
+
+    for (let i = 0; i < keys.length - 1; i++) {
+      const k = keys[i];
+      if (!(k in current) || typeof current[k] !== 'object' || current[k] === null) {
+        current[k] = {};
+      }
+      current = current[k] as Record<string, unknown>;
+    }
+
+    current[keys[keys.length - 1]] = value;
+  }
+
+  return result;
+}
+
+/**
+ * Flatten a nested object into dot-notation keys.
+ * Example: { eligibility: { residency_proof: true } } => { "eligibility.residency_proof": true }
+ */
+export function flattenFormData(
+  nestedData: Record<string, unknown>,
+  prefix = ''
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(nestedData)) {
+    const newKey = prefix ? `${prefix}.${key}` : key;
+
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      Object.assign(result, flattenFormData(value as Record<string, unknown>, newKey));
+    } else {
+      result[newKey] = value;
+    }
+  }
+
+  return result;
 }

@@ -12,6 +12,8 @@ interface OrbitalSegmentProps {
   centerY: number;
   innerRadius: number;
   outerRadius: number;
+  viewportWidth: number;
+  viewportHeight: number;
   getLogoUrl: (entity: Entity) => string | null;
   onEntityClick: (entity: Entity, event: React.MouseEvent) => void;
   onSegmentClick: (dataType: DataProviderType, event: React.MouseEvent) => void;
@@ -75,6 +77,8 @@ export default function OrbitalSegment({
   centerY,
   innerRadius,
   outerRadius,
+  viewportWidth,
+  viewportHeight,
   getLogoUrl,
   onEntityClick,
   onSegmentClick,
