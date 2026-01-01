@@ -162,8 +162,7 @@ export default function OrbitalSegment({
       radius = effectiveInnerRadius + entitySize / 2 + 5 + lane * laneSpacing;
       radius = Math.max(effectiveInnerRadius + entitySize / 2 + 5, Math.min(effectiveOuterRadius - entitySize / 2 - 5, radius));
 
-      // Calculate the arc length at this radius and required angular spacing
-      const arcLengthAtRadius = (angleRange * Math.PI / 180) * radius;
+      // Calculate required angular spacing based on entity size
       const minAngularSpacing = (entitySpacing / radius) * (180 / Math.PI);
 
       // Distribute entities evenly within the lane

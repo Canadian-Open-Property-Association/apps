@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useEntityStore } from '../../../store/entityStore';
 import { useFurnisherSettingsStore } from '../../../store/furnisherSettingsStore';
 import { useLogoStore } from '../../../store/logoStore';
 import type { Entity } from '../../../types/entity';
+import { migrateDataSchema } from '../../../types/entity';
 
 interface EntityListProps {
   onAddEntity: () => void;
@@ -43,6 +44,7 @@ export default function EntityList({
   const { fetchLogos, getLogoUrl } = useLogoStore();
   const entityRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const listContainerRef = useRef<HTMLDivElement>(null);
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   // Get label for data provider type
   const getDataTypeLabel = (typeId: string) => {
@@ -80,26 +82,83 @@ export default function EntityList({
     return getLogoUrl(entity.id, entity.logoUri);
   };
 
-  // Filter entities by search query and sort with network-operator first, then alphabetically
-  const filteredEntities = entities
-    .filter((entity) => {
-      if (!searchQuery || searchQuery.length < 2) return true;
-      const query = searchQuery.toLowerCase();
-      return (
-        entity.name.toLowerCase().includes(query) ||
-        entity.description?.toLowerCase().includes(query) ||
-        entity.id.toLowerCase().includes(query)
-      );
-    })
-    .sort((a, b) => {
-      // Network operator always comes first
-      const aIsOperator = a.entityTypes?.includes('network-operator');
-      const bIsOperator = b.entityTypes?.includes('network-operator');
-      if (aIsOperator && !bIsOperator) return -1;
-      if (!aIsOperator && bIsOperator) return 1;
-      // Otherwise sort alphabetically
-      return a.name.localeCompare(b.name);
+  // Get data sources count for an entity
+  const getDataSourcesCount = (entity: Entity): number => {
+    const schema = migrateDataSchema(entity.dataSchema);
+    return schema.sources.length;
+  };
+
+  // Toggle section collapse
+  const toggleSection = (sectionId: string) => {
+    setCollapsedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
     });
+  };
+
+  // Filter entities by search query
+  const filteredEntities = entities.filter((entity) => {
+    if (!searchQuery || searchQuery.length < 2) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      entity.name.toLowerCase().includes(query) ||
+      entity.description?.toLowerCase().includes(query) ||
+      entity.id.toLowerCase().includes(query)
+    );
+  });
+
+  // Group entities by entity type
+  const groupedEntities = useMemo(() => {
+    const groups: Record<string, Entity[]> = {};
+
+    // Define section order - network-operator first, then alphabetically by label
+    const orderedTypes: string[] = [];
+
+    // First pass: collect all entity types
+    filteredEntities.forEach(entity => {
+      entity.entityTypes?.forEach(typeId => {
+        if (!orderedTypes.includes(typeId)) {
+          orderedTypes.push(typeId);
+        }
+      });
+    });
+
+    // Sort: network-operator first, then alphabetically by label
+    orderedTypes.sort((a, b) => {
+      if (a === 'network-operator') return -1;
+      if (b === 'network-operator') return 1;
+      return getEntityTypeLabel(a).localeCompare(getEntityTypeLabel(b));
+    });
+
+    // Group entities by type
+    orderedTypes.forEach(typeId => {
+      groups[typeId] = filteredEntities
+        .filter(entity => entity.entityTypes?.includes(typeId))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    });
+
+    // Track entities that have been assigned to a group
+    const assignedEntityIds = new Set<string>();
+    orderedTypes.forEach(typeId => {
+      groups[typeId].forEach(entity => assignedEntityIds.add(entity.id));
+    });
+
+    // Add "Uncategorized" for entities with no entity types
+    const uncategorized = filteredEntities.filter(
+      entity => !entity.entityTypes || entity.entityTypes.length === 0
+    );
+    if (uncategorized.length > 0) {
+      groups['uncategorized'] = uncategorized.sort((a, b) => a.name.localeCompare(b.name));
+      orderedTypes.push('uncategorized');
+    }
+
+    return { groups, orderedTypes };
+  }, [filteredEntities, settings?.entityTypes]);
 
   return (
     <div className="flex flex-col h-full">
@@ -181,96 +240,124 @@ export default function EntityList({
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto" ref={listContainerRef}>
-          {/* Entity list - matches MapView styling */}
+          {/* Entity list grouped by entity type */}
           <div>
-            {filteredEntities.map((entity, index) => {
-              const logoUrl = getEntityLogo(entity);
-              const isSelected = selectedEntityId === entity.id;
-              const isNetworkOperator = entity.entityTypes?.includes('network-operator');
-              const previousEntity = index > 0 ? filteredEntities[index - 1] : null;
-              const showSeparator = previousEntity?.entityTypes?.includes('network-operator') && !isNetworkOperator;
+            {groupedEntities.orderedTypes.map((typeId) => {
+              const entitiesInGroup = groupedEntities.groups[typeId];
+              const isCollapsed = collapsedSections.has(typeId);
+              const isNetworkOperatorSection = typeId === 'network-operator';
+              const sectionLabel = typeId === 'uncategorized' ? 'Uncategorized' : getEntityTypeLabel(typeId);
 
               return (
-                <div key={entity.id}>
-                  {/* Separator after network operator */}
-                  {showSeparator && (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-y border-gray-200">
-                      <div className="flex-1 h-px bg-gray-300"></div>
-                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Data Furnishers</span>
-                      <div className="flex-1 h-px bg-gray-300"></div>
+                <div key={typeId}>
+                  {/* Section header */}
+                  <button
+                    onClick={() => toggleSection(typeId)}
+                    className={`w-full flex items-center gap-2 px-3 py-2 border-y border-gray-200 hover:bg-gray-100 transition-colors ${
+                      isNetworkOperatorSection ? 'bg-amber-50' : 'bg-gray-50'
+                    }`}
+                  >
+                    {/* Collapse/expand chevron */}
+                    <svg
+                      className={`w-4 h-4 text-gray-500 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                    <span className={`text-xs font-medium uppercase tracking-wide flex-1 text-left ${
+                      isNetworkOperatorSection ? 'text-amber-700' : 'text-gray-600'
+                    }`}>
+                      {sectionLabel}
+                    </span>
+                    {/* Count badge */}
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      isNetworkOperatorSection
+                        ? 'bg-amber-200 text-amber-800'
+                        : 'bg-gray-200 text-gray-700'
+                    }`}>
+                      {entitiesInGroup.length}
+                    </span>
+                  </button>
+
+                  {/* Section content */}
+                  {!isCollapsed && (
+                    <div>
+                      {entitiesInGroup.map((entity) => {
+                        const logoUrl = getEntityLogo(entity);
+                        const isSelected = selectedEntityId === entity.id;
+                        const isNetworkOperator = entity.entityTypes?.includes('network-operator');
+                        const dataSourcesCount = getDataSourcesCount(entity);
+
+                        return (
+                          <div
+                            key={entity.id}
+                            ref={(el) => { entityRefs.current[entity.id] = el; }}
+                            onClick={() => handleSelectEntity(entity.id)}
+                            className={`group p-3 cursor-pointer transition-colors border-l-4 ${
+                              isNetworkOperator
+                                ? isSelected
+                                  ? 'bg-amber-50 border-l-amber-500'
+                                  : 'bg-amber-50/50 hover:bg-amber-50 border-l-amber-400'
+                                : isSelected
+                                  ? 'bg-blue-50 border-l-blue-500'
+                                  : 'hover:bg-gray-50 border-l-transparent'
+                            }`}
+                            style={isSelected && entity.primaryColor && !isNetworkOperator ? { borderLeftColor: entity.primaryColor } : undefined}
+                          >
+                            <div className="flex items-center gap-3">
+                              {/* Logo or initials */}
+                              {logoUrl ? (
+                                <img
+                                  src={logoUrl}
+                                  alt=""
+                                  className={`w-8 h-8 object-contain rounded flex-shrink-0 ${isNetworkOperator ? 'bg-amber-100' : 'bg-gray-50'}`}
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                  }}
+                                />
+                              ) : null}
+                              <div className={`w-8 h-8 rounded flex items-center justify-center text-xs font-medium flex-shrink-0 ${logoUrl ? 'hidden' : ''} ${isNetworkOperator ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-400'}`}>
+                                {entity.name.substring(0, 2).toUpperCase()}
+                              </div>
+
+                              {/* Name and data sources badge */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-gray-900 text-sm truncate">{entity.name}</span>
+                                </div>
+                                {/* Data provider type badges */}
+                                <div className="flex flex-wrap gap-1 mt-0.5">
+                                  {entity.dataProviderTypes?.slice(0, 3).map(type => (
+                                    <span
+                                      key={type}
+                                      className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded"
+                                    >
+                                      {getDataTypeLabel(type)}
+                                    </span>
+                                  ))}
+                                  {(entity.dataProviderTypes?.length || 0) > 3 && (
+                                    <span className="text-xs text-gray-400">
+                                      +{(entity.dataProviderTypes?.length || 0) - 3}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Data sources count badge */}
+                              {dataSourcesCount > 0 && (
+                                <span className="flex-shrink-0 text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full font-medium" title={`${dataSourcesCount} data source${dataSourcesCount !== 1 ? 's' : ''}`}>
+                                  {dataSourcesCount}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
-                  <div
-                    ref={(el) => { entityRefs.current[entity.id] = el; }}
-                    onClick={() => handleSelectEntity(entity.id)}
-                    className={`group p-3 cursor-pointer transition-colors border-l-4 ${
-                      isNetworkOperator
-                        ? isSelected
-                          ? 'bg-amber-50 border-l-amber-500'
-                          : 'bg-amber-50/50 hover:bg-amber-50 border-l-amber-400'
-                        : isSelected
-                          ? 'bg-blue-50 border-l-blue-500'
-                          : 'hover:bg-gray-50 border-l-transparent'
-                    }`}
-                    style={isSelected && entity.primaryColor && !isNetworkOperator ? { borderLeftColor: entity.primaryColor } : undefined}
-                  >
-                    <div className="flex items-center gap-3">
-                      {/* Logo or initials */}
-                      {logoUrl ? (
-                        <img
-                          src={logoUrl}
-                          alt=""
-                          className={`w-8 h-8 object-contain rounded flex-shrink-0 ${isNetworkOperator ? 'bg-amber-100' : 'bg-gray-50'}`}
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                            e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                          }}
-                        />
-                      ) : null}
-                      <div className={`w-8 h-8 rounded flex items-center justify-center text-xs font-medium flex-shrink-0 ${logoUrl ? 'hidden' : ''} ${isNetworkOperator ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-400'}`}>
-                        {entity.name.substring(0, 2).toUpperCase()}
-                      </div>
-
-                      {/* Name and badges */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-gray-900 text-sm truncate">{entity.name}</span>
-                          {isNetworkOperator && (
-                            <span className="flex-shrink-0 text-xs px-1.5 py-0.5 bg-amber-200 text-amber-800 rounded font-medium">
-                              Network Operator
-                            </span>
-                          )}
-                        </div>
-                        {/* Entity types and data provider type badges */}
-                        <div className="flex flex-wrap gap-1 mt-0.5">
-                          {entity.entityTypes?.filter(t => t !== 'network-operator').slice(0, 2).map(typeId => (
-                            <span key={typeId} className="text-xs px-1.5 py-0.5 bg-purple-50 text-purple-700 rounded">
-                              {getEntityTypeLabel(typeId)}
-                            </span>
-                          ))}
-                          {(entity.entityTypes?.filter(t => t !== 'network-operator').length || 0) > 2 && (
-                            <span className="text-xs text-gray-400">
-                              +{(entity.entityTypes?.filter(t => t !== 'network-operator').length || 0) - 2} types
-                            </span>
-                          )}
-                          {entity.dataProviderTypes?.slice(0, 2).map(type => (
-                            <span
-                              key={type}
-                              className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded"
-                            >
-                              {getDataTypeLabel(type)}
-                            </span>
-                          ))}
-                          {(entity.dataProviderTypes?.length || 0) > 2 && (
-                            <span className="text-xs text-gray-400">
-                              +{(entity.dataProviderTypes?.length || 0) - 2}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
                 </div>
               );
             })}

@@ -26,6 +26,7 @@ export default function DataSourceCard({ entityId, source, onEdit, onDelete, onU
   const [isExpanded, setIsExpanded] = useState(false);
   const [showFieldForm, setShowFieldForm] = useState(false);
   const [editingField, setEditingField] = useState<FurnisherField | null>(null);
+  const [isNotesExpanded, setIsNotesExpanded] = useState(false);
 
   const { isFieldFavourite, toggleFieldFavourite } = useHarmonizationStore();
 
@@ -332,10 +333,33 @@ export default function DataSourceCard({ entityId, source, onEdit, onDelete, onU
             )}
           </div>
 
-          {/* Notes */}
+          {/* Notes - collapsible with line break support */}
           {source.notes && (
-            <div className="text-xs text-gray-500 italic">
-              Note: {source.notes}
+            <div className="border-t border-gray-100 pt-3">
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsNotesExpanded(!isNotesExpanded); }}
+                className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <svg
+                  className={`w-3 h-3 transition-transform ${isNotesExpanded ? 'rotate-90' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                <span className="font-medium">Notes</span>
+                {!isNotesExpanded && (
+                  <span className="text-gray-400 truncate max-w-xs">
+                    — {source.notes.split('\n')[0].substring(0, 50)}{source.notes.length > 50 ? '...' : ''}
+                  </span>
+                )}
+              </button>
+              {isNotesExpanded && (
+                <div className="mt-2 ml-5 text-xs text-gray-600 bg-gray-50 rounded-lg p-3 whitespace-pre-wrap">
+                  {source.notes}
+                </div>
+              )}
             </div>
           )}
         </div>

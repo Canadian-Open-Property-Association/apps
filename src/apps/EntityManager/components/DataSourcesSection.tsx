@@ -236,22 +236,6 @@ export default function DataSourcesSection({ entity, onUpdateSchema }: DataSourc
         </div>
       )}
 
-      {/* Entity-level notes */}
-      {sources.length > 0 && (
-        <div className="pt-2">
-          <label className="block text-xs text-gray-500 mb-1">General Notes</label>
-          <textarea
-            value={schema.notes || ''}
-            onChange={(e) => onUpdateSchema({ ...schema, notes: e.target.value || undefined })}
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => e.stopPropagation()}
-            rows={2}
-            placeholder="General notes about this furnisher's data integration..."
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white resize-none"
-          />
-        </div>
-      )}
-
       {/* Add/Edit Source Modal */}
       {showSourceForm && (
         <DataSourceForm
