@@ -258,10 +258,34 @@ export default function EcosystemView({
   }, 0);
   const displayedDataTypes = expandedSegment ? 1 : ALL_DATA_PROVIDER_TYPES.length;
 
+  // Generate deterministic star positions based on viewport
+  const stars = useMemo(() => {
+    if (!dimensions) return [];
+    const starCount = 150;
+    const result = [];
+    for (let i = 0; i < starCount; i++) {
+      // Use deterministic pseudo-random based on index
+      const seed1 = (i * 7919) % 1000 / 1000;
+      const seed2 = (i * 104729) % 1000 / 1000;
+      const seed3 = (i * 15485863) % 1000 / 1000;
+      result.push({
+        x: seed1 * dimensions.width,
+        y: seed2 * dimensions.height,
+        size: 0.5 + seed3 * 2,
+        opacity: 0.3 + seed3 * 0.7,
+        twinkleDelay: seed1 * 5,
+      });
+    }
+    return result;
+  }, [dimensions]);
+
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden"
+      className="relative w-full h-full overflow-hidden"
+      style={{
+        background: 'radial-gradient(ellipse at center, #1a1a2e 0%, #0f0f1a 50%, #050510 100%)',
+      }}
       onClick={handleCloseContextMenu}
     >
       {/* CSS Animations */}
@@ -281,7 +305,84 @@ export default function EcosystemView({
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
+        @keyframes twinkle {
+          0%, 100% { opacity: 0.3; }
+          50% { opacity: 1; }
+        }
+        .star {
+          animation: twinkle 3s ease-in-out infinite;
+        }
+        @keyframes nebula-drift {
+          0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.15; }
+          50% { transform: translate(10px, -10px) scale(1.05); opacity: 0.25; }
+        }
+        .nebula {
+          animation: nebula-drift 20s ease-in-out infinite;
+        }
       `}</style>
+
+      {/* Nebula/cosmic dust effects */}
+      <div
+        className="nebula absolute rounded-full blur-3xl"
+        style={{
+          width: '40%',
+          height: '40%',
+          top: '10%',
+          right: '10%',
+          background: 'radial-gradient(circle, rgba(139, 92, 246, 0.15) 0%, transparent 70%)',
+        }}
+      />
+      <div
+        className="nebula absolute rounded-full blur-3xl"
+        style={{
+          width: '35%',
+          height: '35%',
+          bottom: '15%',
+          left: '5%',
+          background: 'radial-gradient(circle, rgba(59, 130, 246, 0.12) 0%, transparent 70%)',
+          animationDelay: '7s',
+        }}
+      />
+      <div
+        className="nebula absolute rounded-full blur-2xl"
+        style={{
+          width: '25%',
+          height: '25%',
+          top: '50%',
+          left: '60%',
+          background: 'radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, transparent 70%)',
+          animationDelay: '14s',
+        }}
+      />
+
+      {/* Stars layer */}
+      {dimensions && (
+        <svg
+          width={dimensions.width}
+          height={dimensions.height}
+          className="absolute inset-0 pointer-events-none"
+          style={{ zIndex: 0 }}
+        >
+          {stars.map((star, i) => (
+            <circle
+              key={`star-${i}`}
+              cx={star.x}
+              cy={star.y}
+              r={star.size}
+              fill="white"
+              className="star"
+              style={{
+                opacity: star.opacity,
+                animationDelay: `${star.twinkleDelay}s`,
+              }}
+            />
+          ))}
+          {/* Add a few brighter "distant galaxies" */}
+          <circle cx={dimensions.width * 0.15} cy={dimensions.height * 0.2} r="3" fill="rgba(147, 197, 253, 0.6)" className="star" style={{ animationDelay: '1s' }} />
+          <circle cx={dimensions.width * 0.85} cy={dimensions.height * 0.7} r="2.5" fill="rgba(196, 181, 253, 0.5)" className="star" style={{ animationDelay: '2.5s' }} />
+          <circle cx={dimensions.width * 0.7} cy={dimensions.height * 0.15} r="2" fill="rgba(167, 243, 208, 0.4)" className="star" style={{ animationDelay: '4s' }} />
+        </svg>
+      )}
 
       {/* Stats overlay */}
       <div className="absolute top-4 left-4 text-slate-400 text-sm">

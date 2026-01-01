@@ -30,7 +30,7 @@ export default function LoginPage() {
             alt="COPA"
             className="w-16 h-16 mx-auto mb-4"
           />
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">COPA Apps</h1>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">Cornerstone Network Apps</h1>
           <p className="text-slate-600">
             A digital trust toolkit for the COPA ecosystem
           </p>

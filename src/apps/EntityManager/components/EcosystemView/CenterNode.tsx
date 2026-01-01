@@ -87,12 +87,12 @@ export default function CenterNode({ entity, logoUrl, onClick }: CenterNodeProps
       {logoUrl && !imageError ? (
         <image
           href={logoUrl}
-          x={-halfSize + 6}
-          y={-halfSize + 6}
-          width={size - 12}
-          height={size - 12}
+          x={-halfSize + 12}
+          y={-halfSize + 12}
+          width={size - 24}
+          height={size - 24}
           clipPath="url(#center-clip)"
-          preserveAspectRatio="xMidYMid slice"
+          preserveAspectRatio="xMidYMid meet"
           onError={() => setImageError(true)}
           className="pointer-events-none"
         />

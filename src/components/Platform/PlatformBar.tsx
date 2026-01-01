@@ -41,7 +41,7 @@ export default function PlatformBar({ appName, appIcon }: PlatformBarProps) {
 
   return (
     <div className="bg-gray-50 text-gray-800 px-4 py-2 flex items-center justify-between shadow-sm border-b border-gray-200">
-      {/* Left: App Name (if in app) | COPA Apps Logo */}
+      {/* Left: App Name (if in app) | Cornerstone Network Apps Logo */}
       <div className="flex items-center gap-3">
         {appName && (
           <>
@@ -58,7 +58,7 @@ export default function PlatformBar({ appName, appIcon }: PlatformBarProps) {
             alt="COPA"
             className="w-6 h-6"
           />
-          <span className={`font-medium ${appName ? 'text-sm text-gray-500' : 'text-lg text-gray-800 font-semibold'}`}>COPA Apps</span>
+          <span className={`font-medium ${appName ? 'text-sm text-gray-500' : 'text-lg text-gray-800 font-semibold'}`}>Cornerstone Network Apps</span>
         </div>
       </div>
 

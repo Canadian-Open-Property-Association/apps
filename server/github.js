@@ -235,7 +235,7 @@ router.post('/schema', requireAuth, async (req, res) => {
     const prTitle = title || `Add ${typeLabel}: ${finalFilename}`;
     const prBody = description || `This PR adds a new ${typeLabel} file: \`${finalFilename}\`
 
-Created by @${user.login} using the [COPA Apps](https://apps.openpropertyassociation.ca).`;
+Created by @${user.login} using the [Cornerstone Network Apps](https://apps.openpropertyassociation.ca).`;
 
     const { data: pr } = await octokit.rest.pulls.create({
       owner: GITHUB_REPO_OWNER,
@@ -326,7 +326,7 @@ router.post('/vct', requireAuth, async (req, res) => {
     const prTitle = title || `Add VCT branding file: ${finalFilename}`;
     const prBody = description || `This PR adds a new VCT branding file: \`${finalFilename}\`
 
-Created by @${user.login} using the [COPA Apps](https://apps.openpropertyassociation.ca).`;
+Created by @${user.login} using the [Cornerstone Network Apps](https://apps.openpropertyassociation.ca).`;
 
     const { data: pr } = await octokit.rest.pulls.create({
       owner: GITHUB_REPO_OWNER,
@@ -488,7 +488,7 @@ router.post('/entity', requireAuth, async (req, res) => {
     const prTitle = title || 'Update entity registry';
     const prBody = description || `This PR updates the entity registry.
 
-Created by @${user.login} using the [COPA Apps](https://apps.openpropertyassociation.ca).`;
+Created by @${user.login} using the [Cornerstone Network Apps](https://apps.openpropertyassociation.ca).`;
 
     const { data: pr } = await octokit.rest.pulls.create({
       owner: GITHUB_REPO_OWNER,
@@ -575,7 +575,7 @@ router.post('/entity-logo', requireAuth, async (req, res) => {
     const prTitle = title || `Add logo for entity: ${entityId}`;
     const prBody = description || `This PR adds a logo for the entity \`${entityId}\`.
 
-Created by @${user.login} using the [COPA Apps](https://apps.openpropertyassociation.ca).`;
+Created by @${user.login} using the [Cornerstone Network Apps](https://apps.openpropertyassociation.ca).`;
 
     const { data: pr } = await octokit.rest.pulls.create({
       owner: GITHUB_REPO_OWNER,
@@ -730,7 +730,7 @@ router.post('/entity-statement', requireAuth, async (req, res) => {
 ${entity.dataProviderTypes?.length ? `**Data Provider Types:** ${entity.dataProviderTypes.join(', ')}` : ''}
 ${entity.regionsCovered?.length ? `**Regions Covered:** ${entity.regionsCovered.join(', ')}` : ''}
 
-Created by @${user.login} using the [COPA Apps](https://apps.openpropertyassociation.ca).`;
+Created by @${user.login} using the [Cornerstone Network Apps](https://apps.openpropertyassociation.ca).`;
 
     const { data: pr } = await octokit.rest.pulls.create({
       owner: GITHUB_REPO_OWNER,
@@ -902,7 +902,7 @@ router.post('/vocab', requireAuth, async (req, res) => {
 **Vocabulary types:**
 ${vocabTypes.map((vt) => `- \`${vt.id}\`: ${vt.name}`).join('\n')}
 
-Created by @${user.login} using the [COPA Apps](https://apps.openpropertyassociation.ca).`;
+Created by @${user.login} using the [Cornerstone Network Apps](https://apps.openpropertyassociation.ca).`;
 
     const { data: pr } = await octokit.rest.pulls.create({
       owner: GITHUB_REPO_OWNER,
@@ -1010,7 +1010,7 @@ router.post('/harmonization', requireAuth, async (req, res) => {
     const prTitle = title || 'Update data harmonization mappings';
     const prBody = description || `This PR updates the data harmonization mappings.
 
-Created by @${user.login} using the [COPA Apps](https://apps.openpropertyassociation.ca).`;
+Created by @${user.login} using the [Cornerstone Network Apps](https://apps.openpropertyassociation.ca).`;
 
     const { data: pr } = await octokit.rest.pulls.create({
       owner: GITHUB_REPO_OWNER,
@@ -1395,7 +1395,7 @@ router.post('/asset', requireAuth, async (req, res) => {
 **File:** \`${filePath}\`
 ${entityId ? `**Entity ID:** ${entityId}` : ''}
 
-Created by @${user.login} using the [COPA Apps](https://apps.openpropertyassociation.ca).`;
+Created by @${user.login} using the [Cornerstone Network Apps](https://apps.openpropertyassociation.ca).`;
 
     const { data: pr } = await octokit.rest.pulls.create({
       owner: GITHUB_REPO_OWNER,

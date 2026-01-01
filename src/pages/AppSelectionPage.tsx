@@ -277,7 +277,7 @@ export default function AppSelectionPage() {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Welcome to COPA Apps</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Welcome to Cornerstone Network Apps</h1>
           <p className="mt-2 text-gray-600">
             Select an application to get started
           </p>
