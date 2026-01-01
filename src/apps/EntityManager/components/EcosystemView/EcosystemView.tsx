@@ -31,7 +31,7 @@ export default function EcosystemView({
   const { settings } = useFurnisherSettingsStore();
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
-  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
 
   // Fetch logos on mount
   useEffect(() => {
@@ -43,14 +43,22 @@ export default function EcosystemView({
     const updateDimensions = () => {
       const container = document.getElementById('ecosystem-container');
       if (container) {
-        setDimensions({
-          width: container.clientWidth,
-          height: container.clientHeight,
-        });
+        const { clientWidth, clientHeight } = container;
+        // Only update if we have valid dimensions
+        if (clientWidth > 0 && clientHeight > 0) {
+          setDimensions({
+            width: clientWidth,
+            height: clientHeight,
+          });
+        }
       }
     };
 
-    updateDimensions();
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(() => {
+      updateDimensions();
+    });
+
     window.addEventListener('resize', updateDimensions);
     return () => window.removeEventListener('resize', updateDimensions);
   }, []);
@@ -214,10 +222,10 @@ export default function EcosystemView({
     return [];
   };
 
-  // Calculate layout dimensions
-  const centerX = dimensions.width / 2;
-  const centerY = dimensions.height / 2;
-  const minDimension = Math.min(dimensions.width, dimensions.height);
+  // Calculate layout dimensions (only when dimensions are available)
+  const centerX = dimensions ? dimensions.width / 2 : 0;
+  const centerY = dimensions ? dimensions.height / 2 : 0;
+  const minDimension = dimensions ? Math.min(dimensions.width, dimensions.height) : 0;
   const innerRadius = minDimension * 0.18;
   const outerRadius = minDimension * 0.42;
 
@@ -277,41 +285,50 @@ export default function EcosystemView({
         </div>
       </div>
 
-      {/* SVG Visualization */}
-      <svg
-        width={dimensions.width}
-        height={dimensions.height}
-        className="absolute inset-0"
-      >
-        {/* Orbital segments */}
-        {ALL_DATA_PROVIDER_TYPES.map((type, index) => (
-          <OrbitalSegment
-            key={type}
-            dataType={type}
-            label={getDataTypeLabel(type)}
-            entities={groupedByType[type]}
-            segmentIndex={index}
-            totalSegments={ALL_DATA_PROVIDER_TYPES.length}
-            centerX={centerX}
-            centerY={centerY}
-            innerRadius={innerRadius}
-            outerRadius={outerRadius}
-            getLogoUrl={getEntityLogoUrl}
-            onEntityClick={handleEntityClick}
-            onSegmentClick={handleSegmentClick}
-            selectedEntityId={selectedEntityId}
-          />
-        ))}
+      {/* SVG Visualization - only render when dimensions are available */}
+      {dimensions && (
+        <svg
+          width={dimensions.width}
+          height={dimensions.height}
+          className="absolute inset-0"
+        >
+          {/* Orbital segments */}
+          {ALL_DATA_PROVIDER_TYPES.map((type, index) => (
+            <OrbitalSegment
+              key={type}
+              dataType={type}
+              label={getDataTypeLabel(type)}
+              entities={groupedByType[type]}
+              segmentIndex={index}
+              totalSegments={ALL_DATA_PROVIDER_TYPES.length}
+              centerX={centerX}
+              centerY={centerY}
+              innerRadius={innerRadius}
+              outerRadius={outerRadius}
+              getLogoUrl={getEntityLogoUrl}
+              onEntityClick={handleEntityClick}
+              onSegmentClick={handleSegmentClick}
+              selectedEntityId={selectedEntityId}
+            />
+          ))}
 
-        {/* Center node (network operator) */}
-        <g transform={`translate(${centerX}, ${centerY})`}>
-          <CenterNode
-            entity={networkOperator}
-            logoUrl={networkOperator ? getEntityLogoUrl(networkOperator) : null}
-            onClick={handleCenterClick}
-          />
-        </g>
-      </svg>
+          {/* Center node (network operator) */}
+          <g transform={`translate(${centerX}, ${centerY})`}>
+            <CenterNode
+              entity={networkOperator}
+              logoUrl={networkOperator ? getEntityLogoUrl(networkOperator) : null}
+              onClick={handleCenterClick}
+            />
+          </g>
+        </svg>
+      )}
+
+      {/* Loading state */}
+      {!dimensions && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-slate-400">Loading visualization...</div>
+        </div>
+      )}
 
       {/* Context Menu */}
       {contextMenu && (
