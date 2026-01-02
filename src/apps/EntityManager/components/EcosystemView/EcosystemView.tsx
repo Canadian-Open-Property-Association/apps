@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import type { Entity, DataProviderType } from '../../../../types/entity';
-import { ALL_DATA_PROVIDER_TYPES, DATA_PROVIDER_TYPE_CONFIG } from '../../../../types/entity';
+import type { Entity } from '../../../../types/entity';
+import { DATA_PROVIDER_TYPE_CONFIG } from '../../../../types/entity';
 import { useLogoStore } from '../../../../store/logoStore';
 import { useFurnisherSettingsStore } from '../../../../store/furnisherSettingsStore';
 import CenterNode from './CenterNode';
@@ -19,7 +19,7 @@ interface ContextMenuState {
   position: { x: number; y: number };
   type: 'entity' | 'dataType';
   entityId?: string;
-  dataType?: DataProviderType;
+  dataType?: string;
 }
 
 export default function EcosystemView({
@@ -33,7 +33,7 @@ export default function EcosystemView({
   const { settings } = useFurnisherSettingsStore();
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [internalSelectedId, setInternalSelectedId] = useState<string | null>(null);
-  const [expandedSegment, setExpandedSegment] = useState<DataProviderType | null>(null);
+  const [expandedSegment, setExpandedSegment] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
   const [hoveredEntity, setHoveredEntity] = useState<{ entity: Entity; x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -92,12 +92,21 @@ export default function EcosystemView({
     return entities.filter((e) => e.entityTypes?.includes('data-furnisher'));
   }, [entities]);
 
+  // Get data provider types from settings (dynamic)
+  const dataProviderTypes = useMemo(() => {
+    if (settings?.dataProviderTypes && settings.dataProviderTypes.length > 0) {
+      return settings.dataProviderTypes.map((t) => t.id);
+    }
+    // Fallback to config keys if settings not loaded
+    return Object.keys(DATA_PROVIDER_TYPE_CONFIG);
+  }, [settings?.dataProviderTypes]);
+
   // Group entities by data provider type
   const groupedByType = useMemo(() => {
-    const groups: Record<DataProviderType, Entity[]> = {} as Record<DataProviderType, Entity[]>;
+    const groups: Record<string, Entity[]> = {};
 
     // Initialize all types with empty arrays
-    ALL_DATA_PROVIDER_TYPES.forEach((type) => {
+    dataProviderTypes.forEach((type) => {
       groups[type] = [];
     });
 
@@ -111,15 +120,16 @@ export default function EcosystemView({
     });
 
     return groups;
-  }, [dataFurnishers]);
+  }, [dataFurnishers, dataProviderTypes]);
 
   // Get label for data provider type
-  const getDataTypeLabel = (typeId: DataProviderType): string => {
+  const getDataTypeLabel = (typeId: string): string => {
     if (settings?.dataProviderTypes) {
       const found = settings.dataProviderTypes.find((t) => t.id === typeId);
       if (found) return found.label;
     }
-    return DATA_PROVIDER_TYPE_CONFIG[typeId]?.label || typeId;
+    const config = DATA_PROVIDER_TYPE_CONFIG[typeId as keyof typeof DATA_PROVIDER_TYPE_CONFIG];
+    return config?.label || typeId;
   };
 
   // Get logo URL for entity
@@ -139,7 +149,7 @@ export default function EcosystemView({
   };
 
   // Handle segment click - toggle expansion
-  const handleSegmentClick = (dataType: DataProviderType, event: React.MouseEvent) => {
+  const handleSegmentClick = (dataType: string, event: React.MouseEvent) => {
     event.stopPropagation();
     // Toggle expansion - if clicking the same segment, collapse it; otherwise expand new one
     setExpandedSegment((prev) => (prev === dataType ? null : dataType));
@@ -266,7 +276,7 @@ export default function EcosystemView({
     const sources = e.dataSchema?.sources || [];
     return acc + sources.reduce((sum, s) => sum + (s.fields?.length || 0), 0);
   }, 0);
-  const displayedDataTypes = expandedSegment ? 1 : ALL_DATA_PROVIDER_TYPES.length;
+  const displayedDataTypes = expandedSegment ? 1 : dataProviderTypes.length;
 
   // Generate deterministic star positions based on viewport
   const stars = useMemo(() => {
@@ -440,14 +450,14 @@ export default function EcosystemView({
           className="absolute inset-0"
         >
           {/* Orbital segments */}
-          {ALL_DATA_PROVIDER_TYPES.map((type, index) => (
+          {dataProviderTypes.map((type, index) => (
             <OrbitalSegment
               key={type}
               dataType={type}
               label={getDataTypeLabel(type)}
-              entities={groupedByType[type]}
+              entities={groupedByType[type] || []}
               segmentIndex={index}
-              totalSegments={ALL_DATA_PROVIDER_TYPES.length}
+              totalSegments={dataProviderTypes.length}
               centerX={centerX}
               centerY={centerY}
               innerRadius={innerRadius}

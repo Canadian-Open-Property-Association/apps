@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import type { Entity, DataProviderType } from '../../../../types/entity';
+import type { Entity } from '../../../../types/entity';
 import EntityNode from './EntityNode';
 
 interface OrbitalSegmentProps {
-  dataType: DataProviderType;
+  dataType: string;
   label: string;
   entities: Entity[];
   segmentIndex: number;
@@ -16,15 +16,15 @@ interface OrbitalSegmentProps {
   viewportHeight: number;
   getLogoUrl: (entity: Entity) => string | null;
   onEntityClick: (entity: Entity, event: React.MouseEvent) => void;
-  onSegmentClick: (dataType: DataProviderType, event: React.MouseEvent) => void;
+  onSegmentClick: (dataType: string, event: React.MouseEvent) => void;
   onEntityHover?: (entity: Entity | null, x: number, y: number) => void;
   selectedEntityId?: string | null;
   isExpanded?: boolean;
   isFaded?: boolean;
 }
 
-// Colors for each data type segment - with hover and expanded states
-const SEGMENT_COLORS: Record<DataProviderType, { fill: string; fillHover: string; fillExpanded: string; stroke: string; strokeHover: string; glow: string }> = {
+// Colors for known data type segments - with hover and expanded states
+const SEGMENT_COLORS: Record<string, { fill: string; fillHover: string; fillExpanded: string; stroke: string; strokeHover: string; glow: string }> = {
   'identity': { fill: 'rgba(139, 92, 246, 0.15)', fillHover: 'rgba(139, 92, 246, 0.3)', fillExpanded: 'rgba(139, 92, 246, 0.4)', stroke: 'rgba(139, 92, 246, 0.4)', strokeHover: 'rgba(139, 92, 246, 0.8)', glow: 'rgba(139, 92, 246, 0.5)' },
   'title-ownership': { fill: 'rgba(59, 130, 246, 0.15)', fillHover: 'rgba(59, 130, 246, 0.3)', fillExpanded: 'rgba(59, 130, 246, 0.4)', stroke: 'rgba(59, 130, 246, 0.4)', strokeHover: 'rgba(59, 130, 246, 0.8)', glow: 'rgba(59, 130, 246, 0.5)' },
   'assessment': { fill: 'rgba(16, 185, 129, 0.15)', fillHover: 'rgba(16, 185, 129, 0.3)', fillExpanded: 'rgba(16, 185, 129, 0.4)', stroke: 'rgba(16, 185, 129, 0.4)', strokeHover: 'rgba(16, 185, 129, 0.8)', glow: 'rgba(16, 185, 129, 0.5)' },
@@ -34,7 +34,11 @@ const SEGMENT_COLORS: Record<DataProviderType, { fill: string; fillHover: string
   'municipal': { fill: 'rgba(34, 211, 238, 0.15)', fillHover: 'rgba(34, 211, 238, 0.3)', fillExpanded: 'rgba(34, 211, 238, 0.4)', stroke: 'rgba(34, 211, 238, 0.4)', strokeHover: 'rgba(34, 211, 238, 0.8)', glow: 'rgba(34, 211, 238, 0.5)' },
   'regulatory': { fill: 'rgba(251, 191, 36, 0.15)', fillHover: 'rgba(251, 191, 36, 0.3)', fillExpanded: 'rgba(251, 191, 36, 0.4)', stroke: 'rgba(251, 191, 36, 0.4)', strokeHover: 'rgba(251, 191, 36, 0.8)', glow: 'rgba(251, 191, 36, 0.5)' },
   'employment': { fill: 'rgba(168, 85, 247, 0.15)', fillHover: 'rgba(168, 85, 247, 0.3)', fillExpanded: 'rgba(168, 85, 247, 0.4)', stroke: 'rgba(168, 85, 247, 0.4)', strokeHover: 'rgba(168, 85, 247, 0.8)', glow: 'rgba(168, 85, 247, 0.5)' },
+  'financial': { fill: 'rgba(14, 165, 233, 0.15)', fillHover: 'rgba(14, 165, 233, 0.3)', fillExpanded: 'rgba(14, 165, 233, 0.4)', stroke: 'rgba(14, 165, 233, 0.4)', strokeHover: 'rgba(14, 165, 233, 0.8)', glow: 'rgba(14, 165, 233, 0.5)' },
 };
+
+// Default color for unknown types
+const DEFAULT_SEGMENT_COLOR = { fill: 'rgba(148, 163, 184, 0.15)', fillHover: 'rgba(148, 163, 184, 0.3)', fillExpanded: 'rgba(148, 163, 184, 0.4)', stroke: 'rgba(148, 163, 184, 0.4)', strokeHover: 'rgba(148, 163, 184, 0.8)', glow: 'rgba(148, 163, 184, 0.5)' };
 
 function polarToCartesian(centerX: number, centerY: number, radius: number, angleInDegrees: number) {
   const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
@@ -89,7 +93,7 @@ export default function OrbitalSegment({
   isFaded = false,
 }: OrbitalSegmentProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const colors = SEGMENT_COLORS[dataType];
+  const colors = SEGMENT_COLORS[dataType] || DEFAULT_SEGMENT_COLOR;
 
   // Calculate segment angles
   const gapAngle = 2; // Gap between segments in degrees
