@@ -150,6 +150,9 @@ function SortableSection({
           >
             <DragHandle />
           </button>
+          <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-xs font-medium text-gray-500 bg-gray-100 rounded">
+            {index + 1}
+          </span>
           <span className="text-sm font-medium text-gray-700 truncate">
             {section.title || `Section ${index + 1}`}
           </span>
@@ -176,6 +179,7 @@ function SortableSection({
 // Sortable field component
 interface SortableFieldProps {
   field: FormField;
+  index: number;
   isSelected: boolean;
   onSelect: () => void;
   onDelete: () => void;
@@ -183,6 +187,7 @@ interface SortableFieldProps {
 
 function SortableField({
   field,
+  index,
   isSelected,
   onSelect,
   onDelete,
@@ -223,6 +228,9 @@ function SortableField({
           >
             <DragHandle />
           </button>
+          <span className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-xs font-medium text-gray-500 bg-gray-100 rounded mt-0.5">
+            {index + 1}
+          </span>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">
@@ -1109,10 +1117,11 @@ export default function FormBuilder() {
                       strategy={verticalListSortingStrategy}
                     >
                       <div className="space-y-3">
-                        {selectedSection.fields.map((field) => (
+                        {selectedSection.fields.map((field, fieldIndex) => (
                           <SortableField
                             key={field.id}
                             field={field}
+                            index={fieldIndex}
                             isSelected={selectedFieldId === field.id}
                             onSelect={() => setSelectedFieldId(field.id)}
                             onDelete={() => handleDeleteField(selectedSection.id, field.id)}
@@ -1371,8 +1380,8 @@ export default function FormBuilder() {
 
       {/* Preview Modal */}
       {showPreview && currentForm && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-          <div className="bg-white w-full h-full max-w-4xl max-h-[90vh] rounded-xl shadow-2xl overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-5xl max-h-[90vh] rounded-xl shadow-2xl overflow-hidden flex flex-col">
             <FormPreview
               schema={currentForm.schema}
               title={currentForm.title}
