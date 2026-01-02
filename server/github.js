@@ -1,5 +1,6 @@
 import express from 'express';
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { requireAuth, getOctokit } from './auth.js';
@@ -1368,13 +1369,7 @@ router.get('/published-assets', requireAuth, async (req, res) => {
 // Asset Publishing (images to GitHub VDR)
 // ============================================
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename_gh = fileURLToPath(import.meta.url);
-const __dirname_gh = path.dirname(__filename_gh);
-const ASSETS_DIR_GH = process.env.ASSETS_PATH || path.join(__dirname_gh, '../assets');
+// Note: fs, path, fileURLToPath, __dirname, and ASSETS_DIR are already defined at top of file
 
 // Asset type to GitHub path mapping
 const ASSET_TYPE_PATHS = {
@@ -1399,12 +1394,12 @@ router.post('/asset', requireAuth, async (req, res) => {
     }
 
     // Read the local file
-    const localFilePath = path.join(ASSETS_DIR_GH, filename);
-    if (!fs.existsSync(localFilePath)) {
+    const localFilePath = path.join(ASSETS_DIR, filename);
+    if (!fsSync.existsSync(localFilePath)) {
       return res.status(404).json({ error: 'Local asset file not found' });
     }
 
-    const fileContent = fs.readFileSync(localFilePath);
+    const fileContent = fsSync.readFileSync(localFilePath);
     const encodedContent = fileContent.toString('base64');
     const ext = path.extname(filename);
 
