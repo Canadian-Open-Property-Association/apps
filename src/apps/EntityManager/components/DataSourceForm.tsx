@@ -342,7 +342,7 @@ export default function DataSourceForm({ source, onSave, onClose }: DataSourceFo
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               placeholder="Integration notes..."
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 focus:border-blue-500 resize-y min-h-[60px]"
             />
           </div>
         </div>

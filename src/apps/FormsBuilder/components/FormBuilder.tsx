@@ -11,6 +11,7 @@ import { useFormsStore } from '../../../store/formsStore';
 import {
   FormField,
   FormFieldType,
+  FormSection,
   FIELD_TYPE_LABELS,
   createEmptyField,
   createEmptySection,
@@ -18,6 +19,23 @@ import {
 import FormPreview from './FormPreview';
 import CredentialFieldConfig from './CredentialFieldConfig';
 import { useAutoSave } from '../hooks/useAutoSave';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // Resizable divider component
 function ResizableDivider({ onDrag }: { onDrag: (delta: number) => void }) {
@@ -64,6 +82,184 @@ function ResizableDivider({ onDrag }: { onDrag: (delta: number) => void }) {
   );
 }
 
+// Drag handle icon component
+function DragHandle() {
+  return (
+    <svg className="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+      <circle cx="9" cy="6" r="1.5" />
+      <circle cx="15" cy="6" r="1.5" />
+      <circle cx="9" cy="12" r="1.5" />
+      <circle cx="15" cy="12" r="1.5" />
+      <circle cx="9" cy="18" r="1.5" />
+      <circle cx="15" cy="18" r="1.5" />
+    </svg>
+  );
+}
+
+// Sortable section component
+interface SortableSectionProps {
+  section: FormSection;
+  index: number;
+  isSelected: boolean;
+  showFormSettings: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+}
+
+function SortableSection({
+  section,
+  index,
+  isSelected,
+  showFormSettings,
+  onSelect,
+  onDelete,
+}: SortableSectionProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: section.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      onClick={onSelect}
+      className={`p-3 rounded-lg cursor-pointer mb-2 ${
+        isSelected && !showFormSettings
+          ? 'bg-blue-100 border border-blue-300'
+          : 'bg-white border border-gray-200 hover:border-gray-300'
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <button
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-100 rounded transition-colors"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <DragHandle />
+          </button>
+          <span className="text-sm font-medium text-gray-700 truncate">
+            {section.title || `Section ${index + 1}`}
+          </span>
+        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <span className="text-xs text-gray-400 ml-7">
+        {section.fields.length} field{section.fields.length !== 1 ? 's' : ''}
+      </span>
+    </div>
+  );
+}
+
+// Sortable field component
+interface SortableFieldProps {
+  field: FormField;
+  isSelected: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+}
+
+function SortableField({
+  field,
+  isSelected,
+  onSelect,
+  onDelete,
+}: SortableFieldProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: field.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      onClick={onSelect}
+      className={`p-4 rounded-lg border cursor-pointer ${
+        isSelected
+          ? 'bg-blue-50 border-blue-300'
+          : 'bg-white border-gray-200 hover:border-gray-300'
+      }`}
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex items-start gap-2 flex-1">
+          <button
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-100 rounded transition-colors mt-0.5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <DragHandle />
+          </button>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">
+                {FIELD_TYPE_LABELS[field.type]}
+              </span>
+              {field.required && (
+                <span className="text-xs px-2 py-0.5 bg-red-100 text-red-600 rounded">
+                  Required
+                </span>
+              )}
+            </div>
+            <h4 className="font-medium text-gray-900">
+              {field.label || 'Untitled Field'}
+            </h4>
+            {field.name && (
+              <p className="text-xs text-gray-400 font-mono mt-1">
+                {field.name}
+              </p>
+            )}
+          </div>
+        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function FormBuilder() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -94,6 +290,63 @@ export default function FormBuilder() {
   const MAX_SECTIONS_WIDTH = 400;
   const MIN_SETTINGS_WIDTH = 280;
   const MAX_SETTINGS_WIDTH = 500;
+
+  // DnD sensors for drag-and-drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Handle section reordering
+  const handleSectionDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || !currentForm || active.id === over.id) return;
+
+      const oldIndex = currentForm.schema.sections.findIndex((s) => s.id === active.id);
+      const newIndex = currentForm.schema.sections.findIndex((s) => s.id === over.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newSections = arrayMove(currentForm.schema.sections, oldIndex, newIndex);
+        updateCurrentFormSchema({ ...currentForm.schema, sections: newSections });
+        setHasUnsavedChanges(true);
+      }
+    },
+    [currentForm, updateCurrentFormSchema]
+  );
+
+  // Handle field reordering within a section
+  const handleFieldDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || !currentForm || !selectedSectionId || active.id === over.id) return;
+
+      const section = currentForm.schema.sections.find((s) => s.id === selectedSectionId);
+      if (!section) return;
+
+      const oldIndex = section.fields.findIndex((f) => f.id === active.id);
+      const newIndex = section.fields.findIndex((f) => f.id === over.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newFields = arrayMove(section.fields, oldIndex, newIndex);
+        const newSchema = {
+          ...currentForm.schema,
+          sections: currentForm.schema.sections.map((s) =>
+            s.id === selectedSectionId ? { ...s, fields: newFields } : s
+          ),
+        };
+        updateCurrentFormSchema(newSchema);
+        setHasUnsavedChanges(true);
+      }
+    },
+    [currentForm, selectedSectionId, updateCurrentFormSchema]
+  );
 
   const handleSectionsDividerDrag = useCallback((delta: number) => {
     setSectionsPanelWidth((prev) =>
@@ -668,41 +921,32 @@ export default function FormBuilder() {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-2">
-            {currentForm.schema.sections.map((section, index) => (
-              <div
-                key={section.id}
-                onClick={() => {
-                  setSelectedSectionId(section.id);
-                  setSelectedFieldId(null);
-                  setShowFormSettings(false);
-                }}
-                className={`p-3 rounded-lg cursor-pointer mb-2 ${
-                  selectedSectionId === section.id && !showFormSettings
-                    ? 'bg-blue-100 border border-blue-300'
-                    : 'bg-white border border-gray-200 hover:border-gray-300'
-                }`}
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleSectionDragEnd}
+            >
+              <SortableContext
+                items={currentForm.schema.sections.map((s) => s.id)}
+                strategy={verticalListSortingStrategy}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700 truncate">
-                    {section.title || `Section ${index + 1}`}
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteSection(section.id);
+                {currentForm.schema.sections.map((section, index) => (
+                  <SortableSection
+                    key={section.id}
+                    section={section}
+                    index={index}
+                    isSelected={selectedSectionId === section.id}
+                    showFormSettings={showFormSettings}
+                    onSelect={() => {
+                      setSelectedSectionId(section.id);
+                      setSelectedFieldId(null);
+                      setShowFormSettings(false);
                     }}
-                    className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                <span className="text-xs text-gray-400">
-                  {section.fields.length} field{section.fields.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-            ))}
+                    onDelete={() => handleDeleteSection(section.id)}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
 
             {/* Form Settings button */}
             <div className="mt-4 pt-4 border-t border-gray-200">
@@ -779,7 +1023,7 @@ export default function FormBuilder() {
                         handleUpdateInfoScreen(currentForm.schema.infoScreen?.title || '', e.target.value)
                       }
                       rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y min-h-[100px]"
                       placeholder="Instructions or information to display before the form..."
                     />
                     <p className="text-xs text-gray-400 mt-1">Markdown is supported</p>
@@ -823,7 +1067,7 @@ export default function FormBuilder() {
                         handleUpdateSuccessScreen(currentForm.schema.successScreen.title, e.target.value)
                       }
                       rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y min-h-[100px]"
                       placeholder="Message to display after successful submission..."
                     />
                     <p className="text-xs text-gray-400 mt-1">Markdown is supported</p>
@@ -855,53 +1099,28 @@ export default function FormBuilder() {
                     <p className="text-sm">Add fields using the toolbar below</p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {selectedSection.fields.map((field) => (
-                      <div
-                        key={field.id}
-                        onClick={() => setSelectedFieldId(field.id)}
-                        className={`p-4 rounded-lg border cursor-pointer ${
-                          selectedFieldId === field.id
-                            ? 'bg-blue-50 border-blue-300'
-                            : 'bg-white border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">
-                                {FIELD_TYPE_LABELS[field.type]}
-                              </span>
-                              {field.required && (
-                                <span className="text-xs px-2 py-0.5 bg-red-100 text-red-600 rounded">
-                                  Required
-                                </span>
-                              )}
-                            </div>
-                            <h4 className="font-medium text-gray-900">
-                              {field.label || 'Untitled Field'}
-                            </h4>
-                            {field.name && (
-                              <p className="text-xs text-gray-400 font-mono mt-1">
-                                {field.name}
-                              </p>
-                            )}
-                          </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteField(selectedSection.id, field.id);
-                            }}
-                            className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                          >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleFieldDragEnd}
+                  >
+                    <SortableContext
+                      items={selectedSection.fields.map((f) => f.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="space-y-3">
+                        {selectedSection.fields.map((field) => (
+                          <SortableField
+                            key={field.id}
+                            field={field}
+                            isSelected={selectedFieldId === field.id}
+                            onSelect={() => setSelectedFieldId(field.id)}
+                            onDelete={() => handleDeleteField(selectedSection.id, field.id)}
+                          />
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </SortableContext>
+                  </DndContext>
                 )}
               </div>
 
@@ -1048,7 +1267,7 @@ export default function FormBuilder() {
                     })
                   }
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y min-h-[80px]"
                   placeholder="Help text for this field..."
                 />
               </div>

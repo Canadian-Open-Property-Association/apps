@@ -4,11 +4,13 @@ import { useAuthStore } from '../../store/authStore';
 import ZoneEditor from '../ZoneEditor/ZoneEditor';
 import type { ZoneTemplate } from '../../types/vct';
 
+const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:5174';
+
 interface VctSettingsModalProps {
   onClose: () => void;
 }
 
-type SettingsCategory = 'zone-templates';
+type SettingsCategory = 'zone-templates' | 'data-registry';
 
 const CATEGORIES = [
   {
@@ -25,7 +27,33 @@ const CATEGORIES = [
       </svg>
     ),
   },
+  {
+    id: 'data-registry' as const,
+    label: 'Data Registry',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"
+        />
+      </svg>
+    ),
+  },
 ];
+
+interface DataRegistrySettings {
+  schemaPath: string;
+  vctPath: string;
+  contextPath: string;
+}
+
+const DEFAULT_DATA_REGISTRY: DataRegistrySettings = {
+  schemaPath: 'credentials/schemas',
+  vctPath: 'credentials/branding',
+  contextPath: 'credentials/contexts',
+};
 
 export default function VctSettingsModal({ onClose }: VctSettingsModalProps) {
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>('zone-templates');
@@ -34,6 +62,13 @@ export default function VctSettingsModal({ onClose }: VctSettingsModalProps) {
   const [newTemplateName, setNewTemplateName] = useState('');
   const [newTemplateFrontOnly, setNewTemplateFrontOnly] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  // Data registry settings state
+  const [dataRegistry, setDataRegistry] = useState<DataRegistrySettings>(DEFAULT_DATA_REGISTRY);
+  const [dataRegistryLoading, setDataRegistryLoading] = useState(false);
+  const [dataRegistrySaving, setDataRegistrySaving] = useState(false);
+  const [dataRegistryError, setDataRegistryError] = useState<string | null>(null);
+  const [dataRegistrySuccess, setDataRegistrySuccess] = useState(false);
 
   // Zone template store
   const templates = useZoneTemplateStore((state) => state.templates);
@@ -49,6 +84,60 @@ export default function VctSettingsModal({ onClose }: VctSettingsModalProps) {
   useEffect(() => {
     loadTemplates();
   }, [loadTemplates]);
+
+  // Load data registry settings
+  useEffect(() => {
+    const loadDataRegistry = async () => {
+      setDataRegistryLoading(true);
+      try {
+        const response = await fetch(`${API_BASE}/api/github/config`, {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const config = await response.json();
+          setDataRegistry({
+            schemaPath: config.schemaPath || DEFAULT_DATA_REGISTRY.schemaPath,
+            vctPath: config.vctPath || DEFAULT_DATA_REGISTRY.vctPath,
+            contextPath: config.contextPath || DEFAULT_DATA_REGISTRY.contextPath,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load data registry settings:', error);
+      } finally {
+        setDataRegistryLoading(false);
+      }
+    };
+    loadDataRegistry();
+  }, []);
+
+  const handleSaveDataRegistry = async () => {
+    setDataRegistrySaving(true);
+    setDataRegistryError(null);
+    setDataRegistrySuccess(false);
+    try {
+      const response = await fetch(`${API_BASE}/api/github/config`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(dataRegistry),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to save settings');
+      }
+      setDataRegistrySuccess(true);
+      setTimeout(() => setDataRegistrySuccess(false), 3000);
+    } catch (error) {
+      setDataRegistryError(error instanceof Error ? error.message : 'Failed to save settings');
+    } finally {
+      setDataRegistrySaving(false);
+    }
+  };
+
+  const handleResetDataRegistry = () => {
+    setDataRegistry(DEFAULT_DATA_REGISTRY);
+    setDataRegistryError(null);
+    setDataRegistrySuccess(false);
+  };
 
   const handleCreateNew = () => {
     setNewTemplateName('');
@@ -298,6 +387,119 @@ export default function VctSettingsModal({ onClose }: VctSettingsModalProps) {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Data Registry */}
+              {activeCategory === 'data-registry' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-base font-medium text-gray-900">Data Registry Paths</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Configure the folder paths in your GitHub repository where credential data files are stored.
+                      These paths are relative to the repository root.
+                    </p>
+                  </div>
+
+                  {dataRegistryLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Schema Path */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Schema Library Path
+                        </label>
+                        <input
+                          type="text"
+                          value={dataRegistry.schemaPath}
+                          onChange={(e) => setDataRegistry(prev => ({ ...prev, schemaPath: e.target.value }))}
+                          placeholder="credentials/schemas"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                          Folder containing JSON Schema files for credential definitions
+                        </p>
+                      </div>
+
+                      {/* VCT Path */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          VCT / Branding Library Path
+                        </label>
+                        <input
+                          type="text"
+                          value={dataRegistry.vctPath}
+                          onChange={(e) => setDataRegistry(prev => ({ ...prev, vctPath: e.target.value }))}
+                          placeholder="credentials/branding"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                          Folder containing VCT display/branding configuration files
+                        </p>
+                      </div>
+
+                      {/* Context Path */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          JSON-LD Context Library Path
+                        </label>
+                        <input
+                          type="text"
+                          value={dataRegistry.contextPath}
+                          onChange={(e) => setDataRegistry(prev => ({ ...prev, contextPath: e.target.value }))}
+                          placeholder="credentials/contexts"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                          Folder containing JSON-LD context files for semantic vocabulary
+                        </p>
+                      </div>
+
+                      {/* Error/Success Messages */}
+                      {dataRegistryError && (
+                        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                          {dataRegistryError}
+                        </div>
+                      )}
+                      {dataRegistrySuccess && (
+                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+                          Settings saved successfully!
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+                        <button
+                          onClick={handleSaveDataRegistry}
+                          disabled={dataRegistrySaving}
+                          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {dataRegistrySaving ? (
+                            <>
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              Save Settings
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={handleResetDataRegistry}
+                          className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800"
+                        >
+                          Reset to Defaults
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

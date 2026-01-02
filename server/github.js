@@ -1,7 +1,39 @@
 import express from 'express';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { requireAuth, getOctokit } from './auth.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router = express.Router();
+
+// Helper function to read Forms Builder settings
+async function getFormsBuilderSettings() {
+  try {
+    const settingsPath = path.join(__dirname, 'assets', 'forms-builder-settings.json');
+    const data = await fs.readFile(settingsPath, 'utf-8');
+    return JSON.parse(data);
+  } catch {
+    return null;
+  }
+}
+
+// Helper function to read VCT Builder / Data Registry settings
+async function getDataRegistrySettings() {
+  try {
+    const settingsPath = path.join(__dirname, 'assets', 'data-registry-settings.json');
+    const data = await fs.readFile(settingsPath, 'utf-8');
+    return JSON.parse(data);
+  } catch {
+    return null;
+  }
+}
+
+// Helper function to save VCT Builder / Data Registry settings
+async function saveDataRegistrySettings(settings) {
+  const settingsPath = path.join(__dirname, 'assets', 'data-registry-settings.json');
+  await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2));
+}
 
 // GitHub repo configuration
 const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || 'Canadian-Open-Property-Association';
@@ -16,16 +48,64 @@ const BASE_URL = process.env.BASE_URL || 'https://openpropertyassociation.ca';
 // Base branch for PRs - if set, use this instead of repo's default branch
 const GITHUB_BASE_BRANCH = process.env.GITHUB_BASE_BRANCH || null;
 
-// Get configuration (base URLs for VCT, Schema, Context, Entities, Vocab, and Harmonization)
-router.get('/config', requireAuth, (req, res) => {
-  res.json({
-    vctBaseUrl: `${BASE_URL}/${VCT_FOLDER_PATH}/`,
-    schemaBaseUrl: `${BASE_URL}/${SCHEMA_FOLDER_PATH}/`,
-    contextBaseUrl: `${BASE_URL}/${CONTEXT_FOLDER_PATH}/`,
-    entityBaseUrl: `${BASE_URL}/${ENTITY_FOLDER_PATH}/`,
-    vocabBaseUrl: `${BASE_URL}/${VOCAB_FOLDER_PATH}/`,
-    harmonizationBaseUrl: `${BASE_URL}/${HARMONIZATION_FOLDER_PATH}/`,
-  });
+// Get configuration (base URLs and paths for VCT, Schema, Context, Entities, Vocab, and Harmonization)
+router.get('/config', requireAuth, async (req, res) => {
+  try {
+    // Check for saved settings
+    const savedSettings = await getDataRegistrySettings();
+
+    // Return both base URLs and configurable paths
+    res.json({
+      // Base URLs for constructing full URIs
+      vctBaseUrl: `${BASE_URL}/${VCT_FOLDER_PATH}/`,
+      schemaBaseUrl: `${BASE_URL}/${SCHEMA_FOLDER_PATH}/`,
+      contextBaseUrl: `${BASE_URL}/${CONTEXT_FOLDER_PATH}/`,
+      entityBaseUrl: `${BASE_URL}/${ENTITY_FOLDER_PATH}/`,
+      vocabBaseUrl: `${BASE_URL}/${VOCAB_FOLDER_PATH}/`,
+      harmonizationBaseUrl: `${BASE_URL}/${HARMONIZATION_FOLDER_PATH}/`,
+      // Configurable paths (from saved settings or defaults)
+      schemaPath: savedSettings?.schemaPath || SCHEMA_FOLDER_PATH,
+      vctPath: savedSettings?.vctPath || VCT_FOLDER_PATH,
+      contextPath: savedSettings?.contextPath || CONTEXT_FOLDER_PATH,
+    });
+  } catch (error) {
+    console.error('Error fetching config:', error);
+    res.status(500).json({ error: 'Failed to fetch configuration' });
+  }
+});
+
+// Update configuration (save data registry paths)
+router.put('/config', requireAuth, async (req, res) => {
+  try {
+    const { schemaPath, vctPath, contextPath } = req.body;
+
+    // Validate input
+    if (!schemaPath && !vctPath && !contextPath) {
+      return res.status(400).json({ error: 'At least one path setting is required' });
+    }
+
+    // Get existing settings or create new
+    const existingSettings = await getDataRegistrySettings() || {};
+
+    // Merge new settings
+    const newSettings = {
+      ...existingSettings,
+      ...(schemaPath && { schemaPath }),
+      ...(vctPath && { vctPath }),
+      ...(contextPath && { contextPath }),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await saveDataRegistrySettings(newSettings);
+
+    res.json({
+      success: true,
+      settings: newSettings,
+    });
+  } catch (error) {
+    console.error('Error saving config:', error);
+    res.status(500).json({ error: 'Failed to save configuration' });
+  }
 });
 
 // List schema files from the repository
@@ -96,15 +176,20 @@ router.get('/vct-available/:filename', requireAuth, async (req, res) => {
 });
 
 // List VCT files from the repository
+// Uses Forms Builder settings for path if available, otherwise falls back to env var or default
 router.get('/vct-library', requireAuth, async (req, res) => {
   try {
     const octokit = getOctokit(req);
+
+    // Check for path override from Forms Builder settings
+    const settings = await getFormsBuilderSettings();
+    const folderPath = settings?.credentialRegistryPath || VCT_FOLDER_PATH;
 
     // Get contents of the VCT folder (from configured branch if set)
     const { data: contents } = await octokit.rest.repos.getContent({
       owner: GITHUB_REPO_OWNER,
       repo: GITHUB_REPO_NAME,
-      path: VCT_FOLDER_PATH,
+      path: folderPath,
       ...(GITHUB_BASE_BRANCH && { ref: GITHUB_BASE_BRANCH }),
     });
 
@@ -130,15 +215,20 @@ router.get('/vct-library', requireAuth, async (req, res) => {
 });
 
 // Get a specific VCT file content
+// Uses Forms Builder settings for path if available
 router.get('/vct/:filename', requireAuth, async (req, res) => {
   try {
     const { filename } = req.params;
     const octokit = getOctokit(req);
 
+    // Check for path override from Forms Builder settings
+    const settings = await getFormsBuilderSettings();
+    const folderPath = settings?.credentialRegistryPath || VCT_FOLDER_PATH;
+
     const { data } = await octokit.rest.repos.getContent({
       owner: GITHUB_REPO_OWNER,
       repo: GITHUB_REPO_NAME,
-      path: `${VCT_FOLDER_PATH}/${filename}`,
+      path: `${folderPath}/${filename}`,
       ...(GITHUB_BASE_BRANCH && { ref: GITHUB_BASE_BRANCH }),
     });
 
