@@ -16,12 +16,12 @@ export type FormFieldType =
   | 'select'
   | 'radio'
   | 'checkbox'
-  | 'verified-credential';
+  | 'verifiable-credential';
 
 // Predicate operators for proof fields
 export type PredicateOperator = '==' | '!=' | '>=' | '<=' | '>' | '<';
 
-// Predicate configuration for verified-credential fields
+// Predicate configuration for verifiable-credential fields
 export interface PredicateConfig {
   operator: PredicateOperator;
   value: number | boolean | string;
@@ -47,11 +47,12 @@ export interface FormField {
     max?: number;
   };
   // For select/radio/checkbox fields
+  // Note: 'value' is optional - for radio/checkbox, label is used directly
   options?: {
     label: string;
-    value: string;
+    value?: string; // Optional - mainly used for select fields
   }[];
-  // For verified-credential fields
+  // For verifiable-credential fields
   credentialConfig?: {
     credentialLibraryId?: string;
     schemaId?: string;
@@ -157,7 +158,7 @@ export const FIELD_TYPE_LABELS: Record<FormFieldType, string> = {
   select: 'Dropdown',
   radio: 'Radio Buttons',
   checkbox: 'Checkboxes',
-  'verified-credential': 'Verifiable Credential',
+  'verifiable-credential': 'Verifiable Credential',
 };
 
 // Default form schema for new forms

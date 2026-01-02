@@ -80,7 +80,7 @@ function FieldPreview({ field, value, onChange }: FieldPreviewProps) {
         >
           <option value="">{field.placeholder || 'Select an option...'}</option>
           {field.options?.map((option) => (
-            <option key={option.value} value={option.value}>
+            <option key={option.label} value={option.value || option.label}>
               {option.label}
             </option>
           ))}
@@ -91,12 +91,12 @@ function FieldPreview({ field, value, onChange }: FieldPreviewProps) {
       return (
         <div className="space-y-2">
           {field.options?.map((option) => (
-            <label key={option.value} className="flex items-center gap-2 cursor-pointer">
+            <label key={option.label} className="flex items-center gap-2 cursor-pointer">
               <input
                 type="radio"
                 name={field.id}
-                value={option.value}
-                checked={(value as string) === option.value}
+                value={option.label}
+                checked={(value as string) === option.label}
                 onChange={(e) => onChange(e.target.value)}
                 className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
               />
@@ -107,21 +107,20 @@ function FieldPreview({ field, value, onChange }: FieldPreviewProps) {
       );
 
     case 'checkbox':
-      const checkedValues = (value as string[]) || [];
+      // Checkbox returns an object with each option as key and true/false as value
+      const checkedState = (value as Record<string, boolean>) || {};
       return (
         <div className="space-y-2">
           {field.options?.map((option) => (
-            <label key={option.value} className="flex items-center gap-2 cursor-pointer">
+            <label key={option.label} className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                value={option.value}
-                checked={checkedValues.includes(option.value)}
+                checked={checkedState[option.label] || false}
                 onChange={(e) => {
-                  if (e.target.checked) {
-                    onChange([...checkedValues, option.value]);
-                  } else {
-                    onChange(checkedValues.filter((v) => v !== option.value));
-                  }
+                  onChange({
+                    ...checkedState,
+                    [option.label]: e.target.checked,
+                  });
                 }}
                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
@@ -131,7 +130,7 @@ function FieldPreview({ field, value, onChange }: FieldPreviewProps) {
         </div>
       );
 
-    case 'verified-credential':
+    case 'verifiable-credential':
       return (
         <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
           <svg
@@ -283,10 +282,10 @@ export default function FormPreview({ schema, title, description, onClose }: For
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [currentPage, setCurrentPage] = useState<'info' | 'form' | 'success'>('form');
 
-  // Extract all verified-credential fields from all sections
+  // Extract all verifiable-credential fields from all sections
   const credentialFields = useMemo(() => {
     return schema.sections.flatMap(section =>
-      section.fields.filter(field => field.type === 'verified-credential')
+      section.fields.filter(field => field.type === 'verifiable-credential')
     );
   }, [schema.sections]);
 

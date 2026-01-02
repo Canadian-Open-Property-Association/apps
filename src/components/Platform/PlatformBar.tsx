@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import AppSwitcher from './AppSwitcher';
 
 interface PlatformBarProps {
   appName?: string;
@@ -62,13 +63,16 @@ export default function PlatformBar({ appName, appIcon }: PlatformBarProps) {
         </div>
       </div>
 
-      {/* Right: User Dropdown */}
-      {isAuthenticated && user && (
-        <div className="relative" ref={dropdownRef}>
-          <button
-            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-gray-200 transition-colors"
-          >
+      {/* Right: App Switcher + User Dropdown */}
+      <div className="flex items-center gap-2">
+        {isAuthenticated && <AppSwitcher />}
+
+        {isAuthenticated && user && (
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-gray-200 transition-colors"
+            >
             <img
               src={user.avatar_url}
               alt={user.login}
@@ -112,7 +116,8 @@ export default function PlatformBar({ appName, appIcon }: PlatformBarProps) {
             </div>
           )}
         </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

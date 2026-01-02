@@ -48,6 +48,7 @@ const CONTEXT_FOLDER_PATH = process.env.CONTEXT_FOLDER_PATH || 'credentials/cont
 const ENTITY_FOLDER_PATH = process.env.ENTITY_FOLDER_PATH || 'credentials/entities';
 const VOCAB_FOLDER_PATH = process.env.VOCAB_FOLDER_PATH || 'credentials/contexts';
 const HARMONIZATION_FOLDER_PATH = process.env.HARMONIZATION_FOLDER_PATH || 'credentials/harmonization';
+const BADGE_FOLDER_PATH = process.env.BADGE_FOLDER_PATH || 'credentials/badges';
 const BASE_URL = process.env.BASE_URL || 'https://openpropertyassociation.ca';
 // Base branch for PRs - if set, use this instead of repo's default branch
 const GITHUB_BASE_BRANCH = process.env.GITHUB_BASE_BRANCH || null;
@@ -1508,6 +1509,75 @@ Created by @${user.login} using the [Cornerstone Network Apps](https://apps.open
   } catch (error) {
     console.error('Error creating Asset PR:', error);
     res.status(500).json({ error: error.message || 'Failed to create asset pull request' });
+  }
+});
+
+// ========================
+// Badge Library Endpoints
+// ========================
+
+// List badge files from the repository
+router.get('/badge-library', requireAuth, async (req, res) => {
+  try {
+    const octokit = getOctokit(req);
+
+    // Get contents of the badges folder
+    const { data: contents } = await octokit.rest.repos.getContent({
+      owner: GITHUB_REPO_OWNER,
+      repo: GITHUB_REPO_NAME,
+      path: BADGE_FOLDER_PATH,
+      ...(GITHUB_BASE_BRANCH && { ref: GITHUB_BASE_BRANCH }),
+    });
+
+    // Filter for JSON files only
+    const badgeFiles = contents
+      .filter((file) => file.type === 'file' && file.name.endsWith('.json'))
+      .map((file) => ({
+        name: file.name,
+        path: file.path,
+        sha: file.sha,
+        download_url: file.download_url,
+      }));
+
+    res.json(badgeFiles);
+  } catch (error) {
+    if (error.status === 404) {
+      // Folder doesn't exist or is empty
+      return res.json([]);
+    }
+    console.error('Error fetching badge library:', error);
+    res.status(500).json({ error: 'Failed to fetch badge library' });
+  }
+});
+
+// Get a specific badge file content
+router.get('/badge/:filename', requireAuth, async (req, res) => {
+  try {
+    const { filename } = req.params;
+    const octokit = getOctokit(req);
+
+    const { data } = await octokit.rest.repos.getContent({
+      owner: GITHUB_REPO_OWNER,
+      repo: GITHUB_REPO_NAME,
+      path: `${BADGE_FOLDER_PATH}/${filename}`,
+      ...(GITHUB_BASE_BRANCH && { ref: GITHUB_BASE_BRANCH }),
+    });
+
+    // Decode base64 content
+    const content = Buffer.from(data.content, 'base64').toString('utf-8');
+    const badge = JSON.parse(content);
+
+    res.json({
+      filename: data.name,
+      sha: data.sha,
+      content: badge,
+    });
+  } catch (error) {
+    if (error.status === 404) {
+      return res.status(404).json({ error: 'Badge file not found' });
+    }
+    console.error('Error fetching badge file:', error);
+    res.status(500).json({ error: 'Failed to fetch badge file' });
   }
 });
 
