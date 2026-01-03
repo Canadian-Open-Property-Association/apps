@@ -4,7 +4,6 @@ import { useBadgesSettingsStore } from '../../../store/badgesSettingsStore';
 import { generateBadgeId } from '../../../types/badge';
 import RuleBuilder from './RuleBuilder';
 import EvidenceBuilder from './EvidenceBuilder';
-import PublishBadgeModal from './PublishBadgeModal';
 
 type Tab = 'basic' | 'rules' | 'evidence';
 
@@ -12,54 +11,17 @@ export default function BadgeForm() {
   const {
     currentBadge,
     updateCurrentBadge,
-    saveCurrentBadge,
-    discardChanges,
     isDirty,
-    deleteBadge,
   } = useBadgeStore();
 
   const { settings } = useBadgesSettingsStore();
 
   const [activeTab, setActiveTab] = useState<Tab>('basic');
-  const [isSaving, setIsSaving] = useState(false);
-  const [showPublishModal, setShowPublishModal] = useState(false);
 
   if (!currentBadge) return null;
 
   const categories = settings?.categories || [];
   const proofMethods = settings?.proofMethods || [];
-
-  const handleSave = async () => {
-    if (!currentBadge.id || !currentBadge.name) {
-      alert('Badge ID and name are required');
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      await saveCurrentBadge();
-    } catch (error) {
-      console.error('Failed to save badge:', error);
-      alert('Failed to save badge. Please try again.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!currentBadge.id) return;
-
-    if (!confirm(`Are you sure you want to delete "${currentBadge.name}"? This cannot be undone.`)) {
-      return;
-    }
-
-    try {
-      await deleteBadge(currentBadge.id);
-    } catch (error) {
-      console.error('Failed to delete badge:', error);
-      alert('Failed to delete badge. Please try again.');
-    }
-  };
 
   const handleNameChange = (name: string) => {
     updateCurrentBadge('name', name);
@@ -117,60 +79,25 @@ export default function BadgeForm() {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-gray-200 bg-white">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold text-gray-900">
-              {currentBadge.name || 'New Badge'}
-            </h2>
-            {isDirty && (
-              <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded">
-                Unsaved changes
-              </span>
-            )}
-            {currentBadge.status === 'published' && (
-              <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded">
-                Published
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            {currentBadge.id && currentBadge.status !== 'published' && (
-              <button
-                onClick={handleDelete}
-                className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-              >
-                Delete
-              </button>
-            )}
-            {isDirty && (
-              <button
-                onClick={discardChanges}
-                className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                Discard
-              </button>
-            )}
-            <button
-              onClick={handleSave}
-              disabled={isSaving || !isDirty}
-              className="px-4 py-1.5 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-lg transition-colors"
-            >
-              {isSaving ? 'Saving...' : 'Save Draft'}
-            </button>
-            {currentBadge.id && currentBadge.status === 'draft' && (
-              <button
-                onClick={() => setShowPublishModal(true)}
-                className="px-4 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
-              >
-                Publish to VDR
-              </button>
-            )}
-          </div>
+      <div className="px-4 py-3 border-b border-gray-200 bg-white">
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold text-gray-900">
+            {currentBadge.name || 'New Badge'}
+          </h2>
+          {isDirty && (
+            <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded">
+              Unsaved
+            </span>
+          )}
+          {currentBadge.status === 'published' && (
+            <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded">
+              Published
+            </span>
+          )}
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mt-4 -mb-4">
+        <div className="flex gap-1 mt-3 -mb-3">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -302,14 +229,6 @@ export default function BadgeForm() {
 
         {activeTab === 'evidence' && <EvidenceBuilder />}
       </div>
-
-      {/* Publish Modal */}
-      {showPublishModal && currentBadge.id && (
-        <PublishBadgeModal
-          badgeId={currentBadge.id}
-          onClose={() => setShowPublishModal(false)}
-        />
-      )}
     </div>
   );
 }

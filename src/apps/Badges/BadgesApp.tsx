@@ -322,74 +322,61 @@ export default function BadgesApp() {
       {/* Main Content - Responsive Panel Layout */}
       <main className="flex-1 flex overflow-hidden">
         {/* Left Panel - Form Input */}
-        {(mobileActivePanel === 'form' || showFormPanel) && (
-          <div
-            className={`
-              flex-col bg-white overflow-y-auto
-              ${mobileActivePanel === 'form' ? 'flex w-full' : 'hidden'}
-              ${showFormPanel ? 'md:flex' : 'md:hidden'}
-              ${!showJsonPanel && !showPreviewPanel ? 'flex-1' : 'flex-shrink-0'}
-            `}
-            style={{
-              width:
-                mobileActivePanel === 'form'
-                  ? '100%'
-                  : !showJsonPanel && !showPreviewPanel
-                  ? undefined
-                  : `${formPanelWidth}px`,
-            }}
-          >
-            <BadgeForm />
-          </div>
-        )}
+        <div
+          className={`
+            flex-col bg-white overflow-y-auto flex-shrink-0
+            ${mobileActivePanel === 'form' ? 'flex' : 'hidden'}
+            ${showFormPanel ? 'md:flex' : 'md:hidden'}
+          `}
+          style={{
+            width: showFormPanel ? `${formPanelWidth}px` : undefined,
+          }}
+        >
+          <BadgeForm />
+        </div>
 
-        {/* Resizable divider after Form panel - shows when Form is visible */}
-        {showFormPanel && <ResizableDivider onDrag={handleFormDividerDrag} />}
+        {/* Resizable divider after Form panel */}
+        {showFormPanel && (showJsonPanel || showPreviewPanel) && (
+          <ResizableDivider onDrag={handleFormDividerDrag} />
+        )}
 
         {/* Middle Panel - JSON Preview */}
-        {(mobileActivePanel === 'json' || showJsonPanel) && (
-          <div
-            className={`
-              flex-col bg-gray-900 overflow-y-auto
-              ${mobileActivePanel === 'json' ? 'flex w-full' : 'hidden'}
-              ${showJsonPanel ? 'md:flex' : 'md:hidden'}
-              ${!showPreviewPanel ? 'flex-1' : 'flex-shrink-0'}
-            `}
-            style={{
-              width:
-                mobileActivePanel === 'json'
-                  ? '100%'
-                  : !showPreviewPanel
-                  ? undefined
-                  : `${jsonPanelWidth}px`,
-            }}
-          >
-            <div className="sticky top-0 bg-gray-800 px-4 py-2 border-b border-gray-700 flex-shrink-0">
-              <h2 className="text-white font-medium">Badge JSON</h2>
-            </div>
-            <BadgeJsonPreview />
+        <div
+          className={`
+            flex-col bg-gray-900 overflow-y-auto flex-shrink-0
+            ${mobileActivePanel === 'json' ? 'flex' : 'hidden'}
+            ${showJsonPanel ? 'md:flex' : 'md:hidden'}
+            ${!showPreviewPanel && showJsonPanel ? 'md:flex-1' : ''}
+          `}
+          style={{
+            width: showJsonPanel && showPreviewPanel ? `${jsonPanelWidth}px` : undefined,
+          }}
+        >
+          <div className="sticky top-0 bg-gray-800 px-4 py-2 border-b border-gray-700 flex-shrink-0">
+            <h2 className="text-white font-medium">Badge JSON</h2>
           </div>
-        )}
+          <BadgeJsonPreview />
+        </div>
 
-        {/* Resizable divider after JSON panel - shows when JSON is visible */}
-        {showJsonPanel && <ResizableDivider onDrag={handleJsonDividerDrag} />}
+        {/* Resizable divider after JSON panel */}
+        {showJsonPanel && showPreviewPanel && (
+          <ResizableDivider onDrag={handleJsonDividerDrag} />
+        )}
 
         {/* Right Panel - Badge Preview */}
-        {(mobileActivePanel === 'preview' || showPreviewPanel) && (
-          <div
-            className={`
-              flex-col flex-1 bg-gray-50 overflow-y-auto transition-all duration-300
-              ${mobileActivePanel === 'preview' ? 'flex w-full' : 'hidden'}
-              ${showPreviewPanel ? 'md:flex' : 'md:hidden'}
-            `}
-          >
-            {/* Preview Header */}
-            <div className="sticky top-0 z-10 bg-white px-4 py-2 border-b border-gray-200">
-              <h2 className="font-medium text-gray-800">Badge Preview</h2>
-            </div>
-            <BadgePreview />
+        <div
+          className={`
+            flex-col flex-1 bg-gray-50 overflow-y-auto
+            ${mobileActivePanel === 'preview' ? 'flex' : 'hidden'}
+            ${showPreviewPanel ? 'md:flex' : 'md:hidden'}
+          `}
+        >
+          {/* Preview Header */}
+          <div className="sticky top-0 z-10 bg-white px-4 py-2 border-b border-gray-200">
+            <h2 className="font-medium text-gray-800">Badge Preview</h2>
           </div>
-        )}
+          <BadgePreview />
+        </div>
       </main>
     </div>
   );
