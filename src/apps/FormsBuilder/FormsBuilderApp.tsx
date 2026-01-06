@@ -13,7 +13,7 @@ import SubmissionsList from './components/SubmissionsList';
 import SubmissionDetail from './components/SubmissionDetail';
 
 export default function FormsBuilderApp() {
-  useAppTracking('forms-builder', 'Forms Builder');
+  useAppTracking('proofs-template-builder', 'Proofs Template Builder');
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
