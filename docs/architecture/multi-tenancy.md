@@ -91,17 +91,96 @@ These remain shared across all tenants:
 
 ---
 
+## Current Implementation: Tenant Configuration
+
+### Single-Tenant Configuration (Implemented)
+
+A `tenant-config.json` file stores ecosystem-specific settings:
+
+```
+/var/data/                          # ASSETS_PATH
+├── tenant-config.json              # Ecosystem configuration
+├── orbit-settings.json             # Orbit API credentials
+└── ...
+```
+
+**Configuration Structure**:
+
+```typescript
+interface TenantConfig {
+  ecosystem: {
+    name: string;           // "Cornerstone Network"
+    tagline: string;        // Display tagline
+    logoUrl: string;        // Logo path or URL
+  };
+  github: {
+    owner: string;          // GitHub organization
+    repo: string;           // Repository name
+    baseBranch?: string;    // Default branch
+  };
+  vdr: {
+    baseUrl: string;        // VDR base URL
+    paths: {
+      vct: string;          // Credential types path
+      schemas: string;      // JSON schemas path
+      contexts: string;     // JSON-LD contexts path
+      entities: string;     // Entities path
+      badges: string;       // Badges path
+      proofTemplates: string; // Proof templates path
+    };
+  };
+  apps: {
+    enabledApps: string[];  // Apps enabled for this tenant
+  };
+}
+```
+
+**API Endpoints**:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/tenant-config` | Get current configuration |
+| PUT | `/api/admin/tenant-config` | Update full configuration |
+| PUT | `/api/admin/tenant-config/ecosystem` | Update ecosystem settings |
+| PUT | `/api/admin/tenant-config/github` | Update GitHub settings |
+| PUT | `/api/admin/tenant-config/vdr` | Update VDR settings |
+| PUT | `/api/admin/tenant-config/apps` | Update enabled apps |
+
+### Migration to Multi-Tenant
+
+When implementing multi-tenancy, `tenant-config.json` will migrate to per-tenant storage:
+
+**Option A: File-based**
+```
+/var/data/tenants/{slug}/tenant-config.json
+```
+
+**Option B: PostgreSQL (Recommended)**
+```sql
+CREATE TABLE tenants (
+  id UUID PRIMARY KEY,
+  slug VARCHAR(100) UNIQUE NOT NULL,
+  config JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+---
+
 ## Proposed Data Structure
 
 ```
 /var/data/                          # ASSETS_PATH in production
 ├── tenants/
 │   ├── cornerstone/
+│   │   ├── tenant-config.json      # Tenant configuration (from root)
 │   │   ├── orbit-settings.json     # Encrypted Orbit credentials
 │   │   ├── forms.db                # SQLite database
 │   │   ├── uploads/                # Uploaded files
 │   │   └── metadata.json           # Tenant metadata
 │   ├── misa/
+│   │   ├── tenant-config.json
 │   │   ├── orbit-settings.json
 │   │   ├── forms.db
 │   │   └── uploads/

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { SettingsSection } from '../../../types/orbitApis';
 import { useAdminStore } from '../../../store/adminStore';
 
@@ -6,6 +7,42 @@ interface MenuItem {
   label: string;
   icon: React.ReactNode;
 }
+
+// Ecosystem/Building icon
+const EcosystemIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+    />
+  </svg>
+);
+
+// GitHub/Code icon
+const GitHubIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
+    />
+  </svg>
+);
+
+// Apps/Grid icon
+const AppsIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+    />
+  </svg>
+);
 
 // Orbit/Settings icon
 const SettingsIcon = () => (
@@ -50,13 +87,23 @@ const ChartIcon = () => (
 );
 
 const menuItems: MenuItem[] = [
-  { id: 'orbit', label: 'Orbit Configuration', icon: <SettingsIcon /> },
+  { id: 'ecosystem', label: 'Ecosystem', icon: <EcosystemIcon /> },
+  { id: 'github', label: 'GitHub & VDR', icon: <GitHubIcon /> },
+  { id: 'apps', label: 'Apps', icon: <AppsIcon /> },
+  { id: 'orbit', label: 'Orbit APIs', icon: <SettingsIcon /> },
   { id: 'logs', label: 'Access Logs', icon: <LogIcon /> },
   { id: 'analytics', label: 'Analytics', icon: <ChartIcon /> },
 ];
 
 export default function SettingsSidebar() {
-  const { selectedSection, setSelectedSection, orbitConfig } = useAdminStore();
+  const { selectedSection, setSelectedSection, tenantConfig, fetchTenantConfig } = useAdminStore();
+
+  // Fetch tenant config on mount
+  useEffect(() => {
+    if (!tenantConfig) {
+      fetchTenantConfig();
+    }
+  }, [tenantConfig, fetchTenantConfig]);
 
   return (
     <div className="w-64 bg-white border-r border-gray-200 flex-shrink-0 overflow-y-auto">
@@ -92,23 +139,17 @@ export default function SettingsSidebar() {
         })}
       </nav>
 
-      {/* Orbit status footer */}
+      {/* Ecosystem name footer */}
       <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
         <div className="flex items-center gap-2 text-xs">
-          <span
-            className={`w-2 h-2 rounded-full ${
-              orbitConfig?.configured ? 'bg-green-500' : 'bg-amber-500'
-            }`}
-          />
-          <span className="text-gray-600">
-            {orbitConfig?.configured
-              ? `LOB ID: ${orbitConfig.lobId.substring(0, 12)}...`
-              : 'Orbit not configured'}
+          <span className="w-2 h-2 rounded-full bg-green-500" />
+          <span className="text-gray-600 truncate">
+            {tenantConfig?.ecosystem?.name || 'Loading...'}
           </span>
         </div>
-        {orbitConfig?.source && (
+        {tenantConfig?.source && (
           <p className="text-xs text-gray-400 mt-1">
-            Source: {orbitConfig.source === 'file' ? 'Saved config' : 'Environment'}
+            Source: {tenantConfig.source === 'file' ? 'Saved config' : 'Defaults'}
           </p>
         )}
       </div>

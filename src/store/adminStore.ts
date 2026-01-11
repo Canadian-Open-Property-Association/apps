@@ -7,6 +7,7 @@ import {
   ApisConfig,
   ApiSettings,
 } from '../types/orbitApis';
+import type { TenantConfig } from '../types/tenantConfig';
 
 const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:5174';
 
@@ -162,6 +163,20 @@ interface AdminState {
   orbitTestResult: OrbitTestResult | null;
   isOrbitTesting: boolean;
   clearOrbitTestResult: () => void;
+
+  // Tenant Configuration state
+  tenantConfig: TenantConfig | null;
+  isTenantConfigLoading: boolean;
+  tenantConfigError: string | null;
+
+  // Tenant Configuration actions
+  fetchTenantConfig: () => Promise<void>;
+  updateTenantConfig: (config: Partial<TenantConfig>) => Promise<boolean>;
+  updateEcosystemConfig: (ecosystem: TenantConfig['ecosystem']) => Promise<boolean>;
+  updateGitHubConfig: (github: TenantConfig['github']) => Promise<boolean>;
+  updateVdrConfig: (vdr: TenantConfig['vdr']) => Promise<boolean>;
+  updateAppsConfig: (apps: TenantConfig['apps']) => Promise<boolean>;
+  resetTenantConfig: () => Promise<void>;
 }
 
 // Helper to get default date range (last 7 days)
@@ -214,6 +229,11 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   // Legacy test result state
   orbitTestResult: null,
   isOrbitTesting: false,
+
+  // Tenant Configuration initial state
+  tenantConfig: null,
+  isTenantConfigLoading: false,
+  tenantConfigError: null,
 
   checkAdminStatus: async () => {
     // Don't re-check if already checked
@@ -613,5 +633,222 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
   clearOrbitTestResult: () => {
     set({ orbitTestResult: null });
+  },
+
+  // Tenant Configuration actions
+  fetchTenantConfig: async () => {
+    set({ isTenantConfigLoading: true, tenantConfigError: null });
+
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/tenant-config`, {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch tenant configuration');
+      }
+
+      const data = await response.json();
+      set({
+        tenantConfig: data,
+        isTenantConfigLoading: false,
+      });
+    } catch (error) {
+      set({
+        isTenantConfigLoading: false,
+        tenantConfigError: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  },
+
+  updateTenantConfig: async (config: Partial<TenantConfig>) => {
+    set({ isTenantConfigLoading: true, tenantConfigError: null });
+
+    try {
+      const currentConfig = get().tenantConfig;
+      const mergedConfig = { ...currentConfig, ...config };
+
+      const response = await fetch(`${API_BASE}/api/admin/tenant-config`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(mergedConfig),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update tenant configuration');
+      }
+
+      const data = await response.json();
+      set({
+        tenantConfig: data,
+        isTenantConfigLoading: false,
+      });
+      return true;
+    } catch (error) {
+      set({
+        isTenantConfigLoading: false,
+        tenantConfigError: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return false;
+    }
+  },
+
+  updateEcosystemConfig: async (ecosystem: TenantConfig['ecosystem']) => {
+    set({ isTenantConfigLoading: true, tenantConfigError: null });
+
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/tenant-config/ecosystem`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(ecosystem),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update ecosystem configuration');
+      }
+
+      const data = await response.json();
+      set({
+        tenantConfig: data,
+        isTenantConfigLoading: false,
+      });
+      return true;
+    } catch (error) {
+      set({
+        isTenantConfigLoading: false,
+        tenantConfigError: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return false;
+    }
+  },
+
+  updateGitHubConfig: async (github: TenantConfig['github']) => {
+    set({ isTenantConfigLoading: true, tenantConfigError: null });
+
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/tenant-config/github`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(github),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update GitHub configuration');
+      }
+
+      const data = await response.json();
+      set({
+        tenantConfig: data,
+        isTenantConfigLoading: false,
+      });
+      return true;
+    } catch (error) {
+      set({
+        isTenantConfigLoading: false,
+        tenantConfigError: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return false;
+    }
+  },
+
+  updateVdrConfig: async (vdr: TenantConfig['vdr']) => {
+    set({ isTenantConfigLoading: true, tenantConfigError: null });
+
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/tenant-config/vdr`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(vdr),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update VDR configuration');
+      }
+
+      const data = await response.json();
+      set({
+        tenantConfig: data,
+        isTenantConfigLoading: false,
+      });
+      return true;
+    } catch (error) {
+      set({
+        isTenantConfigLoading: false,
+        tenantConfigError: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return false;
+    }
+  },
+
+  updateAppsConfig: async (apps: TenantConfig['apps']) => {
+    set({ isTenantConfigLoading: true, tenantConfigError: null });
+
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/tenant-config/apps`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(apps),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update apps configuration');
+      }
+
+      const data = await response.json();
+      set({
+        tenantConfig: data,
+        isTenantConfigLoading: false,
+      });
+      return true;
+    } catch (error) {
+      set({
+        isTenantConfigLoading: false,
+        tenantConfigError: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return false;
+    }
+  },
+
+  resetTenantConfig: async () => {
+    set({ isTenantConfigLoading: true, tenantConfigError: null });
+
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/tenant-config`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reset tenant configuration');
+      }
+
+      // Refetch to get default config
+      await get().fetchTenantConfig();
+    } catch (error) {
+      set({
+        isTenantConfigLoading: false,
+        tenantConfigError: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
   },
 }));

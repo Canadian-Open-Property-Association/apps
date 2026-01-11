@@ -34,6 +34,15 @@ import {
   testOrbitConnection,
   testApiConnection,
 } from './lib/orbitConfig.js';
+import {
+  getTenantConfig,
+  saveTenantConfig,
+  updateEcosystemConfig,
+  updateGitHubConfig,
+  updateVdrConfig,
+  updateAppsConfig,
+  resetTenantConfig,
+} from './lib/tenantConfig.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -988,6 +997,117 @@ app.delete('/api/zone-templates/:id', requireProjectAuth, (req, res) => {
 // Check if current user is admin
 app.get('/api/admin/check', requireProjectAuth, (req, res) => {
   res.json({ isAdmin: isAdmin(req) });
+});
+
+// =============================================================================
+// Tenant Configuration (admin only)
+// =============================================================================
+
+// Get tenant configuration
+app.get('/api/admin/tenant-config', requireProjectAuth, requireAdmin, (req, res) => {
+  try {
+    const config = getTenantConfig();
+    res.json(config);
+  } catch (error) {
+    console.error('Error getting tenant config:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update full tenant configuration
+app.put('/api/admin/tenant-config', requireProjectAuth, requireAdmin, (req, res) => {
+  try {
+    const username = req.session?.user?.login || 'unknown';
+    const config = saveTenantConfig(req.body, username);
+
+    // Log the configuration change
+    logAccess(req.session?.user?.id || 'unknown', username, 'tenant_config_update', 'settings');
+
+    res.json(config);
+  } catch (error) {
+    console.error('Error saving tenant config:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update just ecosystem configuration
+app.put('/api/admin/tenant-config/ecosystem', requireProjectAuth, requireAdmin, (req, res) => {
+  try {
+    const username = req.session?.user?.login || 'unknown';
+    const config = updateEcosystemConfig(req.body, username);
+
+    logAccess(req.session?.user?.id || 'unknown', username, 'tenant_ecosystem_update', 'settings');
+
+    res.json(config);
+  } catch (error) {
+    console.error('Error saving ecosystem config:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update just GitHub configuration
+app.put('/api/admin/tenant-config/github', requireProjectAuth, requireAdmin, (req, res) => {
+  try {
+    const username = req.session?.user?.login || 'unknown';
+    const config = updateGitHubConfig(req.body, username);
+
+    logAccess(req.session?.user?.id || 'unknown', username, 'tenant_github_update', 'settings');
+
+    res.json(config);
+  } catch (error) {
+    console.error('Error saving GitHub config:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update just VDR configuration
+app.put('/api/admin/tenant-config/vdr', requireProjectAuth, requireAdmin, (req, res) => {
+  try {
+    const username = req.session?.user?.login || 'unknown';
+    const config = updateVdrConfig(req.body, username);
+
+    logAccess(req.session?.user?.id || 'unknown', username, 'tenant_vdr_update', 'settings');
+
+    res.json(config);
+  } catch (error) {
+    console.error('Error saving VDR config:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update just apps configuration
+app.put('/api/admin/tenant-config/apps', requireProjectAuth, requireAdmin, (req, res) => {
+  try {
+    const username = req.session?.user?.login || 'unknown';
+    const config = updateAppsConfig(req.body, username);
+
+    logAccess(req.session?.user?.id || 'unknown', username, 'tenant_apps_update', 'settings');
+
+    res.json(config);
+  } catch (error) {
+    console.error('Error saving apps config:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reset tenant configuration to defaults
+app.delete('/api/admin/tenant-config', requireProjectAuth, requireAdmin, (req, res) => {
+  try {
+    const deleted = resetTenantConfig();
+    const username = req.session?.user?.login || 'unknown';
+
+    if (deleted) {
+      logAccess(req.session?.user?.id || 'unknown', username, 'tenant_config_reset', 'settings');
+    }
+
+    res.json({
+      success: true,
+      message: deleted ? 'Configuration reset to defaults' : 'No custom configuration to reset',
+    });
+  } catch (error) {
+    console.error('Error resetting tenant config:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // =============================================================================

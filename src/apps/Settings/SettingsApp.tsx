@@ -7,6 +7,9 @@ import Pagination from './components/Pagination';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import SettingsSidebar from './components/SettingsSidebar';
 import OrbitConfigPanel from './components/OrbitConfigPanel';
+import EcosystemConfigPanel from './components/EcosystemConfigPanel';
+import GitHubVdrConfigPanel from './components/GitHubVdrConfigPanel';
+import AppsConfigPanel from './components/AppsConfigPanel';
 
 export default function SettingsApp() {
   // Track app access
@@ -56,7 +59,22 @@ export default function SettingsApp() {
 
   // Render the appropriate content panel based on selected section
   const renderContent = () => {
-    // Orbit Configuration panel
+    // Ecosystem Configuration panel
+    if (selectedSection === 'ecosystem') {
+      return <EcosystemConfigPanel />;
+    }
+
+    // GitHub & VDR Configuration panel
+    if (selectedSection === 'github') {
+      return <GitHubVdrConfigPanel />;
+    }
+
+    // Apps Configuration panel
+    if (selectedSection === 'apps') {
+      return <AppsConfigPanel />;
+    }
+
+    // Orbit APIs panel
     if (selectedSection === 'orbit') {
       return <OrbitConfigPanel />;
     }

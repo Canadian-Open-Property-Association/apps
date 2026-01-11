@@ -149,7 +149,7 @@ export interface OrbitTestResult {
 /**
  * Settings section types for sidebar navigation
  */
-export type SettingsSection = 'orbit' | 'logs' | 'analytics';
+export type SettingsSection = 'ecosystem' | 'github' | 'apps' | 'orbit' | 'logs' | 'analytics';
 
 /**
  * Get default empty APIs config

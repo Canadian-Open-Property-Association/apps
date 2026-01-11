@@ -1,5 +1,13 @@
-import { useState } from 'react';
+/**
+ * Save to Repository Modal
+ *
+ * Allows users to create a pull request to save a VCT to the governance repository.
+ * Uses VDR paths from tenant configuration to determine the destination folder.
+ */
+
+import { useState, useEffect } from 'react';
 import { useVctStore } from '../../store/vctStore';
+import { useVdrPaths } from '../../hooks/useVdrPaths';
 
 interface SaveToRepoModalProps {
   isOpen: boolean;
@@ -19,6 +27,21 @@ export default function SaveToRepoModal({ isOpen, onClose }: SaveToRepoModalProp
   const currentVct = useVctStore((state) => state.currentVct);
   const currentProjectName = useVctStore((state) => state.currentProjectName);
 
+  // Get VDR paths from tenant configuration
+  const { getPath, getFullUrl, getBasePath, ensureConfigLoaded } = useVdrPaths();
+
+  // Ensure tenant config is loaded when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      ensureConfigLoaded();
+    }
+  }, [isOpen, ensureConfigLoaded]);
+
+  // Get the computed filename and path
+  const computedFilename = filename || currentProjectName.toLowerCase().replace(/\s+/g, '-');
+  const fullPath = getPath('vct', `${computedFilename}.json`);
+  const fullUrl = getFullUrl('vct', `${computedFilename}.json`);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -33,7 +56,8 @@ export default function SaveToRepoModal({ isOpen, onClose }: SaveToRepoModalProp
         },
         credentials: 'include',
         body: JSON.stringify({
-          filename: filename || currentProjectName.toLowerCase().replace(/\s+/g, '-'),
+          filename: computedFilename,
+          path: getBasePath('vct'), // Include VDR path from tenant config
           content: currentVct,
           title: title || `Add VCT: ${currentVct.name || currentProjectName}`,
           description,
@@ -130,7 +154,10 @@ export default function SaveToRepoModal({ isOpen, onClose }: SaveToRepoModalProp
                 </span>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Leave blank to use project name
+                Will be saved to: <code className="bg-gray-100 px-1 rounded">{fullPath}</code>
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Public URL: <code className="bg-gray-100 px-1 rounded">{fullUrl}</code>
               </p>
             </div>
 
