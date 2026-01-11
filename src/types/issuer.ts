@@ -60,7 +60,10 @@ export interface CredentialOffer {
 export type CredentialOfferStatus =
   | 'pending'      // Offer created, awaiting wallet scan
   | 'scanned'      // QR code scanned by wallet
-  | 'claimed'      // Credential successfully issued
+  | 'accepted'     // Offer accepted by wallet (from socket event)
+  | 'issued'       // Credential issued by Orbit (from socket event)
+  | 'claimed'      // Credential successfully issued (legacy)
+  | 'completed'    // Exchange completed (from socket event)
   | 'expired'      // Offer expired without being claimed
   | 'failed';      // Issuance failed
 

@@ -7,7 +7,7 @@
  * - Settings: Global settings for this API
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAdminStore } from '../../../store/adminStore';
 import {
   ORBIT_APIS,
@@ -57,22 +57,33 @@ export default function OrbitApiDetail({ apiType }: OrbitApiDetailProps) {
   const [settings, setSettings] = useState<ApiSettings>({});
   const [hasSettingsChanges, setHasSettingsChanges] = useState(false);
 
-  // Load current config
+  // Track if we're in the middle of saving to prevent race conditions
+  const isSavingRef = useRef(false);
+  // Track the current apiType to prevent stale closures
+  const apiTypeRef = useRef(apiType);
+  apiTypeRef.current = apiType;
+
+  // Reset state when switching APIs
   useEffect(() => {
-    if (apiConfig) {
-      setBaseUrl(apiConfig.baseUrl || '');
-      setSettings(apiConfig.settings || {});
-      setHasChanges(false);
-      setHasSettingsChanges(false);
-    }
-  }, [apiConfig]);
+    // Reset local state when apiType changes
+    const config = orbitConfig?.apis?.[apiType];
+    setBaseUrl(config?.baseUrl || '');
+    setSettings(config?.settings || {});
+    setHasChanges(false);
+    setHasSettingsChanges(false);
+    setSuccessMessage(null);
+    setExpandedEndpoint(null);
+  }, [apiType, orbitConfig?.apis]);
 
   // Auto-fetch Swagger when URL is configured and we don't have it cached
   useEffect(() => {
-    if (apiConfig?.baseUrl && !swaggerSpec && !isSwaggerLoading && !swaggerErr) {
-      fetchSwaggerSpec(apiType, apiConfig.baseUrl);
+    // Only fetch if we're not saving and have a valid URL
+    if (!isSavingRef.current && apiConfig?.baseUrl && !swaggerSpec && !isSwaggerLoading && !swaggerErr) {
+      // Use the ref to ensure we're fetching for the correct apiType
+      const currentApiType = apiTypeRef.current;
+      fetchSwaggerSpec(currentApiType, apiConfig.baseUrl);
     }
-  }, [apiConfig?.baseUrl, swaggerSpec, isSwaggerLoading, swaggerErr, apiType, fetchSwaggerSpec]);
+  }, [apiConfig?.baseUrl, swaggerSpec, isSwaggerLoading, swaggerErr, fetchSwaggerSpec]);
 
   const handleBaseUrlChange = (value: string) => {
     setBaseUrl(value);
@@ -89,26 +100,50 @@ export default function OrbitApiDetail({ apiType }: OrbitApiDetailProps) {
   const handleSave = async () => {
     setSuccessMessage(null);
 
-    const success = await updateApiConfig(apiType, baseUrl, settings);
-    if (success) {
-      setSuccessMessage('Configuration saved');
-      setHasChanges(false);
-      setHasSettingsChanges(false);
+    // Capture current values to prevent stale closures
+    const currentApiType = apiTypeRef.current;
+    const urlToSave = baseUrl.trim();
+    const settingsToSave = { ...settings };
 
-      // Fetch Swagger spec if URL changed and we have a URL
-      if (baseUrl) {
-        fetchSwaggerSpec(apiType, baseUrl);
+    // Validate URL format
+    if (urlToSave && !urlToSave.match(/^https?:\/\/.+/)) {
+      setSuccessMessage(null);
+      return;
+    }
+
+    // Set saving flag to prevent race conditions
+    isSavingRef.current = true;
+
+    try {
+      const success = await updateApiConfig(currentApiType, urlToSave, settingsToSave);
+      if (success) {
+        setSuccessMessage('Configuration saved');
+        setHasChanges(false);
+        setHasSettingsChanges(false);
+
+        // Fetch Swagger spec if URL changed and we have a URL
+        // Use the captured values, not the state
+        if (urlToSave) {
+          // Small delay to ensure store has updated
+          setTimeout(() => {
+            fetchSwaggerSpec(currentApiType, urlToSave);
+          }, 100);
+        }
       }
+    } finally {
+      isSavingRef.current = false;
     }
   };
 
   const handleTestConnection = () => {
-    testApiConnection(apiType, baseUrl);
+    const currentApiType = apiTypeRef.current;
+    testApiConnection(currentApiType, baseUrl);
   };
 
   const handleRefreshSwagger = () => {
+    const currentApiType = apiTypeRef.current;
     if (baseUrl) {
-      fetchSwaggerSpec(apiType, baseUrl);
+      fetchSwaggerSpec(currentApiType, baseUrl);
     }
   };
 

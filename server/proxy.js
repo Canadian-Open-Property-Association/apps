@@ -1618,6 +1618,76 @@ app.get('/api/orbit/config', requireProjectAuth, (req, res) => {
   }
 });
 
+// =============================================================================
+// Socket Session Registration (for test apps)
+// =============================================================================
+
+/**
+ * Register a socket session with Orbit RegisterSocket API
+ * Used by Test Issuer, Test Verifier, and other apps that need real-time events
+ *
+ * Returns: { socketSessionId, websocketUrl }
+ * Returns 503 if RegisterSocket API is not configured
+ */
+app.post('/api/socket/register', requireProjectAuth, async (req, res) => {
+  try {
+    const registerSocketConfig = getOrbitApiConfig('registerSocket');
+
+    if (!registerSocketConfig?.baseUrl) {
+      return res.status(503).json({
+        error: 'RegisterSocket API not configured',
+        message: 'Configure the RegisterSocket API Base URL in Settings.',
+      });
+    }
+
+    if (!registerSocketConfig.lobId) {
+      return res.status(503).json({
+        error: 'Orbit credentials not configured',
+        message: 'Configure LOB ID and API Key in Settings.',
+      });
+    }
+
+    // Call Orbit RegisterSocket API to register a new session
+    const registerUrl = `${registerSocketConfig.baseUrl}/api/lob/${registerSocketConfig.lobId}/socket/register`;
+
+    const response = await fetch(registerUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': registerSocketConfig.apiKey || '',
+        'x-lob-id': registerSocketConfig.lobId,
+      },
+      body: JSON.stringify({
+        clientType: 'webapp',
+        userId: String(req.session.user.id),
+        username: req.session.user.login,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Socket registration failed:', response.status, errorText);
+      return res.status(response.status).json({
+        error: 'Socket registration failed',
+        message: `Orbit API returned ${response.status}`,
+      });
+    }
+
+    const data = await response.json();
+
+    // Log the socket registration
+    logAccess(req.session?.user?.id || 'unknown', req.session?.user?.login || 'unknown', 'socket_register', 'system');
+
+    res.json({
+      socketSessionId: data.socketSessionId || data.sessionId,
+      websocketUrl: data.websocketUrl || data.wsUrl,
+    });
+  } catch (error) {
+    console.error('Error registering socket session:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get access logs (admin only)
 app.get('/api/admin/logs', requireProjectAuth, requireAdmin, (req, res) => {
   try {

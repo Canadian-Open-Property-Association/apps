@@ -56,14 +56,17 @@ export default function OfferDetail() {
   };
 
   const getStatusDisplay = (status: CredentialOfferStatus) => {
-    const configs = {
+    const configs: Record<string, { bg: string; text: string; label: string; icon: string }> = {
       pending: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Pending', icon: '🕐' },
       scanned: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Scanned', icon: '📲' },
+      accepted: { bg: 'bg-indigo-100', text: 'text-indigo-800', label: 'Accepted', icon: '✓' },
+      issued: { bg: 'bg-teal-100', text: 'text-teal-800', label: 'Issued', icon: '📤' },
       claimed: { bg: 'bg-green-100', text: 'text-green-800', label: 'Claimed', icon: '✓' },
+      completed: { bg: 'bg-green-100', text: 'text-green-800', label: 'Completed', icon: '✓' },
       expired: { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Expired', icon: '⏰' },
       failed: { bg: 'bg-red-100', text: 'text-red-800', label: 'Failed', icon: '✗' },
     };
-    return configs[status];
+    return configs[status] || configs.pending;
   };
 
   if (isLoading && !offer) {

@@ -8,6 +8,7 @@ import { create } from 'zustand';
 import type {
   CredentialSchema,
   CredentialOffer,
+  CredentialOfferStatus,
   CatalogEntry,
   OrbitConfig,
   CreateCredentialOfferRequest,
@@ -42,6 +43,7 @@ interface TestIssuerState {
   createOffer: (request: CreateCredentialOfferRequest) => Promise<CredentialOffer>;
   cancelOffer: (id: string) => Promise<void>;
   refreshOfferStatus: (id: string) => Promise<CredentialOffer>;
+  updateOfferStatusFromSocket: (offerId: string, status: CredentialOfferStatus) => void;
 
   // Actions - Orbit
   checkOrbitConnection: () => Promise<void>;
@@ -319,6 +321,30 @@ export const useTestIssuerStore = create<TestIssuerState>((set) => ({
       });
       throw err;
     }
+  },
+
+  // Socket event handler
+  updateOfferStatusFromSocket: (offerId: string, status: CredentialOfferStatus) => {
+    set((state) => {
+      // Find the offer to update
+      const offerExists = state.offers.some((o) => o.id === offerId);
+      if (!offerExists) {
+        // If offer not in list, might need to refresh
+        return state;
+      }
+
+      const updatedAt = new Date().toISOString();
+
+      return {
+        offers: state.offers.map((o) =>
+          o.id === offerId ? { ...o, status, updatedAt } : o
+        ),
+        currentOffer:
+          state.currentOffer?.id === offerId
+            ? { ...state.currentOffer, status, updatedAt }
+            : state.currentOffer,
+      };
+    });
   },
 
   // Utility

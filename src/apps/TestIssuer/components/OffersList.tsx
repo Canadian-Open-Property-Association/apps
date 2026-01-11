@@ -27,14 +27,17 @@ export default function OffersList() {
   };
 
   const getStatusBadge = (status: CredentialOfferStatus) => {
-    const configs = {
+    const configs: Record<string, { bg: string; text: string; label: string }> = {
       pending: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Pending' },
       scanned: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Scanned' },
+      accepted: { bg: 'bg-indigo-100', text: 'text-indigo-800', label: 'Accepted' },
+      issued: { bg: 'bg-teal-100', text: 'text-teal-800', label: 'Issued' },
       claimed: { bg: 'bg-green-100', text: 'text-green-800', label: 'Claimed' },
+      completed: { bg: 'bg-green-100', text: 'text-green-800', label: 'Completed' },
       expired: { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Expired' },
       failed: { bg: 'bg-red-100', text: 'text-red-800', label: 'Failed' },
     };
-    const config = configs[status];
+    const config = configs[status] || configs.pending;
     return (
       <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${config.bg} ${config.text}`}>
         {config.label}

@@ -18,7 +18,7 @@ const SETTINGS_FILE = 'orbit-settings.json';
 const ALGORITHM = 'aes-256-gcm';
 
 // Valid API types
-const VALID_API_TYPES = ['lob', 'registerSocket', 'connection', 'holder', 'verifier', 'issuer', 'chat'];
+const VALID_API_TYPES = ['lob', 'registerSocket', 'connection', 'holder', 'verifier', 'issuer', 'credentialMgmt', 'chat'];
 
 // Get encryption key from environment or use default for dev
 // In production, ORBIT_ENCRYPTION_KEY should be set
@@ -92,6 +92,7 @@ const DEFAULT_API_SETTINGS = {
   registerSocket: {},
   connection: {},
   holder: {},
+  credentialMgmt: {},
   chat: {},
 };
 
@@ -106,6 +107,7 @@ function getEmptyApisConfig() {
     holder: { baseUrl: '', settings: {} },
     verifier: { baseUrl: '', settings: {} },
     issuer: { baseUrl: '', settings: {} },
+    credentialMgmt: { baseUrl: '', settings: {} },
     chat: { baseUrl: '', settings: {} },
   };
 }
@@ -229,6 +231,7 @@ function readEnvConfig() {
       holder: { baseUrl: '' },
       verifier: { baseUrl: '' },
       issuer: { baseUrl: '' },
+      credentialMgmt: { baseUrl: '' },
       chat: { baseUrl: '' },
     },
     source: 'environment',
