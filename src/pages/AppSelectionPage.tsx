@@ -97,12 +97,17 @@ function CategorySection({ category, apps, onNavigate }: CategorySectionProps) {
 
 export default function AppSelectionPage() {
   const navigate = useNavigate();
-  const { isAdmin, checkAdminStatus } = useAdminStore();
+  const { isAdmin, checkAdminStatus, tenantConfig, fetchTenantConfig } = useAdminStore();
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     checkAdminStatus();
-  }, [checkAdminStatus]);
+    fetchTenantConfig();
+  }, [checkAdminStatus, fetchTenantConfig]);
+
+  // Get ecosystem branding from config
+  const ecosystemName = tenantConfig?.ecosystem?.name || 'Cornerstone Network';
+  const ecosystemTagline = tenantConfig?.ecosystem?.tagline || 'A digital trust toolkit for the Cornerstone Network ecosystem';
 
   // Filter apps - only show admin apps if user is admin
   const visibleApps = useMemo(() => apps.filter((app) => !app.adminOnly || isAdmin), [isAdmin]);
@@ -157,7 +162,7 @@ export default function AppSelectionPage() {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Welcome to Cornerstone Network Apps</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Welcome to {ecosystemName} Apps</h1>
           <p className="mt-2 text-gray-600">Select an application to get started</p>
         </div>
 
@@ -235,7 +240,7 @@ export default function AppSelectionPage() {
 
         {/* Footer */}
         <div className="mt-12 text-center text-sm text-gray-500">
-          <p>Part of the Cornerstone Network Credential Ecosystem</p>
+          <p>{ecosystemTagline}</p>
         </div>
       </div>
     </div>

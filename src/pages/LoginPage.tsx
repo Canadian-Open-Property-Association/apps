@@ -1,10 +1,17 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import { useAdminStore } from '../store/adminStore';
 
 export default function LoginPage() {
   const { isAuthenticated, isLoading, login } = useAuthStore();
+  const { tenantConfig, fetchTenantConfig } = useAdminStore();
   const navigate = useNavigate();
+
+  // Fetch tenant config on mount
+  useEffect(() => {
+    fetchTenantConfig();
+  }, [fetchTenantConfig]);
 
   // Redirect to apps if already authenticated
   useEffect(() => {
@@ -12,6 +19,11 @@ export default function LoginPage() {
       navigate('/apps');
     }
   }, [isAuthenticated, isLoading, navigate]);
+
+  // Get ecosystem branding from config
+  const ecosystemName = tenantConfig?.ecosystem?.name || 'Cornerstone Network';
+  const ecosystemTagline = tenantConfig?.ecosystem?.tagline || 'A digital trust toolkit for the Cornerstone Network ecosystem';
+  const logoUrl = tenantConfig?.ecosystem?.logoUrl || '/cornerstone-logo.png';
 
   if (isLoading) {
     return (
@@ -26,14 +38,12 @@ export default function LoginPage() {
       <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full mx-4">
         <div className="text-center mb-8">
           <img
-            src="/cornerstone-logo.png"
-            alt="Cornerstone"
+            src={logoUrl}
+            alt={ecosystemName}
             className="h-20 w-auto mx-auto mb-4"
           />
-          <h1 className="text-3xl font-bold text-slate-800 mb-2">Cornerstone Network Apps</h1>
-          <p className="text-slate-600">
-            A digital trust toolkit for the Cornerstone Network ecosystem
-          </p>
+          <h1 className="text-3xl font-bold text-slate-800 mb-2">{ecosystemName} Apps</h1>
+          <p className="text-slate-600">{ecosystemTagline}</p>
         </div>
 
         <div className="border-t border-gray-200 pt-6">

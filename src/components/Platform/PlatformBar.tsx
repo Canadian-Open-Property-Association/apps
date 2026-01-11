@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { useAdminStore } from '../../store/adminStore';
 import AppSwitcher from './AppSwitcher';
 
 interface PlatformBarProps {
@@ -12,8 +13,18 @@ export default function PlatformBar({ appName, appIcon }: PlatformBarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuthStore();
+  const { tenantConfig, fetchTenantConfig } = useAdminStore();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fetch tenant config on mount
+  useEffect(() => {
+    fetchTenantConfig();
+  }, [fetchTenantConfig]);
+
+  // Get ecosystem branding from config
+  const ecosystemName = tenantConfig?.ecosystem?.name || 'Cornerstone Network';
+  const logoUrl = tenantConfig?.ecosystem?.logoUrl || '/cornerstone-logo.png';
 
   // Show "Back to Apps" option when not on /apps page
   const showBackToApps = location.pathname !== '/apps';
@@ -55,11 +66,11 @@ export default function PlatformBar({ appName, appIcon }: PlatformBarProps) {
         )}
         <div className="flex items-center gap-2">
           <img
-            src="/cornerstone-logo.png"
-            alt="Cornerstone"
+            src={logoUrl}
+            alt={ecosystemName}
             className="h-8 w-auto"
           />
-          <span className={`font-medium ${appName ? 'text-sm text-gray-500' : 'text-lg text-gray-800 font-semibold'}`}>Cornerstone Network Apps</span>
+          <span className={`font-medium ${appName ? 'text-sm text-gray-500' : 'text-lg text-gray-800 font-semibold'}`}>{ecosystemName} Apps</span>
         </div>
       </div>
 

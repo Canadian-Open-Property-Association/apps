@@ -202,7 +202,7 @@ export const apps: AppCard[] = [
   },
   {
     id: 'proofs-template-builder',
-    name: 'Proof Templates Builder',
+    name: 'Proof Template Builder',
     description: 'Create and publish DIF Presentation Exchange proof templates to the VDR',
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

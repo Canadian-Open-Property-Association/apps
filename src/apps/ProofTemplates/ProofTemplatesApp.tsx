@@ -1,7 +1,7 @@
 /**
- * Proof Templates Builder App
+ * Proof Template Builder App
  *
- * Main app component for the Proof Templates Builder.
+ * Main app component for the Proof Template Builder.
  * Handles internal routing between templates list and template editor.
  */
 
@@ -11,7 +11,7 @@ import TemplatesList from './components/TemplatesList';
 import TemplateBuilder from './components/TemplateBuilder';
 
 export default function ProofTemplatesApp() {
-  useAppTracking('proofs-template-builder', 'Proof Templates Builder');
+  useAppTracking('proofs-template-builder', 'Proof Template Builder');
 
   return (
     <div className="h-full flex flex-col bg-gray-50">

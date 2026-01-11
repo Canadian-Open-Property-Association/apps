@@ -212,9 +212,9 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   analyticsDateRange: getDefaultDateRange(),
 
   // Settings navigation
-  selectedSection: 'orbit',
+  selectedSection: 'ecosystem',
 
-  // Legacy activeTab (computed from selectedSection)
+  // Legacy activeTab (computed from selectedSection) - limited to original values
   activeTab: 'orbit',
 
   // Orbit Configuration initial state

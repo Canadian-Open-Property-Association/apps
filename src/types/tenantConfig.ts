@@ -98,8 +98,14 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
   apps: {
     enabledApps: [
       'vct-builder',
+      'schema-builder',
+      'entity-manager',
       'forms-builder',
       'proof-templates',
+      'badges',
+      'data-dictionary',
+      'data-harmonization',
+      'asset-manager',
       'test-issuer',
       'settings',
     ],
@@ -116,14 +122,44 @@ export const AVAILABLE_APPS = [
     description: 'Design verifiable credential types',
   },
   {
+    id: 'schema-builder',
+    name: 'Schema Builder',
+    description: 'Create JSON schemas for credentials',
+  },
+  {
+    id: 'entity-manager',
+    name: 'Entity Manager',
+    description: 'Manage ecosystem entities and roles',
+  },
+  {
     id: 'forms-builder',
     name: 'Forms Builder',
     description: 'Create forms with VC verification',
   },
   {
     id: 'proof-templates',
-    name: 'Proof Templates',
+    name: 'Proof Template Builder',
     description: 'Build proof request templates',
+  },
+  {
+    id: 'badges',
+    name: 'Badges',
+    description: 'Design achievement badges',
+  },
+  {
+    id: 'data-dictionary',
+    name: 'Data Dictionary',
+    description: 'Define data vocabulary',
+  },
+  {
+    id: 'data-harmonization',
+    name: 'Data Harmonization',
+    description: 'Map data between standards',
+  },
+  {
+    id: 'asset-manager',
+    name: 'Asset Manager',
+    description: 'Manage images and assets',
   },
   {
     id: 'test-issuer',
