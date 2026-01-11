@@ -95,18 +95,6 @@ export default function OrbitApisSidebar() {
           })}
         </div>
       </div>
-
-      {/* Footer with config source */}
-      {orbitConfig?.source && (
-        <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
-          <p className="text-xs text-gray-500">
-            Source:{' '}
-            <span className="font-medium">
-              {orbitConfig.source === 'file' ? 'Saved config' : 'Environment'}
-            </span>
-          </p>
-        </div>
-      )}
     </div>
   );
 }

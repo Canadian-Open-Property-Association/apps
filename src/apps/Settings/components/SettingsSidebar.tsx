@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { SettingsSection } from '../../../types/orbitApis';
 import { useAdminStore } from '../../../store/adminStore';
 
@@ -96,14 +95,7 @@ const menuItems: MenuItem[] = [
 ];
 
 export default function SettingsSidebar() {
-  const { selectedSection, setSelectedSection, tenantConfig, fetchTenantConfig } = useAdminStore();
-
-  // Fetch tenant config on mount
-  useEffect(() => {
-    if (!tenantConfig) {
-      fetchTenantConfig();
-    }
-  }, [tenantConfig, fetchTenantConfig]);
+  const { selectedSection, setSelectedSection } = useAdminStore();
 
   return (
     <div className="w-64 bg-white border-r border-gray-200 flex-shrink-0 overflow-y-auto">
@@ -138,21 +130,6 @@ export default function SettingsSidebar() {
           );
         })}
       </nav>
-
-      {/* Ecosystem name footer */}
-      <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
-        <div className="flex items-center gap-2 text-xs">
-          <span className="w-2 h-2 rounded-full bg-green-500" />
-          <span className="text-gray-600 truncate">
-            {tenantConfig?.ecosystem?.name || 'Loading...'}
-          </span>
-        </div>
-        {tenantConfig?.source && (
-          <p className="text-xs text-gray-400 mt-1">
-            Source: {tenantConfig.source === 'file' ? 'Saved config' : 'Defaults'}
-          </p>
-        )}
-      </div>
     </div>
   );
 }
