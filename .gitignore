@@ -29,3 +29,8 @@ npm-debug.log*
 
 # TypeScript cache
 *.tsbuildinfo
+
+# Secrets and sensitive data (keep out of repo even though encrypted)
+server/assets/
+orbit-settings.json
+*.db

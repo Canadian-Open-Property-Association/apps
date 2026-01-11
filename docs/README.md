@@ -6,6 +6,7 @@ This documentation is intended for developers (human or AI) working on the crede
 
 - [Architecture Overview](architecture/overview.md) - System architecture and tech stack
 - [Apps Structure](architecture/apps.md) - How apps are structured and added
+- [Multi-Tenancy](architecture/multi-tenancy.md) - Future multi-tenant architecture (requirements phase)
 - [Orbit Config Service](orbit-integration/config-service.md) - Centralized Orbit API configuration
 - [Orbit API Types](orbit-integration/api-types.md) - Available Orbit APIs and their purposes
 
@@ -19,6 +20,7 @@ When working on this codebase, reference these docs for context:
 | Adding new apps | `architecture/apps.md` |
 | Understanding the architecture | `architecture/overview.md` |
 | Working with Orbit APIs | `orbit-integration/api-types.md` |
+| Planning multi-tenant features | `architecture/multi-tenancy.md` |
 
 ## Project Structure
 
