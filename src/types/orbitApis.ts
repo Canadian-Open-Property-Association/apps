@@ -99,14 +99,7 @@ export interface OrbitTestResult {
 /**
  * Settings section types for sidebar navigation
  */
-export type SettingsSection = 'credentials' | OrbitApiType | 'logs' | 'analytics';
-
-/**
- * Check if a section is an Orbit API section
- */
-export function isOrbitApiSection(section: SettingsSection): section is OrbitApiType {
-  return section in ORBIT_APIS;
-}
+export type SettingsSection = 'orbit' | 'logs' | 'analytics';
 
 /**
  * Get default empty APIs config

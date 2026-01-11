@@ -1,34 +1,26 @@
-import { ORBIT_APIS, OrbitApiType, SettingsSection, isOrbitApiSection } from '../../../types/orbitApis';
+import { SettingsSection } from '../../../types/orbitApis';
 import { useAdminStore } from '../../../store/adminStore';
 
 interface MenuItem {
   id: SettingsSection;
   label: string;
   icon: React.ReactNode;
-  dividerBefore?: boolean;
-  dividerAfter?: boolean;
 }
 
-// Key icon for credentials
-const KeyIcon = () => (
+// Orbit/Settings icon
+const SettingsIcon = () => (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth={2}
-      d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
     />
-  </svg>
-);
-
-// API/Server icon
-const ApiIcon = () => (
-  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth={2}
-      d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"
+      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
     />
   </svg>
 );
@@ -57,25 +49,14 @@ const ChartIcon = () => (
   </svg>
 );
 
-// Build menu items from ORBIT_APIS
 const menuItems: MenuItem[] = [
-  { id: 'credentials', label: 'Orbit Credentials', icon: <KeyIcon />, dividerAfter: true },
-  ...Object.entries(ORBIT_APIS).map(([key, api]) => ({
-    id: key as OrbitApiType,
-    label: api.label,
-    icon: <ApiIcon />,
-  })),
-  { id: 'logs' as SettingsSection, label: 'Access Logs', icon: <LogIcon />, dividerBefore: true },
-  { id: 'analytics' as SettingsSection, label: 'Analytics', icon: <ChartIcon /> },
+  { id: 'orbit', label: 'Orbit Configuration', icon: <SettingsIcon /> },
+  { id: 'logs', label: 'Access Logs', icon: <LogIcon /> },
+  { id: 'analytics', label: 'Analytics', icon: <ChartIcon /> },
 ];
 
 export default function SettingsSidebar() {
   const { selectedSection, setSelectedSection, orbitConfig } = useAdminStore();
-
-  // Check if an API has a configured baseUrl
-  const isApiConfigured = (apiType: OrbitApiType): boolean => {
-    return !!(orbitConfig?.apis?.[apiType]?.baseUrl);
-  };
 
   return (
     <div className="w-64 bg-white border-r border-gray-200 flex-shrink-0 overflow-y-auto">
@@ -85,54 +66,33 @@ export default function SettingsSidebar() {
       </div>
 
       <nav className="px-2 pb-4">
-        {menuItems.map((item, index) => {
+        {menuItems.map((item) => {
           const isSelected = selectedSection === item.id;
-          const isApiItem = isOrbitApiSection(item.id);
-          const hasConfig = isApiItem ? isApiConfigured(item.id as OrbitApiType) : true;
 
           return (
-            <div key={item.id}>
-              {item.dividerBefore && index > 0 && (
-                <div className="my-2 border-t border-gray-200" />
-              )}
-
-              <button
-                onClick={() => setSelectedSection(item.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                  isSelected
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-700 hover:bg-gray-50'
+            <button
+              key={item.id}
+              onClick={() => setSelectedSection(item.id)}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                isSelected
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <span
+                className={`flex-shrink-0 ${
+                  isSelected ? 'text-blue-600' : 'text-gray-400'
                 }`}
               >
-                <span
-                  className={`flex-shrink-0 ${
-                    isSelected ? 'text-blue-600' : 'text-gray-400'
-                  }`}
-                >
-                  {item.icon}
-                </span>
-                <span className="flex-1 text-sm font-medium truncate">{item.label}</span>
-
-                {/* Status indicator for API items */}
-                {isApiItem && (
-                  <span
-                    className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                      hasConfig ? 'bg-green-500' : 'bg-gray-300'
-                    }`}
-                    title={hasConfig ? 'Configured' : 'Not configured'}
-                  />
-                )}
-              </button>
-
-              {item.dividerAfter && (
-                <div className="my-2 border-t border-gray-200" />
-              )}
-            </div>
+                {item.icon}
+              </span>
+              <span className="flex-1 text-sm font-medium truncate">{item.label}</span>
+            </button>
           );
         })}
       </nav>
 
-      {/* Credentials status footer */}
+      {/* Orbit status footer */}
       <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
         <div className="flex items-center gap-2 text-xs">
           <span
@@ -143,7 +103,7 @@ export default function SettingsSidebar() {
           <span className="text-gray-600">
             {orbitConfig?.configured
               ? `LOB ID: ${orbitConfig.lobId.substring(0, 12)}...`
-              : 'Credentials not configured'}
+              : 'Orbit not configured'}
           </span>
         </div>
         {orbitConfig?.source && (

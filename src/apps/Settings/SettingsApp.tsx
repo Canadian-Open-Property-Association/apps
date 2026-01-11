@@ -1,14 +1,12 @@
 import { useEffect } from 'react';
 import { useAdminStore } from '../../store/adminStore';
 import { useAppTracking } from '../../hooks/useAppTracking';
-import { isOrbitApiSection, OrbitApiType } from '../../types/orbitApis';
 import FilterPanel from './components/FilterPanel';
 import LogsTable from './components/LogsTable';
 import Pagination from './components/Pagination';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import SettingsSidebar from './components/SettingsSidebar';
-import OrbitCredentialsPanel from './components/OrbitCredentialsPanel';
-import ApiConfigPanel from './components/ApiConfigPanel';
+import OrbitConfigPanel from './components/OrbitConfigPanel';
 
 export default function SettingsApp() {
   // Track app access
@@ -58,14 +56,9 @@ export default function SettingsApp() {
 
   // Render the appropriate content panel based on selected section
   const renderContent = () => {
-    // Orbit Credentials panel
-    if (selectedSection === 'credentials') {
-      return <OrbitCredentialsPanel />;
-    }
-
-    // API config panels
-    if (isOrbitApiSection(selectedSection)) {
-      return <ApiConfigPanel apiType={selectedSection as OrbitApiType} />;
+    // Orbit Configuration panel
+    if (selectedSection === 'orbit') {
+      return <OrbitConfigPanel />;
     }
 
     // Analytics dashboard

@@ -195,7 +195,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   analyticsDateRange: getDefaultDateRange(),
 
   // Settings navigation
-  selectedSection: 'credentials',
+  selectedSection: 'orbit',
 
   // Legacy activeTab (computed from selectedSection)
   activeTab: 'orbit',
@@ -350,7 +350,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     } else if (tab === 'analytics') {
       set({ selectedSection: 'analytics' });
     } else {
-      set({ selectedSection: 'credentials' });
+      set({ selectedSection: 'orbit' });
     }
   },
 
