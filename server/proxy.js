@@ -1115,7 +1115,7 @@ app.delete('/api/admin/tenant-config', requireProjectAuth, requireAdmin, (req, r
 // =============================================================================
 
 // Valid API types
-const VALID_ORBIT_API_TYPES = ['lob', 'registerSocket', 'connection', 'holder', 'verifier', 'issuer', 'chat'];
+const VALID_ORBIT_API_TYPES = ['lob', 'registerSocket', 'connection', 'holder', 'verifier', 'issuer', 'credentialMgmt', 'chat'];
 
 // Get full Orbit config status (all APIs, without API key)
 app.get('/api/admin/orbit-config', requireProjectAuth, requireAdmin, (req, res) => {
@@ -1391,24 +1391,49 @@ app.post('/api/admin/orbit-api/:apiType/swagger', requireProjectAuth, requireAdm
       return res.status(400).json({ error: 'baseUrl is required' });
     }
 
-    // Construct the Swagger spec URL (Orbit APIs use /api/docs-json)
-    const swaggerUrl = `${baseUrl.replace(/\/$/, '')}/api/docs-json`;
+    const normalizedBaseUrl = baseUrl.replace(/\/$/, '');
 
-    console.log(`Fetching Swagger spec from: ${swaggerUrl}`);
+    // Try multiple common Swagger/OpenAPI spec paths
+    const swaggerPaths = [
+      '/api/docs-json',
+      '/swagger/v1/swagger.json',
+      '/swagger.json',
+      '/openapi.json',
+      '/api-docs',
+    ];
 
-    const response = await fetch(swaggerUrl, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'copa-apps-swagger-loader',
-      },
-      timeout: 10000,
-    });
+    let rawSpec = null;
+    let successfulPath = null;
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch Swagger spec: ${response.status} ${response.statusText}`);
+    for (const path of swaggerPaths) {
+      const swaggerUrl = `${normalizedBaseUrl}${path}`;
+      console.log(`Trying Swagger spec at: ${swaggerUrl}`);
+
+      try {
+        const response = await fetch(swaggerUrl, {
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'copa-apps-swagger-loader',
+          },
+          timeout: 10000,
+        });
+
+        if (response.ok) {
+          rawSpec = await response.json();
+          successfulPath = path;
+          console.log(`Successfully fetched Swagger spec from: ${swaggerUrl}`);
+          break;
+        }
+      } catch (fetchError) {
+        // Continue to next path
+        console.log(`Failed to fetch from ${path}: ${fetchError.message}`);
+      }
     }
 
-    const rawSpec = await response.json();
+    if (!rawSpec) {
+      throw new Error(`Could not find Swagger/OpenAPI spec at any standard path. Tried: ${swaggerPaths.join(', ')}`);
+    }
+
     const fetchedAt = new Date().toISOString();
     const parsedSpec = parseSwaggerSpec(rawSpec, fetchedAt);
 

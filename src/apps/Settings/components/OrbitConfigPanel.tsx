@@ -32,6 +32,7 @@ export default function OrbitConfigPanel() {
     holder: '',
     verifier: '',
     issuer: '',
+    credentialMgmt: '',
     chat: '',
   });
 
@@ -43,6 +44,7 @@ export default function OrbitConfigPanel() {
     holder: {},
     verifier: {},
     issuer: {},
+    credentialMgmt: {},
     chat: {},
   });
 
@@ -54,6 +56,7 @@ export default function OrbitConfigPanel() {
     holder: false,
     verifier: false,
     issuer: false,
+    credentialMgmt: false,
     chat: false,
   });
 
@@ -81,6 +84,7 @@ export default function OrbitConfigPanel() {
         holder: '',
         verifier: '',
         issuer: '',
+        credentialMgmt: '',
         chat: '',
       };
       const newSettings: Record<OrbitApiType, ApiSettings> = {
@@ -90,6 +94,7 @@ export default function OrbitConfigPanel() {
         holder: {},
         verifier: {},
         issuer: {},
+        credentialMgmt: {},
         chat: {},
       };
 

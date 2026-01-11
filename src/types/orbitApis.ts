@@ -36,6 +36,11 @@ export const ORBIT_APIS = {
     label: 'Issuer API',
     description: 'Credential issuance service',
   },
+  credentialMgmt: {
+    key: 'credentialMgmt',
+    label: 'Credential Management API',
+    description: 'Credential management service',
+  },
   chat: {
     key: 'chat',
     label: 'Chat API',
@@ -93,6 +98,7 @@ export const API_SETTINGS_SCHEMA: Record<OrbitApiType, { fields: SettingField[] 
   registerSocket: { fields: [] },
   connection: { fields: [] },
   holder: { fields: [] },
+  credentialMgmt: { fields: [] },
   chat: { fields: [] },
 };
 
@@ -182,6 +188,7 @@ export function getEmptyApisConfig(): ApisConfig {
     holder: { baseUrl: '', settings: {} },
     verifier: { baseUrl: '', settings: {} },
     issuer: { baseUrl: '', settings: {} },
+    credentialMgmt: { baseUrl: '', settings: {} },
     chat: { baseUrl: '', settings: {} },
   };
 }
