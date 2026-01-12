@@ -14,7 +14,7 @@ interface CatalogueSettingsModalProps {
 }
 
 export default function CatalogueSettingsModal({ onClose }: CatalogueSettingsModalProps) {
-  const { ecosystemTags, fetchTags, addCustomTag, deleteTag, isLoading } = useCatalogueStore();
+  const { ecosystemTags, fetchTags, addCustomTag, deleteTag } = useCatalogueStore();
 
   const [customTags, setCustomTags] = useState<EcosystemTag[]>([]);
   const [newTagName, setNewTagName] = useState('');
