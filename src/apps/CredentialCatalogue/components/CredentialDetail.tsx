@@ -16,7 +16,7 @@ const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:5174';
 export default function CredentialDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { credentials, fetchCredentials, deleteCredential } = useCatalogueStore();
+  const { credentials, deleteCredential } = useCatalogueStore();
 
   const [credential, setCredential] = useState<CatalogueCredential | null>(null);
   const [isLoading, setIsLoading] = useState(true);
