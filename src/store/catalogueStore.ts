@@ -42,6 +42,10 @@ interface CatalogueState {
   // Actions - Credentials
   fetchCredentials: () => Promise<void>;
   importCredential: (request: ImportCredentialRequest) => Promise<CatalogueCredential>;
+  updateCredential: (
+    id: string,
+    updates: { ecosystemTag?: string; issuerName?: string }
+  ) => Promise<CatalogueCredential>;
   deleteCredential: (id: string) => Promise<void>;
   getCredentialById: (id: string) => CatalogueCredential | undefined;
   selectCredential: (id: string) => void;
@@ -126,6 +130,42 @@ export const useCatalogueStore = create<CatalogueState>((set, get) => ({
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : 'Failed to import credential',
+        isLoading: false,
+      });
+      throw err;
+    }
+  },
+
+  // Update a credential
+  updateCredential: async (
+    id: string,
+    updates: { ecosystemTag?: string; issuerName?: string }
+  ) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`${API_BASE}/api/credential-catalogue/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(updates),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to update credential');
+      }
+
+      const credential = await response.json();
+      set((state) => ({
+        credentials: state.credentials.map((c) => (c.id === id ? credential : c)),
+        selectedCredential:
+          state.selectedCredential?.id === id ? credential : state.selectedCredential,
+        isLoading: false,
+      }));
+      return credential;
+    } catch (err) {
+      set({
+        error: err instanceof Error ? err.message : 'Failed to update credential',
         isLoading: false,
       });
       throw err;

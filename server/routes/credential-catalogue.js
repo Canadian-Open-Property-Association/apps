@@ -307,6 +307,38 @@ router.post('/', async (req, res) => {
 });
 
 /**
+ * PATCH /api/credential-catalogue/:id
+ * Update a credential (e.g., change ecosystem tag)
+ */
+router.patch('/:id', (req, res) => {
+  try {
+    const { ecosystemTag, issuerName } = req.body;
+    const credentials = readCredentials();
+    const index = credentials.findIndex((c) => c.id === req.params.id);
+
+    if (index === -1) {
+      return res.status(404).json({ error: 'Credential not found' });
+    }
+
+    // Update allowed fields
+    if (ecosystemTag !== undefined) {
+      credentials[index].ecosystemTag = ecosystemTag;
+    }
+    if (issuerName !== undefined) {
+      credentials[index].issuerName = issuerName;
+    }
+
+    writeCredentials(credentials);
+
+    console.log('[CredentialCatalogue] Updated credential:', req.params.id);
+    res.json(credentials[index]);
+  } catch (err) {
+    console.error('[CredentialCatalogue] Failed to update credential:', err);
+    res.status(500).json({ error: 'Failed to update credential' });
+  }
+});
+
+/**
  * DELETE /api/credential-catalogue/:id
  * Remove a credential from the catalogue
  */
@@ -336,7 +368,8 @@ router.delete('/:id', (req, res) => {
  * Parse ledger name from IndyScan URL
  */
 const parseLedgerFromUrl = (url) => {
-  if (url.includes('candyscan.idlab.org')) {
+  // CandyScan (various domains)
+  if (url.includes('candyscan.idlab.org') || url.includes('candyscan.digitaltrust.gov.bc.ca')) {
     const match = url.match(/\/tx\/([^/]+)\//);
     if (match) {
       const network = match[1].toLowerCase();
@@ -365,6 +398,7 @@ const parseLedgerFromUrl = (url) => {
 
 /**
  * Parse schema data from fetched HTML
+ * Handles IndyScan/CandyScan pages which embed data in __NEXT_DATA__ script tag
  */
 const parseSchemaFromHtml = (html, sourceUrl) => {
   const result = {
@@ -377,7 +411,49 @@ const parseSchemaFromHtml = (html, sourceUrl) => {
     seqNo: null,
   };
 
-  // Look for schema ID pattern (DID:2:name:version format)
+  // First, try to extract from __NEXT_DATA__ script tag (IndyScan/CandyScan Next.js format)
+  const nextDataMatch = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+  if (nextDataMatch) {
+    try {
+      const nextData = JSON.parse(nextDataMatch[1]);
+      const txData = nextData.props?.pageProps?.indyscanTx;
+
+      if (txData) {
+        // Get schema data from the expansion or serialized data
+        const expansion = txData.expansion?.idata;
+        const schemaData = expansion?.txn?.data?.data;
+
+        if (schemaData) {
+          result.name = schemaData.name;
+          result.version = schemaData.version;
+          result.attributes = schemaData.attr_names || [];
+        }
+
+        // Get metadata
+        const txnMetadata = expansion?.txnMetadata;
+        if (txnMetadata) {
+          result.schemaId = txnMetadata.txnId;
+          result.seqNo = txnMetadata.seqNo;
+        }
+
+        // Get issuer DID from metadata
+        const metadata = expansion?.txn?.metadata;
+        if (metadata?.from) {
+          result.issuerDid = metadata.from;
+        }
+
+        // If we found data, return early
+        if (result.name && result.version && result.attributes.length > 0) {
+          console.log('[CredentialCatalogue] Parsed schema from __NEXT_DATA__:', result.name, 'with', result.attributes.length, 'attributes');
+          return result;
+        }
+      }
+    } catch (e) {
+      console.log('[CredentialCatalogue] Failed to parse __NEXT_DATA__, falling back to regex:', e.message);
+    }
+  }
+
+  // Fallback: Look for schema ID pattern (DID:2:name:version format)
   const schemaIdMatch = html.match(/([A-Za-z0-9]{21,}):2:([^:]+):([0-9.]+)/);
   if (schemaIdMatch) {
     result.schemaId = schemaIdMatch[0];
@@ -386,12 +462,12 @@ const parseSchemaFromHtml = (html, sourceUrl) => {
     result.version = schemaIdMatch[3];
   }
 
-  // Extract attributes from attr_names pattern
-  const attrMatch = html.match(/attr_names[:\s]*\[([^\]]+)\]/i);
+  // Fallback: Extract attributes from attr_names pattern in raw JSON
+  const attrMatch = html.match(/"attr_names"\s*:\s*\[([\s\S]*?)\]/);
   if (attrMatch) {
-    const attrs = attrMatch[1].match(/["']([^"']+)["']/g);
+    const attrs = attrMatch[1].match(/"([^"]+)"/g);
     if (attrs) {
-      result.attributes = attrs.map((a) => a.replace(/["']/g, ''));
+      result.attributes = attrs.map((a) => a.replace(/"/g, ''));
     }
   }
 
@@ -406,6 +482,7 @@ const parseSchemaFromHtml = (html, sourceUrl) => {
 
 /**
  * Parse credential definition data from fetched HTML
+ * Handles IndyScan/CandyScan pages which embed data in __NEXT_DATA__ script tag
  */
 const parseCredDefFromHtml = (html, sourceUrl) => {
   const result = {
@@ -418,7 +495,48 @@ const parseCredDefFromHtml = (html, sourceUrl) => {
     seqNo: null,
   };
 
-  // Look for credential definition ID pattern (DID:3:CL:schemaSeqNo:tag format)
+  // First, try to extract from __NEXT_DATA__ script tag (IndyScan/CandyScan Next.js format)
+  const nextDataMatch = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+  if (nextDataMatch) {
+    try {
+      const nextData = JSON.parse(nextDataMatch[1]);
+      const txData = nextData.props?.pageProps?.indyscanTx;
+
+      if (txData) {
+        // Get cred def data from the expansion
+        const expansion = txData.expansion?.idata;
+        const txnMetadata = expansion?.txnMetadata;
+
+        if (txnMetadata?.txnId) {
+          result.credDefId = txnMetadata.txnId;
+          result.seqNo = txnMetadata.seqNo;
+        }
+
+        // Get issuer DID from metadata
+        const metadata = expansion?.txn?.metadata;
+        if (metadata?.from) {
+          result.issuerDid = metadata.from;
+        }
+
+        // Get signature type and tag from txn data
+        const txnData = expansion?.txn?.data;
+        if (txnData) {
+          result.signatureType = txnData.signature_type || 'CL';
+          result.tag = txnData.tag || 'default';
+        }
+
+        // If we found the cred def ID, return early
+        if (result.credDefId) {
+          console.log('[CredentialCatalogue] Parsed cred def from __NEXT_DATA__:', result.credDefId);
+          return result;
+        }
+      }
+    } catch (e) {
+      console.log('[CredentialCatalogue] Failed to parse __NEXT_DATA__, falling back to regex:', e.message);
+    }
+  }
+
+  // Fallback: Look for credential definition ID pattern (DID:3:CL:schemaSeqNo:tag format)
   const credDefIdMatch = html.match(/([A-Za-z0-9]{21,}):3:CL:(\d+):([A-Za-z0-9_-]+)/);
   if (credDefIdMatch) {
     result.credDefId = credDefIdMatch[0];
