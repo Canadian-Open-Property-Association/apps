@@ -5,7 +5,7 @@
  * Follows the same pattern as EntityDetail in EntityManager.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCatalogueStore } from '../../../store/catalogueStore';
 import type { CatalogueCredential } from '../../../types/catalogue';
 import { PREDEFINED_ECOSYSTEM_TAGS } from '../../../types/catalogue';
@@ -26,11 +26,49 @@ function formatDateTime(dateString: string): string {
 }
 
 export default function CredentialDetail({ credential }: CredentialDetailProps) {
-  const { deleteCredential, clearSelection } = useCatalogueStore();
+  const { deleteCredential, clearSelection, updateCredential, ecosystemTags, fetchTags } =
+    useCatalogueStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditingTag, setIsEditingTag] = useState(false);
+  const [selectedTagId, setSelectedTagId] = useState(credential.ecosystemTag || 'other');
+  const [isUpdatingTag, setIsUpdatingTag] = useState(false);
 
-  const ecosystemTag = PREDEFINED_ECOSYSTEM_TAGS.find((t) => t.id === credential.ecosystemTag);
+  // Fetch tags on mount
+  useEffect(() => {
+    fetchTags();
+  }, [fetchTags]);
+
+  // Reset selected tag when credential changes
+  useEffect(() => {
+    setSelectedTagId(credential.ecosystemTag || 'other');
+    setIsEditingTag(false);
+  }, [credential.id, credential.ecosystemTag]);
+
+  const ecosystemTag = ecosystemTags.find((t) => t.id === credential.ecosystemTag) ||
+    PREDEFINED_ECOSYSTEM_TAGS.find((t) => t.id === credential.ecosystemTag);
+
+  const handleSaveTag = async () => {
+    if (selectedTagId === credential.ecosystemTag) {
+      setIsEditingTag(false);
+      return;
+    }
+
+    setIsUpdatingTag(true);
+    try {
+      await updateCredential(credential.id, { ecosystemTag: selectedTagId });
+      setIsEditingTag(false);
+    } catch (err) {
+      console.error('Failed to update ecosystem tag:', err);
+    } finally {
+      setIsUpdatingTag(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setSelectedTagId(credential.ecosystemTag || 'other');
+    setIsEditingTag(false);
+  };
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -82,9 +120,91 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-              {ecosystemTag?.name || credential.ecosystemTag}
-            </span>
+            {isEditingTag ? (
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedTagId}
+                  onChange={(e) => setSelectedTagId(e.target.value)}
+                  className="text-xs px-2 py-1 border border-purple-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  disabled={isUpdatingTag}
+                >
+                  {ecosystemTags.map((tag) => (
+                    <option key={tag.id} value={tag.id}>
+                      {tag.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleSaveTag}
+                  disabled={isUpdatingTag}
+                  className="p-1 text-green-600 hover:text-green-700 disabled:opacity-50"
+                  title="Save"
+                >
+                  {isUpdatingTag ? (
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                  )}
+                </button>
+                <button
+                  onClick={handleCancelEdit}
+                  disabled={isUpdatingTag}
+                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                  title="Cancel"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsEditingTag(true)}
+                className="group inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 hover:bg-purple-200 transition-colors"
+                title="Click to edit ecosystem tag"
+              >
+                {ecosystemTag?.name || credential.ecosystemTag}
+                <svg
+                  className="w-3 h-3 text-purple-400 group-hover:text-purple-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                  />
+                </svg>
+              </button>
+            )}
             <span className="text-sm text-gray-500">{credential.ledger}</span>
           </div>
         </div>

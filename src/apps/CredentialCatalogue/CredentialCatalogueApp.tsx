@@ -19,6 +19,7 @@ import { useAppTracking } from '../../hooks/useAppTracking';
 import CredentialList from './components/CredentialList';
 import CredentialDetail from './components/CredentialDetail';
 import ImportWizard from './components/ImportWizard';
+import CatalogueSettingsModal from './components/CatalogueSettingsModal';
 
 export default function CredentialCatalogueApp() {
   useAppTracking('credential-catalogue', 'Credential Catalogue');
@@ -26,6 +27,7 @@ export default function CredentialCatalogueApp() {
   const { selectedCredential, clearSelection, selectCredential } = useCatalogueStore();
 
   const [showImportWizard, setShowImportWizard] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Reset selection when entering the app (CredentialList handles fetching)
   useEffect(() => {
@@ -75,7 +77,10 @@ export default function CredentialCatalogueApp() {
       <div className="flex-1 flex overflow-hidden p-4 gap-4">
         {/* Left Panel - Credential List */}
         <div className="w-80 flex-shrink-0 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col">
-          <CredentialList onAddCredential={handleAddCredential} />
+          <CredentialList
+            onAddCredential={handleAddCredential}
+            onOpenSettings={() => setShowSettings(true)}
+          />
         </div>
 
         {/* Right Panel - Detail View */}
@@ -91,6 +96,9 @@ export default function CredentialCatalogueApp() {
           onComplete={handleImportComplete}
         />
       )}
+
+      {/* Settings Modal */}
+      {showSettings && <CatalogueSettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   );
 }

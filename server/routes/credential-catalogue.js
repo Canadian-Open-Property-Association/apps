@@ -88,12 +88,17 @@ const writeTags = (tags) => {
 const registerSchemaWithOrbit = async (schemaData) => {
   const orbitConfig = getOrbitApiConfig('credentialMgmt');
   if (!orbitConfig) {
-    throw new Error('Orbit Credential Management API not configured');
+    throw new Error('Orbit Credential Management API not configured. Please configure it in Settings → Orbit Configuration.');
   }
 
   const { baseUrl, lobId, apiKey } = orbitConfig;
 
+  if (!lobId) {
+    throw new Error('Orbit LOB ID not configured. Please configure it in Settings → Orbit Configuration.');
+  }
+
   // Prepare schema import payload per Orbit API spec
+  // Reference: https://northern-block.gitbook.io/orbit-enterprise-api-documentation/api-modules/credential-management-api/import-an-external-schema
   const payload = {
     schemaInfo: {
       schemaLedgerId: schemaData.schemaId, // e.g., "DID:2:name:version"
@@ -102,13 +107,16 @@ const registerSchemaWithOrbit = async (schemaData) => {
     },
   };
 
+  const url = `${baseUrl}/api/lob/${lobId}/schema/store`;
   console.log('[CredentialCatalogue] Importing schema to Orbit:', schemaData.schemaId);
+  console.log('[CredentialCatalogue] Request URL:', url);
+  console.log('[CredentialCatalogue] Payload:', JSON.stringify(payload, null, 2));
 
-  const response = await fetch(`${baseUrl}/api/lob/${lobId}/schema/store`, {
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(apiKey && { 'api-key': apiKey }),
+      ...(apiKey && { 'x-api-key': apiKey }),
     },
     body: JSON.stringify(payload),
   });
@@ -121,7 +129,7 @@ const registerSchemaWithOrbit = async (schemaData) => {
 
   const result = await response.json();
   // Response: { success: true, message: "...", data: { schemaId: 1, schemaState: "available", schemaLedgerId: "..." } }
-  console.log('[CredentialCatalogue] Schema imported to Orbit:', result.data?.schemaId || result.schemaId);
+  console.log('[CredentialCatalogue] Schema imported to Orbit:', JSON.stringify(result, null, 2));
   return result;
 };
 
@@ -134,12 +142,17 @@ const registerSchemaWithOrbit = async (schemaData) => {
 const registerCredDefWithOrbit = async (credDefData, orbitSchemaId) => {
   const orbitConfig = getOrbitApiConfig('credentialMgmt');
   if (!orbitConfig) {
-    throw new Error('Orbit Credential Management API not configured');
+    throw new Error('Orbit Credential Management API not configured. Please configure it in Settings → Orbit Configuration.');
   }
 
   const { baseUrl, lobId, apiKey } = orbitConfig;
 
+  if (!lobId) {
+    throw new Error('Orbit LOB ID not configured. Please configure it in Settings → Orbit Configuration.');
+  }
+
   // Prepare credential definition import payload per Orbit API spec
+  // Reference: https://northern-block.gitbook.io/orbit-enterprise-api-documentation/api-modules/credential-management-api/import-an-external-credential-definition
   const payload = {
     schemaId: orbitSchemaId, // Orbit's internal schema ID from the schema import response
     credentialDefinitionId: credDefData.credDefId, // e.g., "DID:3:CL:seqNo:tag"
@@ -147,13 +160,16 @@ const registerCredDefWithOrbit = async (credDefData, orbitSchemaId) => {
     addCredDef: false, // Don't create governance for imported cred defs
   };
 
+  const url = `${baseUrl}/api/lob/${lobId}/cred-def/store`;
   console.log('[CredentialCatalogue] Importing credential definition to Orbit:', credDefData.credDefId);
+  console.log('[CredentialCatalogue] Request URL:', url);
+  console.log('[CredentialCatalogue] Payload:', JSON.stringify(payload, null, 2));
 
-  const response = await fetch(`${baseUrl}/api/lob/${lobId}/cred-def/store`, {
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(apiKey && { 'api-key': apiKey }),
+      ...(apiKey && { 'x-api-key': apiKey }),
     },
     body: JSON.stringify(payload),
   });
@@ -166,7 +182,7 @@ const registerCredDefWithOrbit = async (credDefData, orbitSchemaId) => {
 
   const result = await response.json();
   // Response: { success: true, message: "...", data: { credentialDefinitionId: "...", credentialId: 1 } }
-  console.log('[CredentialCatalogue] Credential definition imported to Orbit:', result.data?.credentialId || result.credentialId);
+  console.log('[CredentialCatalogue] Credential definition imported to Orbit:', JSON.stringify(result, null, 2));
   return result;
 };
 
