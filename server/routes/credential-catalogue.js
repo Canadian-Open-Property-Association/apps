@@ -97,6 +97,9 @@ const registerSchemaWithOrbit = async (schemaData) => {
     throw new Error('Orbit LOB ID not configured. Please configure it in Settings → Orbit Configuration.');
   }
 
+  // Normalize baseUrl to remove trailing slashes
+  const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
+
   // Prepare schema import payload per Orbit API spec
   // Reference: https://northern-block.gitbook.io/orbit-enterprise-api-documentation/api-modules/credential-management-api/import-an-external-schema
   const payload = {
@@ -107,7 +110,7 @@ const registerSchemaWithOrbit = async (schemaData) => {
     },
   };
 
-  const url = `${baseUrl}/api/lob/${lobId}/schema/store`;
+  const url = `${normalizedBaseUrl}/api/lob/${lobId}/schema/store`;
   console.log('[CredentialCatalogue] Importing schema to Orbit:', schemaData.schemaId);
   console.log('[CredentialCatalogue] Request URL:', url);
   console.log('[CredentialCatalogue] Payload:', JSON.stringify(payload, null, 2));
@@ -116,7 +119,7 @@ const registerSchemaWithOrbit = async (schemaData) => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(apiKey && { 'x-api-key': apiKey }),
+      ...(apiKey && { 'api-key': apiKey }),
     },
     body: JSON.stringify(payload),
   });
@@ -151,6 +154,9 @@ const registerCredDefWithOrbit = async (credDefData, orbitSchemaId) => {
     throw new Error('Orbit LOB ID not configured. Please configure it in Settings → Orbit Configuration.');
   }
 
+  // Normalize baseUrl to remove trailing slashes
+  const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
+
   // Prepare credential definition import payload per Orbit API spec
   // Reference: https://northern-block.gitbook.io/orbit-enterprise-api-documentation/api-modules/credential-management-api/import-an-external-credential-definition
   const payload = {
@@ -160,7 +166,7 @@ const registerCredDefWithOrbit = async (credDefData, orbitSchemaId) => {
     addCredDef: false, // Don't create governance for imported cred defs
   };
 
-  const url = `${baseUrl}/api/lob/${lobId}/cred-def/store`;
+  const url = `${normalizedBaseUrl}/api/lob/${lobId}/cred-def/store`;
   console.log('[CredentialCatalogue] Importing credential definition to Orbit:', credDefData.credDefId);
   console.log('[CredentialCatalogue] Request URL:', url);
   console.log('[CredentialCatalogue] Payload:', JSON.stringify(payload, null, 2));
@@ -169,7 +175,7 @@ const registerCredDefWithOrbit = async (credDefData, orbitSchemaId) => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(apiKey && { 'x-api-key': apiKey }),
+      ...(apiKey && { 'api-key': apiKey }),
     },
     body: JSON.stringify(payload),
   });
@@ -203,6 +209,83 @@ router.get('/orbit-status', (req, res) => {
   }
 });
 
+// ============ Tag Endpoints ============
+// NOTE: Tag routes MUST come before /:id routes to avoid /tags being matched as an id
+
+/**
+ * GET /api/credential-catalogue/tags
+ * List custom ecosystem tags
+ */
+router.get('/tags', (req, res) => {
+  try {
+    const tags = readTags();
+    res.json(tags);
+  } catch (err) {
+    console.error('[CredentialCatalogue] Failed to list tags:', err);
+    res.status(500).json({ error: 'Failed to list tags' });
+  }
+});
+
+/**
+ * POST /api/credential-catalogue/tags
+ * Add a custom ecosystem tag
+ */
+router.post('/tags', (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Tag name is required' });
+    }
+
+    const tag = {
+      id: name.toLowerCase().replace(/\s+/g, '-'),
+      name: name.trim(),
+      isPredefined: false,
+    };
+
+    const tags = readTags();
+
+    // Check for duplicates
+    if (tags.some((t) => t.id === tag.id)) {
+      return res.status(409).json({ error: 'Tag already exists' });
+    }
+
+    tags.push(tag);
+    writeTags(tags);
+
+    console.log('[CredentialCatalogue] Added custom tag:', tag.name);
+    res.status(201).json(tag);
+  } catch (err) {
+    console.error('[CredentialCatalogue] Failed to add tag:', err);
+    res.status(500).json({ error: 'Failed to add tag' });
+  }
+});
+
+/**
+ * DELETE /api/credential-catalogue/tags/:id
+ * Remove a custom ecosystem tag
+ */
+router.delete('/tags/:id', (req, res) => {
+  try {
+    const tags = readTags();
+    const index = tags.findIndex((t) => t.id === req.params.id);
+
+    if (index === -1) {
+      return res.status(404).json({ error: 'Tag not found' });
+    }
+
+    tags.splice(index, 1);
+    writeTags(tags);
+
+    console.log('[CredentialCatalogue] Deleted tag:', req.params.id);
+    res.status(204).send();
+  } catch (err) {
+    console.error('[CredentialCatalogue] Failed to delete tag:', err);
+    res.status(500).json({ error: 'Failed to delete tag' });
+  }
+});
+
 // ============ Credential Endpoints ============
 
 /**
@@ -216,26 +299,6 @@ router.get('/', (req, res) => {
   } catch (err) {
     console.error('[CredentialCatalogue] Failed to list credentials:', err);
     res.status(500).json({ error: 'Failed to list credentials' });
-  }
-});
-
-/**
- * GET /api/credential-catalogue/:id
- * Get a single credential by ID
- */
-router.get('/:id', (req, res) => {
-  try {
-    const credentials = readCredentials();
-    const credential = credentials.find((c) => c.id === req.params.id);
-
-    if (!credential) {
-      return res.status(404).json({ error: 'Credential not found' });
-    }
-
-    res.json(credential);
-  } catch (err) {
-    console.error('[CredentialCatalogue] Failed to get credential:', err);
-    res.status(500).json({ error: 'Failed to get credential' });
   }
 });
 
@@ -322,63 +385,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-/**
- * PATCH /api/credential-catalogue/:id
- * Update a credential (e.g., change ecosystem tag)
- */
-router.patch('/:id', (req, res) => {
-  try {
-    const { ecosystemTag, issuerName } = req.body;
-    const credentials = readCredentials();
-    const index = credentials.findIndex((c) => c.id === req.params.id);
-
-    if (index === -1) {
-      return res.status(404).json({ error: 'Credential not found' });
-    }
-
-    // Update allowed fields
-    if (ecosystemTag !== undefined) {
-      credentials[index].ecosystemTag = ecosystemTag;
-    }
-    if (issuerName !== undefined) {
-      credentials[index].issuerName = issuerName;
-    }
-
-    writeCredentials(credentials);
-
-    console.log('[CredentialCatalogue] Updated credential:', req.params.id);
-    res.json(credentials[index]);
-  } catch (err) {
-    console.error('[CredentialCatalogue] Failed to update credential:', err);
-    res.status(500).json({ error: 'Failed to update credential' });
-  }
-});
-
-/**
- * DELETE /api/credential-catalogue/:id
- * Remove a credential from the catalogue
- */
-router.delete('/:id', (req, res) => {
-  try {
-    const credentials = readCredentials();
-    const index = credentials.findIndex((c) => c.id === req.params.id);
-
-    if (index === -1) {
-      return res.status(404).json({ error: 'Credential not found' });
-    }
-
-    credentials.splice(index, 1);
-    writeCredentials(credentials);
-
-    console.log('[CredentialCatalogue] Deleted credential:', req.params.id);
-    res.status(204).send();
-  } catch (err) {
-    console.error('[CredentialCatalogue] Failed to delete credential:', err);
-    res.status(500).json({ error: 'Failed to delete credential' });
-  }
-});
-
-// ============ Import Parsing Endpoints ============
+// ============ Helper Functions for Parsing ============
+// NOTE: These must be defined before the routes that use them
 
 /**
  * Parse ledger name from IndyScan URL
@@ -575,6 +583,9 @@ const parseCredDefFromHtml = (html, sourceUrl) => {
   return result;
 };
 
+// ============ Import Parsing Endpoints ============
+// NOTE: Import routes MUST come before /:id routes
+
 /**
  * POST /api/credential-catalogue/import/schema
  * Parse an IndyScan schema URL
@@ -659,79 +670,82 @@ router.post('/import/creddef', async (req, res) => {
   }
 });
 
-// ============ Tag Endpoints ============
+// ============ Parameterized Credential Endpoints ============
+// NOTE: These MUST come AFTER all specific path routes like /tags and /import/*
 
 /**
- * GET /api/credential-catalogue/tags
- * List custom ecosystem tags
+ * GET /api/credential-catalogue/:id
+ * Get a single credential by ID
  */
-router.get('/tags', (req, res) => {
+router.get('/:id', (req, res) => {
   try {
-    const tags = readTags();
-    res.json(tags);
+    const credentials = readCredentials();
+    const credential = credentials.find((c) => c.id === req.params.id);
+
+    if (!credential) {
+      return res.status(404).json({ error: 'Credential not found' });
+    }
+
+    res.json(credential);
   } catch (err) {
-    console.error('[CredentialCatalogue] Failed to list tags:', err);
-    res.status(500).json({ error: 'Failed to list tags' });
+    console.error('[CredentialCatalogue] Failed to get credential:', err);
+    res.status(500).json({ error: 'Failed to get credential' });
   }
 });
 
 /**
- * POST /api/credential-catalogue/tags
- * Add a custom ecosystem tag
+ * PATCH /api/credential-catalogue/:id
+ * Update a credential (e.g., change ecosystem tag)
  */
-router.post('/tags', (req, res) => {
+router.patch('/:id', (req, res) => {
   try {
-    const { name } = req.body;
-
-    if (!name || !name.trim()) {
-      return res.status(400).json({ error: 'Tag name is required' });
-    }
-
-    const tag = {
-      id: name.toLowerCase().replace(/\s+/g, '-'),
-      name: name.trim(),
-      isPredefined: false,
-    };
-
-    const tags = readTags();
-
-    // Check for duplicates
-    if (tags.some((t) => t.id === tag.id)) {
-      return res.status(409).json({ error: 'Tag already exists' });
-    }
-
-    tags.push(tag);
-    writeTags(tags);
-
-    console.log('[CredentialCatalogue] Added custom tag:', tag.name);
-    res.status(201).json(tag);
-  } catch (err) {
-    console.error('[CredentialCatalogue] Failed to add tag:', err);
-    res.status(500).json({ error: 'Failed to add tag' });
-  }
-});
-
-/**
- * DELETE /api/credential-catalogue/tags/:id
- * Remove a custom ecosystem tag
- */
-router.delete('/tags/:id', (req, res) => {
-  try {
-    const tags = readTags();
-    const index = tags.findIndex((t) => t.id === req.params.id);
+    const { ecosystemTag, issuerName } = req.body;
+    const credentials = readCredentials();
+    const index = credentials.findIndex((c) => c.id === req.params.id);
 
     if (index === -1) {
-      return res.status(404).json({ error: 'Tag not found' });
+      return res.status(404).json({ error: 'Credential not found' });
     }
 
-    tags.splice(index, 1);
-    writeTags(tags);
+    // Update allowed fields
+    if (ecosystemTag !== undefined) {
+      credentials[index].ecosystemTag = ecosystemTag;
+    }
+    if (issuerName !== undefined) {
+      credentials[index].issuerName = issuerName;
+    }
 
-    console.log('[CredentialCatalogue] Deleted tag:', req.params.id);
+    writeCredentials(credentials);
+
+    console.log('[CredentialCatalogue] Updated credential:', req.params.id);
+    res.json(credentials[index]);
+  } catch (err) {
+    console.error('[CredentialCatalogue] Failed to update credential:', err);
+    res.status(500).json({ error: 'Failed to update credential' });
+  }
+});
+
+/**
+ * DELETE /api/credential-catalogue/:id
+ * Remove a credential from the catalogue
+ */
+router.delete('/:id', (req, res) => {
+  try {
+    const credentials = readCredentials();
+    const index = credentials.findIndex((c) => c.id === req.params.id);
+
+    if (index === -1) {
+      return res.status(404).json({ error: 'Credential not found' });
+    }
+
+    credentials.splice(index, 1);
+    writeCredentials(credentials);
+
+    console.log('[CredentialCatalogue] Deleted credential:', req.params.id);
     res.status(204).send();
   } catch (err) {
-    console.error('[CredentialCatalogue] Failed to delete tag:', err);
-    res.status(500).json({ error: 'Failed to delete tag' });
+    console.error('[CredentialCatalogue] Failed to delete credential:', err);
+    res.status(500).json({ error: 'Failed to delete credential' });
   }
 });
 
