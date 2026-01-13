@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useCatalogueStore } from '../../../store/catalogueStore';
-import type { CatalogueCredential } from '../../../types/catalogue';
+import type { CatalogueCredential, OrbitOperationLog } from '../../../types/catalogue';
 
 interface CredentialDetailProps {
   credential: CatalogueCredential;
@@ -60,6 +60,119 @@ function parseOrbitError(errorString: string): ParsedOrbitError {
   return { summary: errorString };
 }
 
+// Component to display a single Orbit operation log
+interface OrbitLogEntryProps {
+  title: string;
+  log: OrbitOperationLog;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+function OrbitLogEntry({ title, log, isExpanded, onToggle }: OrbitLogEntryProps) {
+  const bgColor = log.success ? 'bg-green-50' : 'bg-red-50';
+  const borderColor = log.success ? 'border-green-200' : 'border-red-200';
+  const iconColor = log.success ? 'text-green-600' : 'text-red-600';
+  const textColor = log.success ? 'text-green-800' : 'text-red-800';
+  const lightTextColor = log.success ? 'text-green-700' : 'text-red-700';
+  const expandedBg = log.success ? 'bg-green-100/50' : 'bg-red-100/50';
+
+  return (
+    <div className={`${bgColor} border ${borderColor} rounded-lg overflow-hidden`}>
+      <button
+        onClick={onToggle}
+        className="w-full p-3 flex items-center justify-between hover:bg-opacity-80 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          {log.success ? (
+            <svg className={`w-4 h-4 ${iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className={`w-4 h-4 ${iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          )}
+          <span className={`text-sm font-medium ${textColor}`}>{title}</span>
+          <span className={`text-xs ${lightTextColor}`}>
+            {log.success ? 'Success' : 'Failed'}
+            {log.statusCode && ` (${log.statusCode})`}
+          </span>
+        </div>
+        <svg
+          className={`w-4 h-4 ${lightTextColor} transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isExpanded && (
+        <div className={`border-t ${borderColor} ${expandedBg} p-3 space-y-3`}>
+          {/* Timestamp */}
+          <div className="text-xs">
+            <span className={`${lightTextColor} font-medium`}>Timestamp:</span>
+            <span className={`ml-2 ${textColor}`}>{formatDateTime(log.timestamp)}</span>
+          </div>
+
+          {/* Status Code */}
+          {log.statusCode && (
+            <div className="text-xs">
+              <span className={`${lightTextColor} font-medium`}>Status Code:</span>
+              <span className={`ml-2 ${textColor}`}>{log.statusCode}</span>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {log.errorMessage && (
+            <div className="text-xs">
+              <span className={`${lightTextColor} font-medium`}>Error:</span>
+              <span className={`ml-2 ${textColor}`}>{log.errorMessage}</span>
+            </div>
+          )}
+
+          {/* Request URL */}
+          {log.requestUrl && (
+            <div className="text-xs">
+              <span className={`${lightTextColor} font-medium`}>Request URL:</span>
+              <code className={`block mt-1 p-2 bg-white rounded border ${borderColor} ${textColor} text-xs font-mono break-all`}>
+                POST {log.requestUrl}
+              </code>
+            </div>
+          )}
+
+          {/* Request Payload */}
+          {log.requestPayload && Object.keys(log.requestPayload).length > 0 && (
+            <div className="text-xs">
+              <span className={`${lightTextColor} font-medium`}>Request Payload:</span>
+              <pre className={`mt-1 p-2 bg-white rounded border ${borderColor} ${textColor} text-xs font-mono overflow-x-auto max-h-32 overflow-y-auto whitespace-pre-wrap`}>
+                {JSON.stringify(log.requestPayload, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          {/* Response Body */}
+          {log.responseBody && (
+            <div className="text-xs">
+              <span className={`${lightTextColor} font-medium`}>Response Body:</span>
+              <pre className={`mt-1 p-2 bg-white rounded border ${borderColor} ${textColor} text-xs font-mono overflow-x-auto max-h-32 overflow-y-auto whitespace-pre-wrap`}>
+                {(() => {
+                  try {
+                    return JSON.stringify(JSON.parse(log.responseBody), null, 2);
+                  } catch {
+                    return log.responseBody;
+                  }
+                })()}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CredentialDetail({ credential }: CredentialDetailProps) {
   const { deleteCredential, clearSelection, updateCredential, ecosystemTags, fetchTags } =
     useCatalogueStore();
@@ -69,6 +182,7 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
   const [selectedTagId, setSelectedTagId] = useState(credential.ecosystemTag || 'other');
   const [isUpdatingTag, setIsUpdatingTag] = useState(false);
   const [showErrorDetails, setShowErrorDetails] = useState(false);
+  const [expandedLogSection, setExpandedLogSection] = useState<'schema' | 'creddef' | null>(null);
 
   // Fetch tags on mount
   useEffect(() => {
@@ -273,14 +387,58 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
             Orbit Registration
           </h3>
 
-          {credential.orbitRegistrationError ? (
+          {/* Check if we have the new log format or legacy format */}
+          {credential.orbitSchemaLog || credential.orbitCredDefLog ? (
+            /* New log-based display */
+            <div className="space-y-3">
+              {/* Orbit IDs Summary */}
+              {(credential.orbitSchemaId || credential.orbitCredDefId) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                  <p className="text-xs font-medium text-blue-800 mb-2">Orbit IDs</p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-blue-600">Schema ID:</span>
+                      <code className="ml-1 bg-blue-100 px-1.5 py-0.5 rounded text-blue-800">
+                        {credential.orbitSchemaId || 'N/A'}
+                      </code>
+                    </div>
+                    <div>
+                      <span className="text-blue-600">Cred Def ID:</span>
+                      <code className="ml-1 bg-blue-100 px-1.5 py-0.5 rounded text-blue-800">
+                        {credential.orbitCredDefId || 'N/A'}
+                      </code>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Schema Import Log */}
+              {credential.orbitSchemaLog && (
+                <OrbitLogEntry
+                  title="Schema Import"
+                  log={credential.orbitSchemaLog}
+                  isExpanded={expandedLogSection === 'schema'}
+                  onToggle={() => setExpandedLogSection(expandedLogSection === 'schema' ? null : 'schema')}
+                />
+              )}
+
+              {/* Cred Def Import Log */}
+              {credential.orbitCredDefLog && (
+                <OrbitLogEntry
+                  title="Credential Definition Import"
+                  log={credential.orbitCredDefLog}
+                  isExpanded={expandedLogSection === 'creddef'}
+                  onToggle={() => setExpandedLogSection(expandedLogSection === 'creddef' ? null : 'creddef')}
+                />
+              )}
+            </div>
+          ) : credential.orbitRegistrationError ? (
+            /* Legacy error display */
             (() => {
-              // Use structured error details if available, otherwise parse from legacy string
               const errorDetails = credential.orbitRegistrationErrorDetails;
               const parsedError: ParsedOrbitError = errorDetails
                 ? {
                     summary: (() => {
-                      // Try to extract message from response body
                       try {
                         const parsed = JSON.parse(errorDetails.responseBody || '{}');
                         return parsed.message || errorDetails.message;
@@ -327,7 +485,7 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
                         />
                       </svg>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-yellow-800">Registration Failed</p>
+                        <p className="text-sm font-medium text-yellow-800">Registration Failed (Legacy)</p>
                         <p className="text-xs text-yellow-700 mt-1">{parsedError.summary}</p>
                         {hasDetails && (
                           <button
@@ -349,7 +507,6 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
                     </div>
                   </div>
 
-                  {/* Expandable Error Details */}
                   {showErrorDetails && hasDetails && (
                     <div className="border-t border-yellow-200 bg-yellow-100/50 p-3 space-y-3">
                       <div className="grid grid-cols-2 gap-2 text-xs">
@@ -367,18 +524,7 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
                             </span>
                           </div>
                         )}
-                        {(() => {
-                          const errorType = parsedError.details?.error;
-                          if (!errorType) return null;
-                          return (
-                            <div className="col-span-2">
-                              <span className="text-yellow-700 font-medium">Error Type:</span>
-                              <span className="ml-2 text-yellow-800">{String(errorType)}</span>
-                            </div>
-                          );
-                        })()}
                       </div>
-
                       {parsedError.requestUrl && (
                         <div className="text-xs">
                           <span className="text-yellow-700 font-medium">Request URL:</span>
@@ -387,7 +533,6 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
                           </code>
                         </div>
                       )}
-
                       {parsedError.requestPayload && (
                         <div className="text-xs">
                           <span className="text-yellow-700 font-medium">Request Payload:</span>
@@ -396,7 +541,6 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
                           </pre>
                         </div>
                       )}
-
                       {parsedError.rawResponse && (
                         <div className="text-xs">
                           <span className="text-yellow-700 font-medium">Response Body:</span>
@@ -417,6 +561,7 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
               );
             })()
           ) : credential.orbitSchemaId || credential.orbitCredDefId ? (
+            /* Legacy success display */
             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
               <div className="flex items-start gap-2">
                 <svg
@@ -456,6 +601,7 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
               </div>
             </div>
           ) : (
+            /* Not registered */
             <div className="bg-gray-100 border border-gray-200 rounded-lg p-3">
               <div className="flex items-start gap-2">
                 <svg

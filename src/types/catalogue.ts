@@ -6,6 +6,35 @@
  */
 
 /**
+ * Log entry for a single Orbit API operation
+ */
+export interface OrbitOperationLog {
+  /** Whether the operation succeeded */
+  success: boolean;
+
+  /** Timestamp of the operation */
+  timestamp: string;
+
+  /** The API endpoint URL that was called */
+  requestUrl: string;
+
+  /** The payload sent to Orbit */
+  requestPayload: Record<string, unknown>;
+
+  /** HTTP status code from the response */
+  statusCode?: number;
+
+  /** The raw response body from Orbit */
+  responseBody?: string;
+
+  /** Parsed response data (if successful) */
+  responseData?: Record<string, unknown>;
+
+  /** Error message (if failed) */
+  errorMessage?: string;
+}
+
+/**
  * An imported credential from an external ecosystem
  */
 export interface CatalogueCredential {
@@ -47,10 +76,17 @@ export interface CatalogueCredential {
   /** ID returned from Orbit credential definition store */
   orbitCredDefId?: string;
 
-  /** Error message if Orbit registration failed (legacy string format) */
+  /** Log entry for a single Orbit API call */
+  /** Schema import operation log */
+  orbitSchemaLog?: OrbitOperationLog;
+
+  /** Credential definition import operation log */
+  orbitCredDefLog?: OrbitOperationLog;
+
+  /** @deprecated Legacy error message - use orbitSchemaLog/orbitCredDefLog instead */
   orbitRegistrationError?: string;
 
-  /** Detailed error info if Orbit registration failed */
+  /** @deprecated Legacy error details - use orbitSchemaLog/orbitCredDefLog instead */
   orbitRegistrationErrorDetails?: {
     /** Error summary message */
     message: string;

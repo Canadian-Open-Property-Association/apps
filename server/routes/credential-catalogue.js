@@ -94,9 +94,12 @@ const writeTags = (tags) => {
  *
  * API Endpoint: POST /api/lob/{lob_id}/schema/store
  * Reference: https://northern-block.gitbook.io/orbit-enterprise-api-documentation/api-modules/credential-management-api/import-an-external-schema
+ *
+ * Returns: { log: OrbitOperationLog, orbitSchemaId?: string }
  */
 const registerSchemaWithOrbit = async (schemaData) => {
   const orbitConfig = getOrbitApiConfig('credentialMgmt');
+  const timestamp = new Date().toISOString();
 
   // Debug: Log Orbit config (mask API key)
   console.log('[CredentialCatalogue] ====== ORBIT SCHEMA IMPORT DEBUG ======');
@@ -109,13 +112,33 @@ const registerSchemaWithOrbit = async (schemaData) => {
   });
 
   if (!orbitConfig) {
-    throw new Error('Orbit Credential Management API not configured. Please configure it in Settings → Orbit Configuration.');
+    const errorMsg = 'Orbit Credential Management API not configured. Please configure it in Settings → Orbit Configuration.';
+    return {
+      log: {
+        success: false,
+        timestamp,
+        requestUrl: 'N/A - not configured',
+        requestPayload: {},
+        errorMessage: errorMsg,
+      },
+      orbitSchemaId: null,
+    };
   }
 
   const { baseUrl, lobId, apiKey } = orbitConfig;
 
   if (!lobId) {
-    throw new Error('Orbit LOB ID not configured. Please configure it in Settings → Orbit Configuration.');
+    const errorMsg = 'Orbit LOB ID not configured. Please configure it in Settings → Orbit Configuration.';
+    return {
+      log: {
+        success: false,
+        timestamp,
+        requestUrl: 'N/A - LOB ID not set',
+        requestPayload: {},
+        errorMessage: errorMsg,
+      },
+      orbitSchemaId: null,
+    };
   }
 
   // Normalize baseUrl to remove trailing slashes
@@ -153,46 +176,72 @@ const registerSchemaWithOrbit = async (schemaData) => {
     attributeCount: schemaData.attributes?.length || 0,
   });
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(payload),
-  });
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
 
-  // Debug: Log response details
-  console.log('[CredentialCatalogue] Schema Import Response:');
-  console.log('[CredentialCatalogue]   Status:', response.status, response.statusText);
-  console.log('[CredentialCatalogue]   Headers:', Object.fromEntries(response.headers.entries()));
+    // Debug: Log response details
+    console.log('[CredentialCatalogue] Schema Import Response:');
+    console.log('[CredentialCatalogue]   Status:', response.status, response.statusText);
+    console.log('[CredentialCatalogue]   Headers:', Object.fromEntries(response.headers.entries()));
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('[CredentialCatalogue] ====== ORBIT SCHEMA IMPORT FAILED ======');
-    console.error('[CredentialCatalogue] Status:', response.status);
-    console.error('[CredentialCatalogue] Error Body:', errorText);
-    console.error('[CredentialCatalogue] Possible causes:');
-    console.error('[CredentialCatalogue]   - 401/403: API key invalid or missing permissions');
-    console.error('[CredentialCatalogue]   - 404: Wrong LOB ID or endpoint path');
-    console.error('[CredentialCatalogue]   - 422: LOB role may not have permission to store schemas (check if LOB is configured as Holder vs Issuer/Verifier)');
-    console.error('[CredentialCatalogue] ==========================================');
+    const responseText = await response.text();
 
-    // Create structured error with request details
-    const error = new Error(`Failed to import schema to Orbit: ${response.status} - ${errorText}`);
-    error.errorDetails = {
-      message: error.message,
-      statusCode: response.status,
-      requestUrl: url,
-      requestPayload: payload,
-      responseBody: errorText,
-      failedStep: 'schema',
+    if (!response.ok) {
+      console.error('[CredentialCatalogue] ====== ORBIT SCHEMA IMPORT FAILED ======');
+      console.error('[CredentialCatalogue] Status:', response.status);
+      console.error('[CredentialCatalogue] Error Body:', responseText);
+      console.error('[CredentialCatalogue] ==========================================');
+
+      return {
+        log: {
+          success: false,
+          timestamp,
+          requestUrl: url,
+          requestPayload: payload,
+          statusCode: response.status,
+          responseBody: responseText,
+          errorMessage: `Failed to import schema to Orbit: ${response.status}`,
+        },
+        orbitSchemaId: null,
+      };
+    }
+
+    const result = JSON.parse(responseText);
+    console.log('[CredentialCatalogue] ====== ORBIT SCHEMA IMPORT SUCCESS ======');
+    console.log('[CredentialCatalogue] Response:', JSON.stringify(result, null, 2));
+    console.log('[CredentialCatalogue] ==========================================');
+
+    const orbitSchemaId = result.data?.schemaId || result.schemaId;
+
+    return {
+      log: {
+        success: true,
+        timestamp,
+        requestUrl: url,
+        requestPayload: payload,
+        statusCode: response.status,
+        responseBody: responseText,
+        responseData: result,
+      },
+      orbitSchemaId,
     };
-    throw error;
+  } catch (err) {
+    console.error('[CredentialCatalogue] Schema import network error:', err.message);
+    return {
+      log: {
+        success: false,
+        timestamp,
+        requestUrl: url,
+        requestPayload: payload,
+        errorMessage: `Network error: ${err.message}`,
+      },
+      orbitSchemaId: null,
+    };
   }
-
-  const result = await response.json();
-  console.log('[CredentialCatalogue] ====== ORBIT SCHEMA IMPORT SUCCESS ======');
-  console.log('[CredentialCatalogue] Response:', JSON.stringify(result, null, 2));
-  console.log('[CredentialCatalogue] ==========================================');
-  return result;
 };
 
 /**
@@ -200,9 +249,12 @@ const registerSchemaWithOrbit = async (schemaData) => {
  *
  * API Endpoint: POST /api/lob/{lob_id}/cred-def/store
  * Reference: https://northern-block.gitbook.io/orbit-enterprise-api-documentation/api-modules/credential-management-api/import-an-external-credential-definition
+ *
+ * Returns: { log: OrbitOperationLog, orbitCredDefId?: string }
  */
 const registerCredDefWithOrbit = async (credDefData, orbitSchemaId) => {
   const orbitConfig = getOrbitApiConfig('credentialMgmt');
+  const timestamp = new Date().toISOString();
 
   // Debug: Log Orbit config (mask API key)
   console.log('[CredentialCatalogue] ====== ORBIT CRED DEF IMPORT DEBUG ======');
@@ -215,13 +267,33 @@ const registerCredDefWithOrbit = async (credDefData, orbitSchemaId) => {
   console.log('[CredentialCatalogue] Orbit Schema ID (from schema import):', orbitSchemaId);
 
   if (!orbitConfig) {
-    throw new Error('Orbit Credential Management API not configured. Please configure it in Settings → Orbit Configuration.');
+    const errorMsg = 'Orbit Credential Management API not configured. Please configure it in Settings → Orbit Configuration.';
+    return {
+      log: {
+        success: false,
+        timestamp,
+        requestUrl: 'N/A - not configured',
+        requestPayload: {},
+        errorMessage: errorMsg,
+      },
+      orbitCredDefId: null,
+    };
   }
 
   const { baseUrl, lobId, apiKey } = orbitConfig;
 
   if (!lobId) {
-    throw new Error('Orbit LOB ID not configured. Please configure it in Settings → Orbit Configuration.');
+    const errorMsg = 'Orbit LOB ID not configured. Please configure it in Settings → Orbit Configuration.';
+    return {
+      log: {
+        success: false,
+        timestamp,
+        requestUrl: 'N/A - LOB ID not set',
+        requestPayload: {},
+        errorMessage: errorMsg,
+      },
+      orbitCredDefId: null,
+    };
   }
 
   // Normalize baseUrl to remove trailing slashes
@@ -253,45 +325,71 @@ const registerCredDefWithOrbit = async (credDefData, orbitSchemaId) => {
     tag: credDefData.tag,
   });
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(payload),
-  });
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
 
-  // Debug: Log response details
-  console.log('[CredentialCatalogue] Cred Def Import Response:');
-  console.log('[CredentialCatalogue]   Status:', response.status, response.statusText);
+    // Debug: Log response details
+    console.log('[CredentialCatalogue] Cred Def Import Response:');
+    console.log('[CredentialCatalogue]   Status:', response.status, response.statusText);
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('[CredentialCatalogue] ====== ORBIT CRED DEF IMPORT FAILED ======');
-    console.error('[CredentialCatalogue] Status:', response.status);
-    console.error('[CredentialCatalogue] Error Body:', errorText);
-    console.error('[CredentialCatalogue] Possible causes:');
-    console.error('[CredentialCatalogue]   - 401/403: API key invalid or missing permissions');
-    console.error('[CredentialCatalogue]   - 404: Wrong LOB ID, schema ID, or endpoint path');
-    console.error('[CredentialCatalogue]   - 422: LOB role may not have permission, or schema not found');
-    console.error('[CredentialCatalogue] ==========================================');
+    const responseText = await response.text();
 
-    // Create structured error with request details
-    const error = new Error(`Failed to import credential definition to Orbit: ${response.status} - ${errorText}`);
-    error.errorDetails = {
-      message: error.message,
-      statusCode: response.status,
-      requestUrl: url,
-      requestPayload: payload,
-      responseBody: errorText,
-      failedStep: 'creddef',
+    if (!response.ok) {
+      console.error('[CredentialCatalogue] ====== ORBIT CRED DEF IMPORT FAILED ======');
+      console.error('[CredentialCatalogue] Status:', response.status);
+      console.error('[CredentialCatalogue] Error Body:', responseText);
+      console.error('[CredentialCatalogue] ==========================================');
+
+      return {
+        log: {
+          success: false,
+          timestamp,
+          requestUrl: url,
+          requestPayload: payload,
+          statusCode: response.status,
+          responseBody: responseText,
+          errorMessage: `Failed to import credential definition to Orbit: ${response.status}`,
+        },
+        orbitCredDefId: null,
+      };
+    }
+
+    const result = JSON.parse(responseText);
+    console.log('[CredentialCatalogue] ====== ORBIT CRED DEF IMPORT SUCCESS ======');
+    console.log('[CredentialCatalogue] Response:', JSON.stringify(result, null, 2));
+    console.log('[CredentialCatalogue] ==========================================');
+
+    const orbitCredDefId = result.data?.credentialId || result.credentialId;
+
+    return {
+      log: {
+        success: true,
+        timestamp,
+        requestUrl: url,
+        requestPayload: payload,
+        statusCode: response.status,
+        responseBody: responseText,
+        responseData: result,
+      },
+      orbitCredDefId,
     };
-    throw error;
+  } catch (err) {
+    console.error('[CredentialCatalogue] Cred def import network error:', err.message);
+    return {
+      log: {
+        success: false,
+        timestamp,
+        requestUrl: url,
+        requestPayload: payload,
+        errorMessage: `Network error: ${err.message}`,
+      },
+      orbitCredDefId: null,
+    };
   }
-
-  const result = await response.json();
-  console.log('[CredentialCatalogue] ====== ORBIT CRED DEF IMPORT SUCCESS ======');
-  console.log('[CredentialCatalogue] Response:', JSON.stringify(result, null, 2));
-  console.log('[CredentialCatalogue] ==========================================');
-  return result;
 };
 
 /**
@@ -446,36 +544,58 @@ router.post('/', async (req, res) => {
       importedBy: req.session?.user?.email || req.session?.user?.login || 'unknown',
       orbitSchemaId: null,
       orbitCredDefId: null,
+      orbitSchemaLog: null,
+      orbitCredDefLog: null,
       orbitRegistrationError: null,
       orbitRegistrationErrorDetails: null,
     };
 
     // Register with Orbit if requested
     if (registerWithOrbit) {
-      try {
-        // Import schema first
-        const schemaResult = await registerSchemaWithOrbit(schemaData);
-        // Orbit returns: { success: true, data: { schemaId: 1, schemaLedgerId: "...", schemaState: "available" } }
-        const orbitSchemaId = schemaResult.data?.schemaId || schemaResult.schemaId;
-        credential.orbitSchemaId = orbitSchemaId;
+      // Import schema first
+      const schemaResult = await registerSchemaWithOrbit(schemaData);
+      credential.orbitSchemaLog = schemaResult.log;
+
+      if (schemaResult.orbitSchemaId) {
+        credential.orbitSchemaId = schemaResult.orbitSchemaId;
 
         // Import credential definition using Orbit's internal schema ID
         const credDefResult = await registerCredDefWithOrbit(
           { ...credDefData, name: schemaData.name },
-          orbitSchemaId
+          schemaResult.orbitSchemaId
         );
-        // Orbit returns: { success: true, data: { credentialDefinitionId: "...", credentialId: 1 } }
-        credential.orbitCredDefId = credDefResult.data?.credentialId || credDefResult.credentialId;
+        credential.orbitCredDefLog = credDefResult.log;
 
-        console.log('[CredentialCatalogue] Successfully imported to Orbit');
-      } catch (orbitErr) {
-        console.error('[CredentialCatalogue] Orbit import failed:', orbitErr.message);
-        // Store the error message (legacy) and detailed error info
-        credential.orbitRegistrationError = orbitErr.message;
-        // Store structured error details if available
-        if (orbitErr.errorDetails) {
-          credential.orbitRegistrationErrorDetails = orbitErr.errorDetails;
+        if (credDefResult.orbitCredDefId) {
+          credential.orbitCredDefId = credDefResult.orbitCredDefId;
         }
+
+        console.log('[CredentialCatalogue] Orbit import complete - Schema:', schemaResult.log.success ? 'success' : 'failed', ', CredDef:', credDefResult.log.success ? 'success' : 'failed');
+      } else {
+        // Schema import failed, skip cred def import
+        console.log('[CredentialCatalogue] Schema import failed, skipping cred def import');
+        // Create a placeholder log for cred def indicating it was skipped
+        credential.orbitCredDefLog = {
+          success: false,
+          timestamp: new Date().toISOString(),
+          requestUrl: 'N/A - skipped due to schema import failure',
+          requestPayload: {},
+          errorMessage: 'Skipped - schema import must succeed first',
+        };
+      }
+
+      // Legacy fields for backwards compatibility
+      if (!schemaResult.log.success || !credential.orbitCredDefLog?.success) {
+        const failedLog = !schemaResult.log.success ? schemaResult.log : credential.orbitCredDefLog;
+        credential.orbitRegistrationError = failedLog.errorMessage;
+        credential.orbitRegistrationErrorDetails = {
+          message: failedLog.errorMessage,
+          statusCode: failedLog.statusCode,
+          requestUrl: failedLog.requestUrl,
+          requestPayload: failedLog.requestPayload,
+          responseBody: failedLog.responseBody,
+          failedStep: !schemaResult.log.success ? 'schema' : 'creddef',
+        };
       }
     }
 
