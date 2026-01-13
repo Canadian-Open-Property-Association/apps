@@ -8,10 +8,16 @@
 import { useState } from 'react';
 import type { CatalogueCredential, ImportErrorDetails } from '../../../types/catalogue';
 
+export interface CloneOptions {
+  schemaName: string;
+  schemaVersion: string;
+  credDefTag: string;
+}
+
 interface ClonePreviewModalProps {
   credential: CatalogueCredential;
   onClose: () => void;
-  onConfirm: (credDefTag: string) => Promise<void>;
+  onConfirm: (options: CloneOptions) => Promise<void>;
   isLoading: boolean;
   error: string | null;
   errorDetails?: ImportErrorDetails | null;
@@ -25,12 +31,18 @@ export default function ClonePreviewModal({
   error,
   errorDetails,
 }: ClonePreviewModalProps) {
+  // Allow customizing schema name and version to avoid conflicts
+  const [schemaName, setSchemaName] = useState(credential.name);
+  const [schemaVersion, setSchemaVersion] = useState(credential.version);
   const [credDefTag, setCredDefTag] = useState('default');
   const [showErrorDetails, setShowErrorDetails] = useState(false);
 
   const handleConfirm = async () => {
-    await onConfirm(credDefTag);
+    await onConfirm({ schemaName, schemaVersion, credDefTag });
   };
+
+  // Check if name or version has been customized
+  const isCustomized = schemaName !== credential.name || schemaVersion !== credential.version;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -97,17 +109,39 @@ export default function ClonePreviewModal({
             <h3 className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-3">
               Will Create
             </h3>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-sm text-blue-600">Target Ledger</span>
                 <span className="text-sm font-medium text-blue-900">BCOVRIN-TEST</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-blue-600">Schema</span>
-                <span className="text-sm font-medium text-blue-900">
-                  {credential.name} v{credential.version}
-                </span>
+
+              {/* Schema Name - Editable */}
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-blue-600">Schema Name</span>
+                <input
+                  type="text"
+                  value={schemaName}
+                  onChange={(e) => setSchemaName(e.target.value)}
+                  className="w-48 px-2 py-1 text-sm border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder={credential.name}
+                  disabled={isLoading}
+                />
               </div>
+
+              {/* Schema Version - Editable */}
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-blue-600">Schema Version</span>
+                <input
+                  type="text"
+                  value={schemaVersion}
+                  onChange={(e) => setSchemaVersion(e.target.value)}
+                  className="w-32 px-2 py-1 text-sm border border-blue-200 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder={credential.version}
+                  disabled={isLoading}
+                />
+              </div>
+
+              {/* Cred Def Tag - Editable */}
               <div className="flex justify-between items-center">
                 <span className="text-sm text-blue-600">Cred Def Tag</span>
                 <input
@@ -119,6 +153,14 @@ export default function ClonePreviewModal({
                   disabled={isLoading}
                 />
               </div>
+
+              {/* Show notice if customized */}
+              {isCustomized && (
+                <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                  <strong>Note:</strong> You've customized the schema name/version. The cloned
+                  credential will use these new values instead of the original.
+                </div>
+              )}
             </div>
           </div>
 
@@ -311,7 +353,7 @@ export default function ClonePreviewModal({
           </button>
           <button
             onClick={handleConfirm}
-            disabled={isLoading || !credDefTag.trim()}
+            disabled={isLoading || !credDefTag.trim() || !schemaName.trim() || !schemaVersion.trim()}
             className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {isLoading ? (

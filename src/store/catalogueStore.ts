@@ -73,7 +73,10 @@ interface CatalogueState {
   fetchOrbitStatus: () => Promise<void>;
 
   // Actions - Clone for Issuance
-  cloneForIssuance: (credentialId: string, credDefTag?: string) => Promise<CloneForIssuanceResponse>;
+  cloneForIssuance: (
+    credentialId: string,
+    options?: { schemaName?: string; schemaVersion?: string; credDefTag?: string }
+  ) => Promise<CloneForIssuanceResponse>;
   deleteClone: (credentialId: string) => Promise<void>;
 
   // Utility
@@ -440,17 +443,27 @@ export const useCatalogueStore = create<CatalogueState>((set, get) => ({
   },
 
   // Clone a credential for issuance
-  cloneForIssuance: async (credentialId: string, credDefTag?: string) => {
+  cloneForIssuance: async (
+    credentialId: string,
+    options?: { schemaName?: string; schemaVersion?: string; credDefTag?: string }
+  ) => {
     // Use clone-specific error state, not the global error (which shows in credential list)
     set({ isLoading: true, cloneError: null, cloneErrorDetails: null });
     const requestUrl = `${API_BASE}/api/credential-catalogue/${credentialId}/clone-for-issuance`;
+
+    // Build request payload with optional custom schema name/version
+    const requestPayload = {
+      credDefTag: options?.credDefTag || 'default',
+      ...(options?.schemaName && { schemaName: options.schemaName }),
+      ...(options?.schemaVersion && { schemaVersion: options.schemaVersion }),
+    };
 
     try {
       const response = await fetch(requestUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ credDefTag: credDefTag || 'default' }),
+        body: JSON.stringify(requestPayload),
       });
 
       const responseText = await response.text();
@@ -481,7 +494,7 @@ export const useCatalogueStore = create<CatalogueState>((set, get) => ({
             : {
                 requestUrl,
                 requestMethod: 'POST',
-                requestPayload: { credDefTag: credDefTag || 'default' },
+                requestPayload,
                 responseBody: responseText,
               }),
         };

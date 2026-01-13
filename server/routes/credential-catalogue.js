@@ -1237,11 +1237,16 @@ const createCredDefInOrbit = async (orbitSchemaId, tag, description) => {
 /**
  * POST /api/credential-catalogue/:id/clone-for-issuance
  * Clone an imported credential to create a new issuable version
+ *
+ * Request body:
+ * - credDefTag: string (optional, defaults to "default")
+ * - schemaName: string (optional, defaults to credential's original name)
+ * - schemaVersion: string (optional, defaults to credential's original version)
  */
 router.post('/:id/clone-for-issuance', async (req, res) => {
   try {
     const { id } = req.params;
-    const { credDefTag } = req.body;
+    const { credDefTag, schemaName, schemaVersion } = req.body;
 
     console.log('[CredentialCatalogue] ====== CLONE FOR ISSUANCE START ======');
     console.log('[CredentialCatalogue] Credential ID:', id);
@@ -1264,11 +1269,18 @@ router.post('/:id/clone-for-issuance', async (req, res) => {
       });
     }
 
+    // Use custom schema name/version if provided, otherwise use original
+    const finalSchemaName = schemaName || credential.name;
+    const finalSchemaVersion = schemaVersion || credential.version;
+
+    console.log('[CredentialCatalogue] Schema Name:', finalSchemaName, schemaName ? '(custom)' : '(original)');
+    console.log('[CredentialCatalogue] Schema Version:', finalSchemaVersion, schemaVersion ? '(custom)' : '(original)');
+
     // Step 1: Create schema in Orbit
     console.log('[CredentialCatalogue] Step 1: Creating schema in Orbit...');
     const schemaResult = await createSchemaInOrbit(
-      credential.name,
-      credential.version,
+      finalSchemaName,
+      finalSchemaVersion,
       credential.attributes
     );
 
@@ -1288,7 +1300,7 @@ router.post('/:id/clone-for-issuance', async (req, res) => {
     const credDefResult = await createCredDefInOrbit(
       schemaResult.orbitSchemaId,
       credDefTag || 'default',
-      `${credential.name} - cloned for issuance`
+      `${finalSchemaName} - cloned for issuance`
     );
 
     if (!credDefResult.log.success || !credDefResult.orbitCredDefId) {

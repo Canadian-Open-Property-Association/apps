@@ -273,11 +273,15 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
   };
 
   // Clone for issuance handlers
-  const handleCloneForIssuance = async (credDefTag: string) => {
+  const handleCloneForIssuance = async (options: {
+    schemaName: string;
+    schemaVersion: string;
+    credDefTag: string;
+  }) => {
     setIsCloning(true);
     clearCloneError();
     try {
-      await cloneForIssuance(credential.id, credDefTag);
+      await cloneForIssuance(credential.id, options);
       setShowCloneModal(false);
       setActiveTab('cloned'); // Switch to cloned tab after successful clone
     } catch {
