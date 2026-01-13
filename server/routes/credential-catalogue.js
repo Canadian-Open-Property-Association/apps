@@ -1201,8 +1201,11 @@ const createCredDefInOrbit = async (orbitSchemaId, tag, description, supportRevo
     console.log('[CredentialCatalogue] ==========================================');
 
     // Extract IDs from response
-    const orbitCredDefId = result.data?.credDefId || result.credDefId;
-    const ledgerCredDefId = result.data?.credDefLedgerId || result.credDefLedgerId;
+    // API returns: data.credentialId (Orbit internal ID) and data.credentialDefinitionId (ledger ID)
+    const orbitCredDefId = result.data?.credentialId || result.data?.credDefId || result.credDefId;
+    const ledgerCredDefId = result.data?.credentialDefinitionId || result.data?.credDefLedgerId || result.credDefLedgerId;
+
+    console.log('[CredentialCatalogue] Extracted - orbitCredDefId:', orbitCredDefId, ', ledgerCredDefId:', ledgerCredDefId);
 
     return {
       log: {
