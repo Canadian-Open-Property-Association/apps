@@ -578,6 +578,12 @@ router.post('/', async (req, res) => {
       registerWithOrbit,
     } = req.body;
 
+    // Debug: Log received cred def data
+    console.log('[CredentialCatalogue] ====== IMPORT RECEIVED DATA ======');
+    console.log('[CredentialCatalogue] credDefData.credDefId:', JSON.stringify(credDefData?.credDefId));
+    console.log('[CredentialCatalogue] credDefData.credDefId length:', credDefData?.credDefId?.length);
+    console.log('[CredentialCatalogue] ==========================================');
+
     // Validate required fields
     if (!schemaData || !credDefData || !ecosystemTagId) {
       return res.status(400).json({
@@ -844,7 +850,10 @@ const parseCredDefFromHtml = (html, sourceUrl) => {
 
         // If we found the cred def ID, return early
         if (result.credDefId) {
-          console.log('[CredentialCatalogue] Parsed cred def from __NEXT_DATA__:', result.credDefId);
+          console.log('[CredentialCatalogue] Parsed cred def from __NEXT_DATA__:');
+          console.log('[CredentialCatalogue]   credDefId:', JSON.stringify(result.credDefId));
+          console.log('[CredentialCatalogue]   tag:', JSON.stringify(result.tag));
+          console.log('[CredentialCatalogue]   credDefId length:', result.credDefId.length);
           return result;
         }
       }
@@ -955,6 +964,11 @@ router.post('/import/creddef', async (req, res) => {
         error: 'Could not parse credential definition ID from page. Please check the URL.',
       });
     }
+
+    // Debug: Log the final parsed data being sent to frontend
+    console.log('[CredentialCatalogue] Sending parsed cred def to frontend:');
+    console.log('[CredentialCatalogue]   credDefId:', JSON.stringify(credDefData.credDefId));
+    console.log('[CredentialCatalogue]   credDefId length:', credDefData.credDefId.length);
 
     res.json(credDefData);
   } catch (err) {

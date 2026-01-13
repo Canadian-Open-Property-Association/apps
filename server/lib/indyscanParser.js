@@ -184,11 +184,16 @@ async function parseCredDefFromHtml(html, sourceUrl) {
   const pageText = $('body').text();
 
   // Look for credential definition ID pattern (DID:3:CL:schemaSeqNo:tag format)
-  const credDefIdMatch = pageText.match(/([A-Za-z0-9]{21,}):3:CL:(\d+):([A-Za-z0-9_-]+)/);
+  // Note: Tag can contain spaces (e.g., "Rental Property Business Licence")
+  // We capture the components separately and reconstruct the ID to handle spaces in tags
+  const credDefIdMatch = pageText.match(/([A-Za-z0-9]{21,}):3:CL:(\d+):([^\n\r"]+)/);
   if (credDefIdMatch) {
-    result.credDefId = credDefIdMatch[0];
     result.issuerDid = credDefIdMatch[1];
-    result.tag = credDefIdMatch[3];
+    const schemaSeqNo = credDefIdMatch[2];
+    // Trim any trailing whitespace from the tag
+    result.tag = credDefIdMatch[3].trim();
+    // Reconstruct the full credential definition ID with cleaned tag
+    result.credDefId = `${result.issuerDid}:3:CL:${schemaSeqNo}:${result.tag}`;
   }
 
   // Look for schema reference
