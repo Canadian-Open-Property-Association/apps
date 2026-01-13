@@ -895,11 +895,22 @@ const parseCredDefFromHtml = (html, sourceUrl) => {
 // ============ Clone for Issuance - Orbit API Functions ============
 
 /**
- * Create a NEW schema in Orbit (not import/store)
+ * Create a NEW schema in Orbit using the Create Schema Draft API
  * This creates a new schema on the agent's ledger (e.g., BCOVRIN-TEST)
  *
- * API Endpoint: POST /api/lob/{lob_id}/schema
- * Reference: https://northern-block.gitbook.io/orbit-enterprise-api-documentation/api-modules/credential-management-api/create-a-schema
+ * API Endpoint: POST /api/lob/{lob_id}/schema/draft
+ * Reference: https://northern-block.gitbook.io/orbit-enterprise-api-documentation/api-modules/credential-management-api/create-a-schema-draft
+ *
+ * Request format:
+ * {
+ *   "schemaInfo": {
+ *     "schemaName": "...",
+ *     "schemaVersion": "...",
+ *     "credentialFormat": "ANONCRED"
+ *   },
+ *   "attributes": { "attr1": "text", "attr2": "text", ... },
+ *   "isDraft": false  // Based on publishImmediately setting
+ * }
  *
  * Returns: { log: OrbitOperationLog, orbitSchemaId?: number, ledgerSchemaId?: string }
  */
@@ -926,7 +937,7 @@ const createSchemaInOrbit = async (schemaName, schemaVersion, attributes) => {
     };
   }
 
-  const { baseUrl, lobId, apiKey } = orbitConfig;
+  const { baseUrl, lobId, apiKey, settings } = orbitConfig;
 
   if (!lobId) {
     const errorMsg = 'Orbit LOB ID not configured. Please configure it in Settings → Orbit Configuration.';
@@ -945,21 +956,31 @@ const createSchemaInOrbit = async (schemaName, schemaVersion, attributes) => {
 
   const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
 
+  // Get publishImmediately setting (default to true if not set)
+  const publishImmediately = settings?.publishImmediately !== false;
+  const isDraft = !publishImmediately;
+
+  console.log('[CredentialCatalogue] publishImmediately setting:', publishImmediately);
+  console.log('[CredentialCatalogue] isDraft:', isDraft);
+
   // Convert attributes array to object format { attributeName: "text", ... }
   const attributesObject = {};
   for (const attr of attributes) {
     attributesObject[attr] = 'text';
   }
 
-  // Prepare schema creation payload
+  // Prepare schema creation payload per Create Schema Draft API spec
   const payload = {
-    schemaName,
-    schemaVersion,
+    schemaInfo: {
+      schemaName,
+      schemaVersion,
+      credentialFormat: 'ANONCRED',
+    },
     attributes: attributesObject,
-    credentialFormat: 'ANONCRED',
+    isDraft,
   };
 
-  const url = `${normalizedBaseUrl}/api/lob/${lobId}/schema/register`;
+  const url = `${normalizedBaseUrl}/api/lob/${lobId}/schema/draft`;
   const headers = {
     'Content-Type': 'application/json',
     ...(apiKey && { 'api-key': apiKey }),
@@ -1021,9 +1042,12 @@ const createSchemaInOrbit = async (schemaName, schemaVersion, attributes) => {
     console.log('[CredentialCatalogue] Response:', JSON.stringify(result, null, 2));
     console.log('[CredentialCatalogue] ==========================================');
 
-    // Extract IDs from response
-    const orbitSchemaId = result.data?.schemaId || result.schemaId;
+    // Extract IDs from response - Create Schema Draft returns schemaDraftId and schemaLedgerId
+    const orbitSchemaId = result.data?.schemaDraftId || result.data?.schemaId || result.schemaDraftId || result.schemaId;
     const ledgerSchemaId = result.data?.schemaLedgerId || result.schemaLedgerId;
+    const schemaState = result.data?.schemaState || result.schemaState;
+
+    console.log('[CredentialCatalogue] Extracted - orbitSchemaId:', orbitSchemaId, ', ledgerSchemaId:', ledgerSchemaId, ', state:', schemaState);
 
     return {
       log: {
@@ -1037,6 +1061,7 @@ const createSchemaInOrbit = async (schemaName, schemaVersion, attributes) => {
       },
       orbitSchemaId,
       ledgerSchemaId,
+      schemaState,
     };
   } catch (err) {
     console.error('[CredentialCatalogue] Schema create network error:', err.message);

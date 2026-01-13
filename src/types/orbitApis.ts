@@ -63,7 +63,12 @@ export interface IssuerSettings {
   // Reserved for future settings
 }
 
-export type ApiSettings = VerifierSettings | IssuerSettings | Record<string, unknown>;
+export interface CredentialMgmtSettings {
+  /** When true, schemas are published immediately (isDraft=false). When false, schemas are saved as drafts. */
+  publishImmediately?: boolean;
+}
+
+export type ApiSettings = VerifierSettings | IssuerSettings | CredentialMgmtSettings | Record<string, unknown>;
 
 /**
  * Settings field definition for UI rendering
@@ -98,7 +103,17 @@ export const API_SETTINGS_SCHEMA: Record<OrbitApiType, { fields: SettingField[] 
   registerSocket: { fields: [] },
   connection: { fields: [] },
   holder: { fields: [] },
-  credentialMgmt: { fields: [] },
+  credentialMgmt: {
+    fields: [
+      {
+        key: 'publishImmediately',
+        type: 'boolean',
+        label: 'Publish schemas immediately',
+        description: 'When enabled, schemas are published to the ledger immediately (isDraft=false). When disabled, schemas are saved as drafts first.',
+        default: true,
+      },
+    ],
+  },
   chat: { fields: [] },
 };
 

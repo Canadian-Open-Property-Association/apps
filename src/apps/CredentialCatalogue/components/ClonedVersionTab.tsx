@@ -7,12 +7,138 @@
  */
 
 import { useState } from 'react';
-import type { CatalogueCredential } from '../../../types/catalogue';
+import type { CatalogueCredential, OrbitOperationLog } from '../../../types/catalogue';
 
 interface ClonedVersionTabProps {
   credential: CatalogueCredential;
   onDeleteClone: () => Promise<void>;
   isDeleting: boolean;
+}
+
+// Format date for display
+function formatDateTime(dateString: string): string {
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+// Component to display a single Orbit operation log (matches CredentialDetail style)
+interface OrbitLogEntryProps {
+  title: string;
+  log: OrbitOperationLog;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+function OrbitLogEntry({ title, log, isExpanded, onToggle }: OrbitLogEntryProps) {
+  const bgColor = log.success ? 'bg-green-50' : 'bg-red-50';
+  const borderColor = log.success ? 'border-green-200' : 'border-red-200';
+  const iconColor = log.success ? 'text-green-600' : 'text-red-600';
+  const textColor = log.success ? 'text-green-800' : 'text-red-800';
+  const lightTextColor = log.success ? 'text-green-700' : 'text-red-700';
+  const expandedBg = log.success ? 'bg-green-100/50' : 'bg-red-100/50';
+
+  return (
+    <div className={`${bgColor} border ${borderColor} rounded-lg overflow-hidden`}>
+      <button
+        onClick={onToggle}
+        className="w-full p-3 flex items-center justify-between hover:bg-opacity-80 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          {log.success ? (
+            <svg className={`w-4 h-4 ${iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className={`w-4 h-4 ${iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          )}
+          <span className={`text-sm font-medium ${textColor}`}>{title}</span>
+          <span className={`text-xs ${lightTextColor}`}>
+            {log.success ? 'Success' : 'Failed'}
+            {log.statusCode && ` (${log.statusCode})`}
+          </span>
+        </div>
+        <svg
+          className={`w-4 h-4 ${lightTextColor} transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isExpanded && (
+        <div className={`border-t ${borderColor} ${expandedBg} p-3 space-y-3`}>
+          {/* Timestamp */}
+          {log.timestamp && (
+            <div className="text-xs">
+              <span className={`${lightTextColor} font-medium`}>Timestamp:</span>
+              <span className={`ml-2 ${textColor}`}>{formatDateTime(log.timestamp)}</span>
+            </div>
+          )}
+
+          {/* Status Code */}
+          {log.statusCode && (
+            <div className="text-xs">
+              <span className={`${lightTextColor} font-medium`}>Status Code:</span>
+              <span className={`ml-2 ${textColor}`}>{log.statusCode}</span>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {log.errorMessage && (
+            <div className="text-xs">
+              <span className={`${lightTextColor} font-medium`}>Error:</span>
+              <span className={`ml-2 ${textColor}`}>{log.errorMessage}</span>
+            </div>
+          )}
+
+          {/* Request URL */}
+          {log.requestUrl && (
+            <div className="text-xs">
+              <span className={`${lightTextColor} font-medium`}>Request URL:</span>
+              <code className={`block mt-1 p-2 bg-white rounded border ${borderColor} ${textColor} text-xs font-mono break-all`}>
+                POST {log.requestUrl}
+              </code>
+            </div>
+          )}
+
+          {/* Request Payload */}
+          {log.requestPayload && Object.keys(log.requestPayload).length > 0 && (
+            <div className="text-xs">
+              <span className={`${lightTextColor} font-medium`}>Request Payload:</span>
+              <pre className={`mt-1 p-2 bg-white rounded border ${borderColor} ${textColor} text-xs font-mono overflow-x-auto max-h-48 overflow-y-auto whitespace-pre-wrap`}>
+                {JSON.stringify(log.requestPayload, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          {/* Response Body */}
+          {log.responseBody && (
+            <div className="text-xs">
+              <span className={`${lightTextColor} font-medium`}>Response Body:</span>
+              <pre className={`mt-1 p-2 bg-white rounded border ${borderColor} ${textColor} text-xs font-mono overflow-x-auto max-h-48 overflow-y-auto whitespace-pre-wrap`}>
+                {(() => {
+                  try {
+                    return JSON.stringify(JSON.parse(log.responseBody), null, 2);
+                  } catch {
+                    return log.responseBody;
+                  }
+                })()}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function ClonedVersionTab({
@@ -21,23 +147,11 @@ export default function ClonedVersionTab({
   isDeleting,
 }: ClonedVersionTabProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showSchemaLog, setShowSchemaLog] = useState(false);
-  const [showCredDefLog, setShowCredDefLog] = useState(false);
+  const [expandedLogSection, setExpandedLogSection] = useState<'schema' | 'creddef' | null>(null);
 
   const handleDelete = async () => {
     await onDeleteClone();
     setShowDeleteConfirm(false);
-  };
-
-  // Format date for display
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   };
 
   return (
@@ -68,7 +182,7 @@ export default function ClonedVersionTab({
             </p>
             {credential.clonedAt && (
               <p className="text-xs text-green-500 mt-2">
-                Created {formatDate(credential.clonedAt)}
+                Created {formatDateTime(credential.clonedAt)}
                 {credential.clonedBy && ` by ${credential.clonedBy}`}
               </p>
             )}
@@ -112,177 +226,70 @@ export default function ClonedVersionTab({
 
       {/* Orbit Registration */}
       <div className="bg-gray-50 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Orbit Registration</h3>
+        <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2 mb-3">
+          <svg
+            className="w-4 h-4 text-blue-600"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+            />
+          </svg>
+          Orbit Registration
+        </h3>
+
+        {/* Orbit IDs Summary */}
+        {(credential.clonedOrbitSchemaId || credential.clonedOrbitCredDefId) && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+            <p className="text-xs font-medium text-blue-800 mb-2">Orbit IDs</p>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <span className="text-blue-600">Schema ID:</span>
+                <code className="ml-1 bg-blue-100 px-1.5 py-0.5 rounded text-blue-800">
+                  {credential.clonedOrbitSchemaId || 'N/A'}
+                </code>
+              </div>
+              <div>
+                <span className="text-blue-600">Cred Def ID:</span>
+                <code className="ml-1 bg-blue-100 px-1.5 py-0.5 rounded text-blue-800">
+                  {credential.clonedOrbitCredDefId || 'N/A'}
+                </code>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* API Operation Logs */}
         <div className="space-y-3">
-          {/* Orbit Schema ID */}
-          {credential.clonedOrbitSchemaId && (
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-xs text-gray-500">Orbit Schema ID</label>
-                <p className="text-sm font-medium text-gray-800 mt-1">
-                  {credential.clonedOrbitSchemaId}
-                </p>
-              </div>
-              {credential.clonedOrbitSchemaLog && (
-                <button
-                  onClick={() => setShowSchemaLog(!showSchemaLog)}
-                  className="text-xs text-blue-600 hover:text-blue-700"
-                >
-                  {showSchemaLog ? 'Hide' : 'View'} Log
-                </button>
-              )}
-            </div>
+          {/* Schema Creation Log */}
+          {credential.clonedOrbitSchemaLog && (
+            <OrbitLogEntry
+              title="Schema Creation"
+              log={credential.clonedOrbitSchemaLog}
+              isExpanded={expandedLogSection === 'schema'}
+              onToggle={() => setExpandedLogSection(expandedLogSection === 'schema' ? null : 'schema')}
+            />
           )}
 
-          {/* Schema Log Details */}
-          {showSchemaLog && credential.clonedOrbitSchemaLog && (
-            <div className="bg-white rounded border border-gray-200 p-3 text-xs space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="text-gray-500">Status: </span>
-                  <span
-                    className={
-                      credential.clonedOrbitSchemaLog.success
-                        ? 'text-green-600 font-medium'
-                        : 'text-red-600 font-medium'
-                    }
-                  >
-                    {credential.clonedOrbitSchemaLog.success ? 'Success' : 'Failed'}
-                  </span>
-                </div>
-                {credential.clonedOrbitSchemaLog.statusCode && (
-                  <div>
-                    <span className="text-gray-500">HTTP Status: </span>
-                    <span className="font-medium">{credential.clonedOrbitSchemaLog.statusCode}</span>
-                  </div>
-                )}
-              </div>
-              {credential.clonedOrbitSchemaLog.timestamp && (
-                <div>
-                  <span className="text-gray-500">Timestamp: </span>
-                  <span>{formatDate(credential.clonedOrbitSchemaLog.timestamp)}</span>
-                </div>
-              )}
-              <div>
-                <span className="text-gray-500">Request URL: </span>
-                <code className="block mt-1 p-2 bg-gray-50 rounded border border-gray-200 font-mono break-all">
-                  POST {credential.clonedOrbitSchemaLog.requestUrl}
-                </code>
-              </div>
-              {credential.clonedOrbitSchemaLog.requestPayload && (
-                <div>
-                  <span className="text-gray-500">Request Payload:</span>
-                  <pre className="mt-1 p-2 bg-gray-50 rounded border border-gray-200 font-mono overflow-x-auto max-h-32 overflow-y-auto whitespace-pre-wrap">
-                    {JSON.stringify(credential.clonedOrbitSchemaLog.requestPayload, null, 2)}
-                  </pre>
-                </div>
-              )}
-              {credential.clonedOrbitSchemaLog.responseBody && (
-                <div>
-                  <span className="text-gray-500">Response Body:</span>
-                  <pre className="mt-1 p-2 bg-gray-50 rounded border border-gray-200 font-mono overflow-x-auto max-h-32 overflow-y-auto whitespace-pre-wrap">
-                    {(() => {
-                      try {
-                        return JSON.stringify(JSON.parse(credential.clonedOrbitSchemaLog.responseBody), null, 2);
-                      } catch {
-                        return credential.clonedOrbitSchemaLog.responseBody;
-                      }
-                    })()}
-                  </pre>
-                </div>
-              )}
-              {credential.clonedOrbitSchemaLog.errorMessage && (
-                <div>
-                  <span className="text-red-600">Error: </span>
-                  <span className="text-red-700">{credential.clonedOrbitSchemaLog.errorMessage}</span>
-                </div>
-              )}
-            </div>
+          {/* Cred Def Creation Log */}
+          {credential.clonedOrbitCredDefLog && (
+            <OrbitLogEntry
+              title="Credential Definition Creation"
+              log={credential.clonedOrbitCredDefLog}
+              isExpanded={expandedLogSection === 'creddef'}
+              onToggle={() => setExpandedLogSection(expandedLogSection === 'creddef' ? null : 'creddef')}
+            />
           )}
 
-          {/* Orbit Cred Def ID */}
-          {credential.clonedOrbitCredDefId && (
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-xs text-gray-500">Orbit Credential Definition ID</label>
-                <p className="text-sm font-medium text-gray-800 mt-1">
-                  {credential.clonedOrbitCredDefId}
-                </p>
-              </div>
-              {credential.clonedOrbitCredDefLog && (
-                <button
-                  onClick={() => setShowCredDefLog(!showCredDefLog)}
-                  className="text-xs text-blue-600 hover:text-blue-700"
-                >
-                  {showCredDefLog ? 'Hide' : 'View'} Log
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Cred Def Log Details */}
-          {showCredDefLog && credential.clonedOrbitCredDefLog && (
-            <div className="bg-white rounded border border-gray-200 p-3 text-xs space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="text-gray-500">Status: </span>
-                  <span
-                    className={
-                      credential.clonedOrbitCredDefLog.success
-                        ? 'text-green-600 font-medium'
-                        : 'text-red-600 font-medium'
-                    }
-                  >
-                    {credential.clonedOrbitCredDefLog.success ? 'Success' : 'Failed'}
-                  </span>
-                </div>
-                {credential.clonedOrbitCredDefLog.statusCode && (
-                  <div>
-                    <span className="text-gray-500">HTTP Status: </span>
-                    <span className="font-medium">{credential.clonedOrbitCredDefLog.statusCode}</span>
-                  </div>
-                )}
-              </div>
-              {credential.clonedOrbitCredDefLog.timestamp && (
-                <div>
-                  <span className="text-gray-500">Timestamp: </span>
-                  <span>{formatDate(credential.clonedOrbitCredDefLog.timestamp)}</span>
-                </div>
-              )}
-              <div>
-                <span className="text-gray-500">Request URL: </span>
-                <code className="block mt-1 p-2 bg-gray-50 rounded border border-gray-200 font-mono break-all">
-                  POST {credential.clonedOrbitCredDefLog.requestUrl}
-                </code>
-              </div>
-              {credential.clonedOrbitCredDefLog.requestPayload && (
-                <div>
-                  <span className="text-gray-500">Request Payload:</span>
-                  <pre className="mt-1 p-2 bg-gray-50 rounded border border-gray-200 font-mono overflow-x-auto max-h-32 overflow-y-auto whitespace-pre-wrap">
-                    {JSON.stringify(credential.clonedOrbitCredDefLog.requestPayload, null, 2)}
-                  </pre>
-                </div>
-              )}
-              {credential.clonedOrbitCredDefLog.responseBody && (
-                <div>
-                  <span className="text-gray-500">Response Body:</span>
-                  <pre className="mt-1 p-2 bg-gray-50 rounded border border-gray-200 font-mono overflow-x-auto max-h-32 overflow-y-auto whitespace-pre-wrap">
-                    {(() => {
-                      try {
-                        return JSON.stringify(JSON.parse(credential.clonedOrbitCredDefLog.responseBody), null, 2);
-                      } catch {
-                        return credential.clonedOrbitCredDefLog.responseBody;
-                      }
-                    })()}
-                  </pre>
-                </div>
-              )}
-              {credential.clonedOrbitCredDefLog.errorMessage && (
-                <div>
-                  <span className="text-red-600">Error: </span>
-                  <span className="text-red-700">{credential.clonedOrbitCredDefLog.errorMessage}</span>
-                </div>
-              )}
+          {/* No logs available message */}
+          {!credential.clonedOrbitSchemaLog && !credential.clonedOrbitCredDefLog && (
+            <div className="bg-gray-100 border border-gray-200 rounded-lg p-3 text-xs text-gray-600">
+              <p>No API operation logs available for this clone.</p>
             </div>
           )}
         </div>
