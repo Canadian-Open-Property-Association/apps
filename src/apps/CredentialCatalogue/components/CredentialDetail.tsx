@@ -6,7 +6,10 @@
  */
 
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useCatalogueStore } from '../../../store/catalogueStore';
+import { useEntityStore } from '../../../store/entityStore';
+import { useLogoStore } from '../../../store/logoStore';
 import type { CatalogueCredential, OrbitOperationLog } from '../../../types/catalogue';
 
 interface CredentialDetailProps {
@@ -176,6 +179,8 @@ function OrbitLogEntry({ title, log, isExpanded, onToggle }: OrbitLogEntryProps)
 export default function CredentialDetail({ credential }: CredentialDetailProps) {
   const { deleteCredential, clearSelection, updateCredential, ecosystemTags, fetchTags } =
     useCatalogueStore();
+  const { entities, fetchEntities } = useEntityStore();
+  const { getLogoUrl, fetchLogos } = useLogoStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditingTag, setIsEditingTag] = useState(false);
@@ -184,10 +189,22 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
   const [showErrorDetails, setShowErrorDetails] = useState(false);
   const [expandedLogSection, setExpandedLogSection] = useState<'schema' | 'creddef' | null>(null);
 
-  // Fetch tags on mount
+  // Fetch tags and entities on mount
   useEffect(() => {
     fetchTags();
-  }, [fetchTags]);
+    fetchEntities();
+    fetchLogos();
+  }, [fetchTags, fetchEntities, fetchLogos]);
+
+  // Get issuer entity if available
+  const issuerEntity = credential.issuerEntityId
+    ? entities.find((e) => e.id === credential.issuerEntityId)
+    : null;
+
+  // Get issuer logo URL
+  const issuerLogoUrl = issuerEntity
+    ? getLogoUrl(issuerEntity.id, issuerEntity.logoUri)
+    : null;
 
   // Reset selected tag when credential changes
   useEffect(() => {
@@ -359,12 +376,51 @@ export default function CredentialDetail({ credential }: CredentialDetailProps) 
         </div>
 
         {/* Issuer Info */}
-        {credential.issuerName && (
+        {(credential.issuerName || issuerEntity) && (
           <div className="mb-4 pb-4 border-b border-gray-200">
-            <p className="text-sm text-gray-600">
-              <span className="text-gray-400">Issuer:</span>{' '}
-              <span className="font-medium">{credential.issuerName}</span>
-            </p>
+            <div className="flex items-center gap-3">
+              {/* Issuer Logo */}
+              <div className="w-10 h-10 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                {issuerLogoUrl ? (
+                  <img
+                    src={issuerLogoUrl}
+                    alt={issuerEntity?.name || credential.issuerName || 'Issuer'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <svg
+                    className="w-5 h-5 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                    />
+                  </svg>
+                )}
+              </div>
+
+              {/* Issuer Name & Link */}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-gray-400 mb-0.5">Issuer</p>
+                {issuerEntity ? (
+                  <Link
+                    to={`/apps/entity-manager?entity=${issuerEntity.id}`}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                  >
+                    {issuerEntity.name}
+                  </Link>
+                ) : (
+                  <span className="text-sm font-medium text-gray-900">
+                    {credential.issuerName}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         )}
 

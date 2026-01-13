@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useEntityStore } from '../../store/entityStore';
 import { useHarmonizationStore } from '../../store/harmonizationStore';
 import { useFurnisherSettingsStore } from '../../store/furnisherSettingsStore';
@@ -19,7 +20,6 @@ export default function EntityManagerApp() {
     fetchEntities,
     selectedEntity,
     selectEntity,
-    clearSelection,
     isLoading,
     error,
     exportAll,
@@ -28,22 +28,32 @@ export default function EntityManagerApp() {
   const { fetchFieldFavourites } = useHarmonizationStore();
   const { fetchSettings } = useFurnisherSettingsStore();
 
+  const [searchParams, setSearchParams] = useSearchParams();
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [showEntityForm, setShowEntityForm] = useState(false);
   const [editingEntityId, setEditingEntityId] = useState<string | null>(null);
   const [showSaveToRepoModal, setShowSaveToRepoModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
 
-  // Reset to initial state when entering the app
+  // Initial data fetch
   useEffect(() => {
-    // Clear any previous entity selection
-    clearSelection();
-
-    // Fetch data
     fetchEntities();
     fetchFieldFavourites();
     fetchSettings();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle entity query param (e.g., ?entity=uuid) - select entity when navigating from external link
+  useEffect(() => {
+    const entityIdFromUrl = searchParams.get('entity');
+    if (entityIdFromUrl && entities.length > 0) {
+      const entityExists = entities.some((e) => e.id === entityIdFromUrl);
+      if (entityExists) {
+        selectEntity(entityIdFromUrl);
+        // Clear the query param after selecting
+        setSearchParams({}, { replace: true });
+      }
+    }
+  }, [searchParams, entities, selectEntity, setSearchParams]);
 
   const handleAddEntity = () => {
     setEditingEntityId(null);

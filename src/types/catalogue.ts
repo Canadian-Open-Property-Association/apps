@@ -63,6 +63,9 @@ export interface CatalogueCredential {
   /** Optional display name for the issuer */
   issuerName?: string;
 
+  /** Optional reference to an entity ID in Entity Manager */
+  issuerEntityId?: string;
+
   // === Schema Details ===
 
   /** List of attribute names from the schema */
@@ -217,6 +220,9 @@ export interface ImportCredentialRequest {
 
   /** Optional custom issuer name */
   issuerName?: string;
+
+  /** Optional reference to an entity ID in Entity Manager */
+  issuerEntityId?: string;
 
   /** Schema source URL */
   schemaSourceUrl: string;

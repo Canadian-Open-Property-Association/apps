@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useCatalogueStore } from '../../../store/catalogueStore';
 import { useEntityStore } from '../../../store/entityStore';
 
@@ -107,6 +108,7 @@ export default function ImportWizard({ onClose, onComplete }: ImportWizardProps)
         credDefData: parsedCredDef,
         ecosystemTagId,
         issuerName: issuerName || undefined,
+        issuerEntityId: selectedEntityId || undefined,
         schemaSourceUrl: schemaUrl,
         credDefSourceUrl: credDefUrl,
         registerWithOrbit,
@@ -502,10 +504,22 @@ export default function ImportWizard({ onClose, onComplete }: ImportWizardProps)
                           </button>
                         ))
                       ) : (
-                        <div className="px-3 py-4 text-center text-gray-500 text-sm">
-                          {entities.length === 0
-                            ? 'No entities in Entity Manager'
-                            : 'No matching entities found'}
+                        <div className="px-3 py-4 text-center text-sm">
+                          <p className="text-gray-500">
+                            {entities.length === 0
+                              ? 'No entities in Entity Manager'
+                              : 'No matching entities found'}
+                          </p>
+                          <p className="mt-2 text-gray-400 text-xs">
+                            Can't find the issuer?{' '}
+                            <Link
+                              to="/apps/entity-manager"
+                              className="text-blue-600 hover:text-blue-700 underline"
+                              onClick={onClose}
+                            >
+                              Add it in Entity Manager
+                            </Link>
+                          </p>
                         </div>
                       )}
                       <button
