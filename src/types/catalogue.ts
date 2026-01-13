@@ -288,8 +288,14 @@ export interface ImportErrorDetails {
   /** Timestamp of the error */
   timestamp: string;
 
-  /** Actual Orbit API operation log (for clone errors) */
+  /** Actual Orbit API operation log (for clone errors - the failed operation) */
   orbitLog?: OrbitOperationLog;
+
+  /** Schema operation log (for clone errors - may be successful even if clone failed at cred def step) */
+  schemaLog?: OrbitOperationLog;
+
+  /** Cred def operation log (for clone errors) */
+  credDefLog?: OrbitOperationLog;
 }
 
 /**

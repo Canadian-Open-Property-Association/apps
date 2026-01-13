@@ -479,16 +479,22 @@ export const useCatalogueStore = create<CatalogueState>((set, get) => ({
       if (!response.ok) {
         const errorMessage = result.error || 'Failed to clone credential for issuance';
 
-        // Extract the actual Orbit API log from the backend response
-        // The backend returns schemaLog or credDefLog with the real Orbit API call details
-        const orbitLog = result.schemaLog || result.credDefLog;
+        // Extract the actual Orbit API logs from the backend response
+        // The backend returns schemaLog and/or credDefLog with the real Orbit API call details
+        // Use the failed log (credDefLog if it failed, otherwise schemaLog) as the primary log
+        const orbitLog = (result.credDefLog && !result.credDefLog.success)
+          ? result.credDefLog
+          : result.schemaLog;
 
         const cloneErrorDetails: ImportErrorDetails = {
           message: errorMessage,
           statusCode: response.status,
           timestamp: new Date().toISOString(),
-          // Include the actual Orbit API log if available
+          // Include the failed Orbit API log as primary
           orbitLog,
+          // Also include both logs separately so UI can show them all
+          schemaLog: result.schemaLog,
+          credDefLog: result.credDefLog,
           // Fallback to frontend details if no Orbit log available
           ...(orbitLog
             ? {}

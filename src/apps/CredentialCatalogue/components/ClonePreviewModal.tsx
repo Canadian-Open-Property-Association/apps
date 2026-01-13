@@ -6,7 +6,132 @@
  */
 
 import { useState } from 'react';
-import type { CatalogueCredential, ImportErrorDetails } from '../../../types/catalogue';
+import type { CatalogueCredential, ImportErrorDetails, OrbitOperationLog } from '../../../types/catalogue';
+
+// Helper to format date/time
+function formatDateTime(dateString: string): string {
+  const date = new Date(dateString);
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+// Component to display a single Orbit operation log (similar to CredentialDetail)
+interface CloneLogEntryProps {
+  title: string;
+  log: OrbitOperationLog;
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+function CloneLogEntry({ title, log, isExpanded, onToggle }: CloneLogEntryProps) {
+  const bgColor = log.success ? 'bg-green-50' : 'bg-red-50';
+  const borderColor = log.success ? 'border-green-200' : 'border-red-200';
+  const iconColor = log.success ? 'text-green-600' : 'text-red-600';
+  const textColor = log.success ? 'text-green-800' : 'text-red-800';
+  const lightTextColor = log.success ? 'text-green-700' : 'text-red-700';
+  const expandedBg = log.success ? 'bg-green-100/50' : 'bg-red-100/50';
+
+  return (
+    <div className={`${bgColor} border ${borderColor} rounded-lg overflow-hidden`}>
+      <button
+        onClick={onToggle}
+        className="w-full p-3 flex items-center justify-between hover:bg-opacity-80 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          {log.success ? (
+            <svg className={`w-4 h-4 ${iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className={`w-4 h-4 ${iconColor}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          )}
+          <span className={`text-sm font-medium ${textColor}`}>{title}</span>
+          <span className={`text-xs ${lightTextColor}`}>
+            {log.success ? 'Success' : 'Failed'}
+            {log.statusCode && ` (${log.statusCode})`}
+          </span>
+        </div>
+        <svg
+          className={`w-4 h-4 ${lightTextColor} transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isExpanded && (
+        <div className={`border-t ${borderColor} ${expandedBg} p-3 space-y-3`}>
+          {/* Timestamp */}
+          <div className="text-xs">
+            <span className={`${lightTextColor} font-medium`}>Timestamp:</span>
+            <span className={`ml-2 ${textColor}`}>{formatDateTime(log.timestamp)}</span>
+          </div>
+
+          {/* Status Code */}
+          {log.statusCode && (
+            <div className="text-xs">
+              <span className={`${lightTextColor} font-medium`}>Status Code:</span>
+              <span className={`ml-2 ${textColor}`}>{log.statusCode}</span>
+            </div>
+          )}
+
+          {/* Error Message */}
+          {log.errorMessage && (
+            <div className="text-xs">
+              <span className={`${lightTextColor} font-medium`}>Error:</span>
+              <span className={`ml-2 ${textColor}`}>{log.errorMessage}</span>
+            </div>
+          )}
+
+          {/* Request URL */}
+          {log.requestUrl && (
+            <div className="text-xs">
+              <span className={`${lightTextColor} font-medium`}>Request URL:</span>
+              <code className={`block mt-1 p-2 bg-white rounded border ${borderColor} ${textColor} text-xs font-mono break-all`}>
+                POST {log.requestUrl}
+              </code>
+            </div>
+          )}
+
+          {/* Request Payload */}
+          {log.requestPayload && Object.keys(log.requestPayload).length > 0 && (
+            <div className="text-xs">
+              <span className={`${lightTextColor} font-medium`}>Request Payload:</span>
+              <pre className={`mt-1 p-2 bg-white rounded border ${borderColor} ${textColor} text-xs font-mono overflow-x-auto max-h-32 overflow-y-auto whitespace-pre-wrap`}>
+                {JSON.stringify(log.requestPayload, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          {/* Response Body */}
+          {log.responseBody && (
+            <div className="text-xs">
+              <span className={`${lightTextColor} font-medium`}>Response Body:</span>
+              <pre className={`mt-1 p-2 bg-white rounded border ${borderColor} ${textColor} text-xs font-mono overflow-x-auto max-h-32 overflow-y-auto whitespace-pre-wrap`}>
+                {(() => {
+                  try {
+                    return JSON.stringify(JSON.parse(log.responseBody), null, 2);
+                  } catch {
+                    return log.responseBody;
+                  }
+                })()}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export interface CloneOptions {
   schemaName: string;
@@ -38,6 +163,8 @@ export default function ClonePreviewModal({
   const [credDefTag, setCredDefTag] = useState('default');
   const [supportRevocation, setSupportRevocation] = useState(false);
   const [showErrorDetails, setShowErrorDetails] = useState(false);
+  const [expandedSchemaLog, setExpandedSchemaLog] = useState(false);
+  const [expandedCredDefLog, setExpandedCredDefLog] = useState(true); // Auto-expand the failed one
 
   const handleConfirm = async () => {
     await onConfirm({ schemaName, schemaVersion, credDefTag, supportRevocation });
@@ -222,8 +349,8 @@ export default function ClonePreviewModal({
                   <p className="text-sm font-medium text-red-800">Clone Failed</p>
                   <p className="text-xs text-red-600 mt-1">{error}</p>
 
-                  {/* Show Details Toggle */}
-                  {errorDetails && (
+                  {/* Show Details Toggle - when we have individual logs */}
+                  {errorDetails && (errorDetails.schemaLog || errorDetails.credDefLog) && (
                     <button
                       onClick={() => setShowErrorDetails(!showErrorDetails)}
                       className="mt-2 text-xs text-red-700 hover:text-red-800 underline"
@@ -232,64 +359,54 @@ export default function ClonePreviewModal({
                     </button>
                   )}
 
-                  {/* Detailed Error Logs */}
-                  {showErrorDetails && errorDetails && (
-                    <div className="mt-3 bg-white/50 rounded border border-red-200 p-3 text-xs font-mono space-y-2">
-                      {/* If we have actual Orbit API log, show that */}
-                      {errorDetails.orbitLog ? (
-                        <>
-                          <div>
-                            <span className="text-gray-500">Timestamp:</span>{' '}
-                            <span className="text-gray-700">{errorDetails.orbitLog.timestamp}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Orbit API URL:</span>{' '}
-                            <span className="text-gray-700 break-all">
-                              {errorDetails.orbitLog.requestUrl}
-                            </span>
-                          </div>
-                          {errorDetails.orbitLog.statusCode && (
-                            <div>
-                              <span className="text-gray-500">Status Code:</span>{' '}
-                              <span className="text-gray-700">{errorDetails.orbitLog.statusCode}</span>
-                            </div>
-                          )}
-                          {errorDetails.orbitLog.errorMessage && (
-                            <div>
-                              <span className="text-gray-500">Error:</span>{' '}
-                              <span className="text-red-700">{errorDetails.orbitLog.errorMessage}</span>
-                            </div>
-                          )}
-                          {errorDetails.orbitLog.requestPayload && (
-                            <div>
-                              <span className="text-gray-500 block mb-1">Request Payload:</span>
-                              <pre className="text-gray-700 bg-gray-100 p-2 rounded overflow-x-auto text-[10px] max-h-40 overflow-y-auto whitespace-pre-wrap">
-                                {JSON.stringify(errorDetails.orbitLog.requestPayload, null, 2)}
-                              </pre>
-                            </div>
-                          )}
-                          {errorDetails.orbitLog.responseBody && (
-                            <div>
-                              <span className="text-gray-500 block mb-1">Response Body:</span>
-                              <pre className="text-gray-700 bg-gray-100 p-2 rounded overflow-x-auto text-[10px] max-h-32 overflow-y-auto whitespace-pre-wrap">
-                                {(() => {
-                                  try {
-                                    return JSON.stringify(
-                                      JSON.parse(errorDetails.orbitLog.responseBody!),
-                                      null,
-                                      2
-                                    );
-                                  } catch {
-                                    return errorDetails.orbitLog.responseBody;
-                                  }
-                                })()}
-                              </pre>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        /* Fallback to frontend request details if no Orbit log */
-                        <>
+                  {/* Detailed Error Logs - Collapsible entries for each operation */}
+                  {showErrorDetails && errorDetails && (errorDetails.schemaLog || errorDetails.credDefLog) && (
+                    <div className="mt-3 space-y-2">
+                      {/* Schema Log */}
+                      {errorDetails.schemaLog && (
+                        <CloneLogEntry
+                          title="Schema Registration"
+                          log={errorDetails.schemaLog}
+                          isExpanded={expandedSchemaLog}
+                          onToggle={() => setExpandedSchemaLog(!expandedSchemaLog)}
+                        />
+                      )}
+
+                      {/* Cred Def Log */}
+                      {errorDetails.credDefLog && (
+                        <CloneLogEntry
+                          title="Credential Definition"
+                          log={errorDetails.credDefLog}
+                          isExpanded={expandedCredDefLog}
+                          onToggle={() => setExpandedCredDefLog(!expandedCredDefLog)}
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Fallback: Show legacy orbitLog if no individual logs */}
+                  {showErrorDetails && errorDetails && !errorDetails.schemaLog && !errorDetails.credDefLog && errorDetails.orbitLog && (
+                    <div className="mt-3 space-y-2">
+                      <CloneLogEntry
+                        title="Orbit API Call"
+                        log={errorDetails.orbitLog}
+                        isExpanded={expandedCredDefLog}
+                        onToggle={() => setExpandedCredDefLog(!expandedCredDefLog)}
+                      />
+                    </div>
+                  )}
+
+                  {/* Fallback: Show frontend request details if no Orbit logs at all */}
+                  {errorDetails && !errorDetails.schemaLog && !errorDetails.credDefLog && !errorDetails.orbitLog && (
+                    <>
+                      <button
+                        onClick={() => setShowErrorDetails(!showErrorDetails)}
+                        className="mt-2 text-xs text-red-700 hover:text-red-800 underline"
+                      >
+                        {showErrorDetails ? 'Hide Details' : 'Show Details'}
+                      </button>
+                      {showErrorDetails && (
+                        <div className="mt-3 bg-white/50 rounded border border-red-200 p-3 text-xs font-mono space-y-2">
                           <div>
                             <span className="text-gray-500">Timestamp:</span>{' '}
                             <span className="text-gray-700">{errorDetails.timestamp}</span>
@@ -330,9 +447,9 @@ export default function ClonePreviewModal({
                               </pre>
                             </div>
                           )}
-                        </>
+                        </div>
                       )}
-                    </div>
+                    </>
                   )}
                 </div>
               </div>
