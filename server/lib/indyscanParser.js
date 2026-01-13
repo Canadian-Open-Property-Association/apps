@@ -185,8 +185,8 @@ async function parseCredDefFromHtml(html, sourceUrl) {
 
   // Look for credential definition ID pattern (DID:3:CL:schemaSeqNo:tag format)
   // Note: Tag can contain spaces (e.g., "Rental Property Business Licence")
-  // We capture the components separately and reconstruct the ID to handle spaces in tags
-  const credDefIdMatch = pageText.match(/([A-Za-z0-9]{21,}):3:CL:(\d+):([^\n\r"]+)/);
+  // We capture everything until we hit: newline, carriage return, quote, or HTML tag (<)
+  const credDefIdMatch = pageText.match(/([A-Za-z0-9]{21,}):3:CL:(\d+):([^\n\r"<]+)/);
   if (credDefIdMatch) {
     result.issuerDid = credDefIdMatch[1];
     const schemaSeqNo = credDefIdMatch[2];
