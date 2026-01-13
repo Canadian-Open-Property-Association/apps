@@ -863,11 +863,18 @@ const parseCredDefFromHtml = (html, sourceUrl) => {
   }
 
   // Fallback: Look for credential definition ID pattern (DID:3:CL:schemaSeqNo:tag format)
-  const credDefIdMatch = html.match(/([A-Za-z0-9]{21,}):3:CL:(\d+):([A-Za-z0-9_-]+)/);
+  // Note: Tag can contain spaces (e.g., "Rental Property Business Licence")
+  // We capture everything until a newline, carriage return, or quote, then trim
+  const credDefIdMatch = html.match(/([A-Za-z0-9]{21,}):3:CL:(\d+):([^\n\r"]+)/);
   if (credDefIdMatch) {
-    result.credDefId = credDefIdMatch[0];
+    const tag = credDefIdMatch[3].trim();
     result.issuerDid = credDefIdMatch[1];
-    result.tag = credDefIdMatch[3];
+    result.tag = tag;
+    // Reconstruct the full cred def ID with cleaned tag
+    result.credDefId = `${credDefIdMatch[1]}:3:CL:${credDefIdMatch[2]}:${tag}`;
+    console.log('[CredentialCatalogue] Parsed cred def from fallback regex:');
+    console.log('[CredentialCatalogue]   credDefId:', JSON.stringify(result.credDefId));
+    console.log('[CredentialCatalogue]   tag:', JSON.stringify(result.tag));
   }
 
   // Look for schema ID in page
