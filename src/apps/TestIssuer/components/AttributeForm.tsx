@@ -13,6 +13,8 @@ interface AttributeFormProps {
   credential: CatalogueCredential | null;
   onGenerateOffer: (attributeValues: Record<string, string>) => void;
   isGenerating: boolean;
+  /** Increment this to reset the form (e.g., after successful issuance) */
+  resetKey?: number;
 }
 
 /**
@@ -138,10 +140,11 @@ export default function AttributeForm({
   credential,
   onGenerateOffer,
   isGenerating,
+  resetKey = 0,
 }: AttributeFormProps) {
   const [values, setValues] = useState<Record<string, string>>({});
 
-  // Reset form when credential changes
+  // Reset form when credential changes or resetKey changes (after successful issuance)
   useEffect(() => {
     if (credential) {
       const initialValues: Record<string, string> = {};
@@ -152,7 +155,7 @@ export default function AttributeForm({
     } else {
       setValues({});
     }
-  }, [credential?.id]);
+  }, [credential?.id, resetKey]);
 
   // Check if all required fields are filled
   const isFormValid = useMemo(() => {
@@ -219,8 +222,12 @@ export default function AttributeForm({
       <div className="p-4 border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">{credential.name}</h2>
-            <p className="text-xs text-gray-500">v{credential.version}</p>
+            <h2 className="text-lg font-semibold text-gray-900">
+              {credential.clonedSchemaName || credential.name}
+            </h2>
+            <p className="text-xs text-gray-500">
+              v{credential.clonedSchemaVersion || credential.version}
+            </p>
           </div>
           <button
             type="button"

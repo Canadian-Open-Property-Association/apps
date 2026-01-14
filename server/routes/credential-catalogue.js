@@ -1337,6 +1337,9 @@ router.post('/:id/clone-for-issuance', async (req, res) => {
       clonedOrbitCredDefId: credDefResult.orbitCredDefId,
       clonedOrbitSchemaLog: schemaResult.log,
       clonedOrbitCredDefLog: credDefResult.log,
+      // Store custom name/version if they differ from original
+      ...(schemaName && schemaName !== credential.name && { clonedSchemaName: schemaName }),
+      ...(schemaVersion && schemaVersion !== credential.version && { clonedSchemaVersion: schemaVersion }),
     };
 
     writeCredentials(credentials);
@@ -1403,6 +1406,8 @@ router.delete('/:id/clone', async (req, res) => {
       clonedOrbitCredDefId,
       clonedOrbitSchemaLog,
       clonedOrbitCredDefLog,
+      clonedSchemaName,
+      clonedSchemaVersion,
       ...credentialWithoutClone
     } = credential;
 

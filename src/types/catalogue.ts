@@ -153,6 +153,12 @@ export interface CatalogueCredential {
   /** Orbit credential definition ID for the cloned version */
   clonedOrbitCredDefId?: number;
 
+  /** Custom schema name used when cloning (may differ from original name) */
+  clonedSchemaName?: string;
+
+  /** Custom schema version used when cloning (may differ from original version) */
+  clonedSchemaVersion?: string;
+
   /** Log entry for cloned schema creation in Orbit */
   clonedOrbitSchemaLog?: OrbitOperationLog;
 

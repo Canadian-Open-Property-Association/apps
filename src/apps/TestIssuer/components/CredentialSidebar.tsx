@@ -159,10 +159,12 @@ export default function CredentialSidebar({
                 selectedCredential?.id === credential.id ? 'text-purple-700' : 'text-gray-900'
               }`}
             >
-              {credential.name}
+              {credential.clonedSchemaName || credential.name}
             </h3>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs text-gray-500">v{credential.version}</span>
+              <span className="text-xs text-gray-500">
+                v{credential.clonedSchemaVersion || credential.version}
+              </span>
               <span className="px-1.5 py-0.5 text-xs font-medium rounded bg-purple-100 text-purple-700">
                 {credential.ecosystemTag}
               </span>

@@ -522,6 +522,7 @@ export const useCatalogueStore = create<CatalogueState>((set, get) => ({
 
       // Update the credential in the store with clone data
       set((state) => {
+        const credential = state.credentials.find((c) => c.id === credentialId);
         const updatedCredentials = state.credentials.map((c) => {
           if (c.id === credentialId) {
             return {
@@ -534,6 +535,9 @@ export const useCatalogueStore = create<CatalogueState>((set, get) => ({
               clonedOrbitCredDefId: result.clonedOrbitCredDefId,
               clonedOrbitSchemaLog: result.schemaLog,
               clonedOrbitCredDefLog: result.credDefLog,
+              // Store custom name/version if provided and different from original
+              ...(options?.schemaName && options.schemaName !== credential?.name && { clonedSchemaName: options.schemaName }),
+              ...(options?.schemaVersion && options.schemaVersion !== credential?.version && { clonedSchemaVersion: options.schemaVersion }),
             };
           }
           return c;
@@ -597,6 +601,8 @@ export const useCatalogueStore = create<CatalogueState>((set, get) => ({
               clonedOrbitCredDefId,
               clonedOrbitSchemaLog,
               clonedOrbitCredDefLog,
+              clonedSchemaName,
+              clonedSchemaVersion,
               ...rest
             } = c;
             return rest as CatalogueCredential;

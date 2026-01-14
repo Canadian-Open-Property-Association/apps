@@ -30,6 +30,7 @@ export default function TestIssuerAppV2() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<ApiErrorDetails | null>(null);
+  const [formResetKey, setFormResetKey] = useState(0);
 
   // Handle socket events for real-time updates
   const handleSocketEvent = useCallback(
@@ -64,6 +65,11 @@ export default function TestIssuerAppV2() {
         // Check if this event is for our current offer
         if (data.offerId === currentOffer.offerId || !data.offerId) {
           setCurrentOffer((prev) => (prev ? { ...prev, status: newStatus! } : null));
+
+          // Reset form when credential issuance is complete
+          if (newStatus === 'completed') {
+            setFormResetKey((prev) => prev + 1);
+          }
         }
       }
     },
@@ -126,7 +132,7 @@ export default function TestIssuerAppV2() {
         shortUrl: responseData.shortUrl,
         longUrl: responseData.longUrl,
         status: 'pending',
-        credentialName: selectedCredential.name,
+        credentialName: selectedCredential.clonedSchemaName || selectedCredential.name,
         expiresAt: responseData.expiresAt,
       });
     } catch (err) {
@@ -181,6 +187,7 @@ export default function TestIssuerAppV2() {
               credential={selectedCredential}
               onGenerateOffer={handleGenerateOffer}
               isGenerating={isGenerating}
+              resetKey={formResetKey}
             />
           </div>
 
