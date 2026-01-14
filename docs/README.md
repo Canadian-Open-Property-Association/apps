@@ -4,6 +4,7 @@ This documentation is intended for developers (human or AI) working on the crede
 
 ## Quick Links
 
+- [UX Style Guide](ux-style-guide.md) - Navigation bar and UI patterns for apps
 - [Architecture Overview](architecture/overview.md) - System architecture and tech stack
 - [Apps Structure](architecture/apps.md) - How apps are structured and added
 - [Multi-Tenancy](architecture/multi-tenancy.md) - Future multi-tenant architecture (requirements phase)
@@ -16,6 +17,8 @@ When working on this codebase, reference these docs for context:
 
 | Before doing this... | Read this... |
 |---------------------|--------------|
+| Building new apps | `ux-style-guide.md` |
+| Adding navigation bars | `ux-style-guide.md` |
 | Modifying Orbit integrations | `orbit-integration/config-service.md` |
 | Adding new apps | `architecture/apps.md` |
 | Understanding the architecture | `architecture/overview.md` |

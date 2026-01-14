@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTestIssuerStore } from '../../../store/testIssuerStore';
 import { CREDENTIAL_CATEGORIES } from '../../../types/issuer';
+import { AppNavBar, SettingsButton, NavDivider } from '../../../components/AppNavBar';
 
 export default function CredentialCatalog() {
   const navigate = useNavigate();
@@ -95,43 +96,50 @@ export default function CredentialCatalog() {
   }
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Test Issuer</h1>
-          <p className="text-gray-600 mt-1">Issue test credentials via Orbit LOB</p>
-        </div>
-        <div className="flex items-center gap-3">
-          {/* Orbit connection status */}
-          {orbitConfig?.connected && (
-            <span className="flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-700 text-sm rounded-full">
-              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-              Orbit Connected
+    <>
+      {/* Nav Bar */}
+      <AppNavBar
+        left={
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Import Schema
+            </button>
+
+            <NavDivider />
+
+            <button
+              onClick={() => navigate('/apps/test-issuer/offers')}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              Offers History
+            </button>
+
+            {/* Orbit connection status */}
+            {orbitConfig?.connected && (
+              <span className="flex items-center gap-1.5 px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
+                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                Orbit Connected
+              </span>
+            )}
+
+            <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+              {catalog.length} schema{catalog.length !== 1 ? 's' : ''}
             </span>
-          )}
+          </div>
+        }
+        settings={<SettingsButton disabled />}
+      />
 
-          <button
-            onClick={() => navigate('/apps/test-issuer/offers')}
-            className="flex items-center gap-2 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            Offers History
-          </button>
-
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Import Schema
-          </button>
-        </div>
-      </div>
+      <div className="p-6">
 
       {/* Error message */}
       {error && (
@@ -314,6 +322,7 @@ export default function CredentialCatalog() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

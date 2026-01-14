@@ -20,6 +20,7 @@ import CredentialList from './components/CredentialList';
 import CredentialDetail from './components/CredentialDetail';
 import ImportWizard from './components/ImportWizard';
 import CatalogueSettingsModal from './components/CatalogueSettingsModal';
+import { AppNavBar, SettingsButton } from '../../components/AppNavBar';
 
 export default function CredentialCatalogueApp() {
   useAppTracking('credential-catalogue', 'Credential Catalogue');
@@ -73,14 +74,16 @@ export default function CredentialCatalogueApp() {
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
+      {/* Navigation Bar */}
+      <AppNavBar
+        settings={<SettingsButton onClick={() => setShowSettings(true)} />}
+      />
+
       {/* Main Content - Split Pane Layout */}
       <div className="flex-1 flex overflow-hidden p-4 gap-4">
         {/* Left Panel - Credential List */}
         <div className="w-80 flex-shrink-0 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col">
-          <CredentialList
-            onAddCredential={handleAddCredential}
-            onOpenSettings={() => setShowSettings(true)}
-          />
+          <CredentialList onAddCredential={handleAddCredential} />
         </div>
 
         {/* Right Panel - Detail View */}

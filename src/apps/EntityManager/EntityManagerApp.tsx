@@ -11,6 +11,7 @@ import SaveToRepoModal from './components/SaveToRepoModal';
 import SettingsModal from './components/SettingsModal';
 import MapView from './components/MapView';
 import EcosystemView from './components/EcosystemView';
+import { AppNavBar, CreatePrButton, SettingsButton, NavDivider } from '../../components/AppNavBar';
 
 type ViewMode = 'list' | 'map' | 'ecosystem';
 
@@ -145,71 +146,73 @@ export default function EntityManagerApp() {
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
-      {/* Toolbar with View Toggle */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
-        {/* View Toggle */}
-        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-          <button
-            onClick={() => setViewMode('list')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-              viewMode === 'list'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <span className="flex items-center gap-1.5">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-              </svg>
-              List
-            </span>
-          </button>
-          <button
-            onClick={() => setViewMode('map')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-              viewMode === 'map'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <span className="flex items-center gap-1.5">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-              </svg>
-              Map
-            </span>
-          </button>
-          <button
-            onClick={() => setViewMode('ecosystem')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-              viewMode === 'ecosystem'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <span className="flex items-center gap-1.5">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="3" strokeWidth={2} />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M4.93 19.07l1.41-1.41m11.32-11.32l1.41-1.41" />
-              </svg>
-              Ecosystem
-            </span>
-          </button>
-        </div>
-
-        {/* Actions */}
-        <EntityToolbar
-          onExport={handleExport}
-          onSaveToRepo={() => setShowSaveToRepoModal(true)}
-        />
-      </div>
+      {/* Navigation Bar */}
+      <AppNavBar
+        left={
+          <div className="flex items-center gap-2">
+            {/* View Toggle */}
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                  </svg>
+                  List
+                </span>
+              </button>
+              <button
+                onClick={() => setViewMode('map')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  viewMode === 'map'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                  </svg>
+                  Map
+                </span>
+              </button>
+              <button
+                onClick={() => setViewMode('ecosystem')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  viewMode === 'ecosystem'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="3" strokeWidth={2} />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M4.93 19.07l1.41-1.41m11.32-11.32l1.41-1.41" />
+                  </svg>
+                  Ecosystem
+                </span>
+              </button>
+            </div>
+            <NavDivider />
+            <EntityToolbar onExport={handleExport} />
+          </div>
+        }
+        prButton={<CreatePrButton onClick={() => setShowSaveToRepoModal(true)} />}
+        settings={<SettingsButton onClick={() => setShowSettingsModal(true)} />}
+      />
 
       {/* Main Content - List, Map, or Ecosystem View */}
       {viewMode === 'list' && (
         <div className="flex-1 flex overflow-hidden p-4 gap-4">
           {/* Left Panel - Entity List */}
           <div className="w-80 flex-shrink-0 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col">
-            <EntityList onAddEntity={handleAddEntity} onOpenSettings={() => setShowSettingsModal(true)} />
+            <EntityList onAddEntity={handleAddEntity} />
           </div>
 
           {/* Right Panel - Detail View */}
@@ -233,7 +236,7 @@ export default function EntityManagerApp() {
         <div className="flex-1 flex overflow-hidden p-4 gap-4">
           {/* Left Panel - Entity List */}
           <div className="w-80 flex-shrink-0 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col">
-            <EntityList onAddEntity={handleAddEntity} onOpenSettings={() => setShowSettingsModal(true)} />
+            <EntityList onAddEntity={handleAddEntity} />
           </div>
 
           {/* Right Panel - Ecosystem View */}
