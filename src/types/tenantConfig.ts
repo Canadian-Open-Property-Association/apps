@@ -113,61 +113,81 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
 };
 
 /**
+ * App category type - must match apps.tsx AppCategory
+ */
+export type AppCategory = 'governance' | 'testing' | 'admin';
+
+/**
  * Available apps that can be enabled/disabled
  * This list should match apps.tsx with configurable: true
  */
-export const AVAILABLE_APPS = [
+export const AVAILABLE_APPS: ReadonlyArray<{
+  id: string;
+  name: string;
+  description: string;
+  category: AppCategory;
+}> = [
   {
     id: 'vct-builder',
     name: 'VCT Builder',
     description: 'Design verifiable credential types',
+    category: 'governance',
   },
   {
     id: 'schema-builder',
     name: 'Schema Builder',
     description: 'Create JSON schemas for credentials',
+    category: 'governance',
   },
   {
     id: 'entity-manager',
     name: 'Entity Manager',
     description: 'Manage ecosystem entities and roles',
-  },
-  {
-    id: 'forms-builder',
-    name: 'Forms Builder',
-    description: 'Create forms with VC verification',
-  },
-  {
-    id: 'proofs-template-builder',
-    name: 'Proof Template Builder',
-    description: 'Build proof request templates',
-  },
-  {
-    id: 'badges',
-    name: 'Badges',
-    description: 'Design achievement badges',
+    category: 'governance',
   },
   {
     id: 'data-dictionary',
     name: 'Data Dictionary',
     description: 'Define data vocabulary',
+    category: 'governance',
   },
   {
     id: 'data-harmonization',
     name: 'Data Harmonization',
     description: 'Map data between standards',
+    category: 'governance',
+  },
+  {
+    id: 'badges',
+    name: 'Badges',
+    description: 'Design achievement badges',
+    category: 'governance',
+  },
+  {
+    id: 'proofs-template-builder',
+    name: 'Proof Template Builder',
+    description: 'Build proof request templates',
+    category: 'governance',
+  },
+  {
+    id: 'forms-builder',
+    name: 'Forms Builder',
+    description: 'Create forms with VC verification',
+    category: 'testing',
   },
   {
     id: 'test-issuer',
     name: 'Test Issuer',
     description: 'Issue test credentials',
+    category: 'testing',
   },
   {
     id: 'credential-catalogue',
     name: 'Credential Catalogue',
     description: 'Import external credentials for verification',
+    category: 'testing',
   },
-] as const;
+];
 
 /**
  * Apps that are always enabled (cannot be disabled)

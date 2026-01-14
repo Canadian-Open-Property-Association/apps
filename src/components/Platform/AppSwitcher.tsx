@@ -2,19 +2,22 @@
  * AppSwitcher Component
  *
  * Google-style app grid icon that opens a popup showing all available apps
- * for quick navigation between apps.
+ * for quick navigation between apps. Apps are organized into category tabs.
  */
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getAvailableApps } from '../../data/apps';
+import { getAvailableApps, categoryConfig, AppCategory } from '../../data/apps';
 import { useAdminStore } from '../../store/adminStore';
+
+const categories: AppCategory[] = ['governance', 'testing', 'admin'];
 
 export default function AppSwitcher() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAdmin, tenantConfig } = useAdminStore();
   const [isOpen, setIsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<AppCategory>('governance');
   const popupRef = useRef<HTMLDivElement>(null);
 
   // Get enabled apps from tenant config
@@ -34,6 +37,28 @@ export default function AppSwitcher() {
     });
   }, [isAdmin, enabledAppIds]);
 
+  // Check if we're currently on an app's page
+  const getCurrentAppId = () => {
+    const match = location.pathname.match(/^\/apps\/([^/]+)/);
+    return match ? match[1] : null;
+  };
+
+  const currentAppId = getCurrentAppId();
+
+  // Get current app's category
+  const getCurrentAppCategory = (): AppCategory => {
+    if (!currentAppId) return 'governance';
+    const currentApp = availableApps.find((app) => app.id === currentAppId);
+    return currentApp?.category || 'governance';
+  };
+
+  // Reset to current app's category when popup opens
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(getCurrentAppCategory());
+    }
+  }, [isOpen]);
+
   // Close popup when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -51,13 +76,14 @@ export default function AppSwitcher() {
     navigate(path);
   };
 
-  // Check if we're currently on an app's page
-  const getCurrentAppId = () => {
-    const match = location.pathname.match(/^\/apps\/([^/]+)/);
-    return match ? match[1] : null;
-  };
-
-  const currentAppId = getCurrentAppId();
+  // Filter apps by active tab and sort alphabetically
+  const filteredApps = useMemo(
+    () =>
+      availableApps
+        .filter((app) => app.category === activeTab)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [availableApps, activeTab]
+  );
 
   return (
     <div className="relative" ref={popupRef}>
@@ -87,39 +113,70 @@ export default function AppSwitcher() {
       {/* Popup */}
       {isOpen && (
         <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-200 py-3 z-50">
-          <div className="px-4 pb-2 mb-2 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-800">Apps</h3>
+          {/* Category Tabs */}
+          <div className="px-2 pb-2 mb-2 border-b border-gray-100">
+            <div className="flex gap-1">
+              {categories.map((category) => {
+                const hasApps = availableApps.some((app) => app.category === category);
+                // Only show tabs that have apps (except always show admin for admins)
+                if (!hasApps && category !== 'admin') return null;
+                if (category === 'admin' && !isAdmin) return null;
+
+                return (
+                  <button
+                    key={category}
+                    onClick={() => setActiveTab(category)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                      activeTab === category
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {categoryConfig[category].label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          <div className="grid grid-cols-3 gap-1 px-2 max-h-80 overflow-y-auto">
-            {availableApps.map((app) => (
-              <button
-                key={app.id}
-                onClick={() => handleAppClick(app.path)}
-                className={`flex flex-col items-center p-3 rounded-lg transition-colors ${
-                  currentAppId === app.id
-                    ? 'bg-blue-50 ring-1 ring-blue-200'
-                    : 'hover:bg-gray-100'
-                }`}
-              >
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center mb-1 ${
+
+          {/* App Grid */}
+          <div className="grid grid-cols-3 gap-1 px-2 max-h-64 overflow-y-auto">
+            {filteredApps.length > 0 ? (
+              filteredApps.map((app) => (
+                <button
+                  key={app.id}
+                  onClick={() => handleAppClick(app.path)}
+                  className={`flex flex-col items-center p-3 rounded-lg transition-colors ${
                     currentAppId === app.id
-                      ? 'bg-blue-100 text-blue-600'
-                      : 'bg-gray-100 text-gray-600'
+                      ? 'bg-blue-50 ring-1 ring-blue-200'
+                      : 'hover:bg-gray-100'
                   }`}
                 >
-                  {app.icon}
-                </div>
-                <span
-                  className={`text-xs text-center leading-tight ${
-                    currentAppId === app.id ? 'text-blue-700 font-medium' : 'text-gray-700'
-                  }`}
-                >
-                  {app.name}
-                </span>
-              </button>
-            ))}
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center mb-1 ${
+                      currentAppId === app.id
+                        ? 'bg-blue-100 text-blue-600'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    {app.icon}
+                  </div>
+                  <span
+                    className={`text-xs text-center leading-tight ${
+                      currentAppId === app.id ? 'text-blue-700 font-medium' : 'text-gray-700'
+                    }`}
+                  >
+                    {app.name}
+                  </span>
+                </button>
+              ))
+            ) : (
+              <div className="col-span-3 py-8 text-center text-sm text-gray-500">
+                No apps in this category
+              </div>
+            )}
           </div>
+
           <div className="px-4 pt-2 mt-2 border-t border-gray-100">
             <button
               onClick={() => {

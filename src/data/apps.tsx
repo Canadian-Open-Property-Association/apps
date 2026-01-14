@@ -30,7 +30,7 @@ export const categoryConfig: Record<
   }
 > = {
   governance: {
-    label: 'Ecosystem Governance',
+    label: 'Governance Apps',
     description: 'Tools for defining credentials, schemas, and network policies',
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -45,8 +45,8 @@ export const categoryConfig: Record<
     order: 1,
   },
   testing: {
-    label: 'Testing Tools',
-    description: 'Tools for testing credential issuance and verification',
+    label: 'Credential Exchange Apps',
+    description: 'Tools for credential issuance and verification',
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path
@@ -60,7 +60,7 @@ export const categoryConfig: Record<
     order: 2,
   },
   admin: {
-    label: 'Administration',
+    label: 'Settings',
     description: 'Platform administration and monitoring',
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -1,6 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAdminStore } from '../../../store/adminStore';
-import { AVAILABLE_APPS, ALWAYS_ENABLED_APPS } from '../../../types/tenantConfig';
+import { AVAILABLE_APPS, ALWAYS_ENABLED_APPS, AppCategory } from '../../../types/tenantConfig';
+
+const categoryLabels: Record<AppCategory, string> = {
+  governance: 'Governance Apps',
+  testing: 'Credential Exchange Apps',
+  admin: 'Settings',
+};
+
+const categoryOrder: AppCategory[] = ['governance', 'testing', 'admin'];
 
 export default function AppsConfigPanel() {
   const { tenantConfig, updateAppsConfig, isTenantConfigLoading, tenantConfigError } =
@@ -55,6 +63,23 @@ export default function AppsConfigPanel() {
     return enabledApps.includes(appId) || ALWAYS_ENABLED_APPS.includes(appId);
   };
 
+  // Group apps by category and sort alphabetically
+  const appsByCategory = useMemo(() => {
+    const grouped: Record<AppCategory, Array<(typeof AVAILABLE_APPS)[number]>> = {
+      governance: [],
+      testing: [],
+      admin: [],
+    };
+    AVAILABLE_APPS.forEach((app) => {
+      grouped[app.category].push(app);
+    });
+    // Sort each category alphabetically by name
+    Object.keys(grouped).forEach((category) => {
+      grouped[category as AppCategory].sort((a, b) => a.name.localeCompare(b.name));
+    });
+    return grouped;
+  }, []);
+
   return (
     <div className="p-6">
       <div className="max-w-2xl">
@@ -76,63 +101,83 @@ export default function AppsConfigPanel() {
           </div>
         )}
 
-        {/* App List */}
-        <div className="space-y-3 mb-8">
-          {AVAILABLE_APPS.map((app) => {
-            const isEnabled = isAppEnabled(app.id);
-            const isAlwaysEnabled = ALWAYS_ENABLED_APPS.includes(app.id);
+        {/* App List grouped by category */}
+        <div className="space-y-6 mb-8">
+          {categoryOrder.map((category) => {
+            const categoryApps = appsByCategory[category];
+            // For admin category, show Settings app
+            const isAdminCategory = category === 'admin';
 
             return (
-              <label
-                key={app.id}
-                className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${
-                  isEnabled
-                    ? 'border-blue-200 bg-blue-50'
-                    : 'border-gray-200 bg-white hover:bg-gray-50'
-                } ${isAlwaysEnabled ? 'cursor-not-allowed opacity-75' : ''}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={isEnabled}
-                  onChange={() => handleToggle(app.id)}
-                  disabled={isAlwaysEnabled}
-                  className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-900">{app.name}</span>
-                    {isAlwaysEnabled && (
-                      <span className="text-xs px-2 py-0.5 bg-gray-200 text-gray-600 rounded">
-                        Always enabled
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-500 mt-0.5">{app.description}</p>
+              <div key={category}>
+                {/* Category Header */}
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
+                  {categoryLabels[category]}
+                </h3>
+
+                <div className="space-y-2">
+                  {/* Configurable apps in this category */}
+                  {categoryApps.map((app) => {
+                    const isEnabled = isAppEnabled(app.id);
+                    const isAlwaysEnabled = ALWAYS_ENABLED_APPS.includes(app.id);
+
+                    return (
+                      <label
+                        key={app.id}
+                        className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${
+                          isEnabled
+                            ? 'border-blue-200 bg-blue-50'
+                            : 'border-gray-200 bg-white hover:bg-gray-50'
+                        } ${isAlwaysEnabled ? 'cursor-not-allowed opacity-75' : ''}`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isEnabled}
+                          onChange={() => handleToggle(app.id)}
+                          disabled={isAlwaysEnabled}
+                          className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900">{app.name}</span>
+                            {isAlwaysEnabled && (
+                              <span className="text-xs px-2 py-0.5 bg-gray-200 text-gray-600 rounded">
+                                Always enabled
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-500 mt-0.5">{app.description}</p>
+                        </div>
+                      </label>
+                    );
+                  })}
+
+                  {/* Settings app in admin category */}
+                  {isAdminCategory && (
+                    <label className="flex items-start gap-3 p-4 border border-gray-200 bg-gray-50 rounded-lg cursor-not-allowed opacity-75">
+                      <input
+                        type="checkbox"
+                        checked={true}
+                        disabled={true}
+                        className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900">Settings</span>
+                          <span className="text-xs px-2 py-0.5 bg-gray-200 text-gray-600 rounded">
+                            Always enabled
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-500 mt-0.5">
+                          Platform configuration and administration
+                        </p>
+                      </div>
+                    </label>
+                  )}
                 </div>
-              </label>
+              </div>
             );
           })}
-
-          {/* Settings app (always enabled, shown separately) */}
-          <label className="flex items-start gap-3 p-4 border border-gray-200 bg-gray-50 rounded-lg cursor-not-allowed opacity-75">
-            <input
-              type="checkbox"
-              checked={true}
-              disabled={true}
-              className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded"
-            />
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-gray-900">Settings</span>
-                <span className="text-xs px-2 py-0.5 bg-gray-200 text-gray-600 rounded">
-                  Always enabled
-                </span>
-              </div>
-              <p className="text-sm text-gray-500 mt-0.5">
-                Platform configuration and administration
-              </p>
-            </div>
-          </label>
         </div>
 
         {/* Info note */}
