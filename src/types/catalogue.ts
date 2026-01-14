@@ -6,6 +6,11 @@
  */
 
 /**
+ * Supported credential formats
+ */
+export type CredentialFormat = 'anoncreds' | 'w3c-json-ld' | 'w3c-sd-jwt' | 'iso-mdl';
+
+/**
  * Log entry for a single Orbit API operation
  */
 export interface OrbitOperationLog {
@@ -46,6 +51,9 @@ export interface CatalogueCredential {
 
   /** Schema version */
   version: string;
+
+  /** Credential format type */
+  credentialFormat: CredentialFormat;
 
   // === AnonCreds Identifiers ===
 

@@ -121,7 +121,7 @@ export default function CredentialList({ onAddCredential, onOpenSettings }: Cred
             <button
               onClick={onAddCredential}
               className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
-              title="Import credential"
+              title="Add credential"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -131,7 +131,7 @@ export default function CredentialList({ onAddCredential, onOpenSettings }: Cred
                   d="M12 4v16m8-8H4"
                 />
               </svg>
-              Import
+              Add
             </button>
             <button
               onClick={onOpenSettings}

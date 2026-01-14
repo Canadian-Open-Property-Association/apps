@@ -56,11 +56,28 @@ const ensureStorage = () => {
 };
 
 /**
- * Read credentials from storage
+ * Read credentials from storage with migration support
  */
 const readCredentials = () => {
   ensureStorage();
-  return JSON.parse(fs.readFileSync(getCredentialsFile(), 'utf-8'));
+  const credentials = JSON.parse(fs.readFileSync(getCredentialsFile(), 'utf-8'));
+
+  // Migration: Add credentialFormat to existing credentials that don't have it
+  let needsSave = false;
+  const migratedCredentials = credentials.map((cred) => {
+    if (!cred.credentialFormat) {
+      needsSave = true;
+      return { ...cred, credentialFormat: 'anoncreds' };
+    }
+    return cred;
+  });
+
+  if (needsSave) {
+    fs.writeFileSync(getCredentialsFile(), JSON.stringify(migratedCredentials, null, 2), 'utf-8');
+    console.log('[CredentialCatalogue] Migrated credentials to include credentialFormat field');
+  }
+
+  return migratedCredentials;
 };
 
 /**
@@ -596,6 +613,7 @@ router.post('/', async (req, res) => {
       id: uuidv4(),
       name: schemaData.name,
       version: schemaData.version,
+      credentialFormat: 'anoncreds',
       schemaId: schemaData.schemaId,
       credDefId: credDefData.credDefId,
       issuerDid: schemaData.issuerDid || credDefData.issuerDid,
