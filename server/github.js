@@ -4,12 +4,37 @@ import fsSync from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { requireAuth, getOctokit } from './auth.js';
+import { getTenantConfig } from './lib/tenantConfig.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router = express.Router();
 
 // Use ASSETS_PATH env var for persistent storage (same as proxy.js)
 const ASSETS_DIR = process.env.ASSETS_PATH || path.join(__dirname, 'assets');
+
+/**
+ * Get GitHub configuration from tenant config
+ * Falls back to environment variables if tenant config not set
+ */
+function getGitHubSettings() {
+  const tenantConfig = getTenantConfig();
+  const github = tenantConfig?.github || {};
+  const vdrPaths = tenantConfig?.vdr?.paths || {};
+
+  return {
+    owner: github.owner || process.env.GITHUB_REPO_OWNER || 'Canadian-Open-Property-Association',
+    repo: github.repo || process.env.GITHUB_REPO_NAME || 'governance',
+    baseBranch: github.baseBranch || process.env.GITHUB_BASE_BRANCH || null,
+    token: github.token || process.env.GITHUB_TOKEN || null,
+    // VDR paths
+    vctPath: vdrPaths.vct || process.env.VCT_FOLDER_PATH || 'credentials/vct',
+    schemaPath: vdrPaths.schemas || process.env.SCHEMA_FOLDER_PATH || 'credentials/schemas',
+    contextPath: vdrPaths.contexts || process.env.CONTEXT_FOLDER_PATH || 'credentials/contexts',
+    entityPath: vdrPaths.entities || process.env.ENTITY_FOLDER_PATH || 'credentials/entities',
+    badgePath: vdrPaths.badges || process.env.BADGE_FOLDER_PATH || 'credentials/badges',
+    proofTemplatesPath: vdrPaths.proofTemplates || process.env.PROOF_TEMPLATES_FOLDER_PATH || 'credentials/proof-templates',
+  };
+}
 
 // Helper function to read Forms Builder settings
 async function getFormsBuilderSettings() {
@@ -39,39 +64,48 @@ async function saveDataRegistrySettings(settings) {
   await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2));
 }
 
-// GitHub repo configuration
-const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || 'Canadian-Open-Property-Association';
-const GITHUB_REPO_NAME = process.env.GITHUB_REPO_NAME || 'governance';
-const VCT_FOLDER_PATH = process.env.VCT_FOLDER_PATH || 'credentials/vct';
-const SCHEMA_FOLDER_PATH = process.env.SCHEMA_FOLDER_PATH || 'credentials/schemas';
-const CONTEXT_FOLDER_PATH = process.env.CONTEXT_FOLDER_PATH || 'credentials/contexts';
-const ENTITY_FOLDER_PATH = process.env.ENTITY_FOLDER_PATH || 'credentials/entities';
+// Legacy static paths (vocab and harmonization not yet in tenant config)
 const VOCAB_FOLDER_PATH = process.env.VOCAB_FOLDER_PATH || 'credentials/contexts';
 const HARMONIZATION_FOLDER_PATH = process.env.HARMONIZATION_FOLDER_PATH || 'credentials/harmonization';
-const BADGE_FOLDER_PATH = process.env.BADGE_FOLDER_PATH || 'credentials/badges';
-const BASE_URL = process.env.BASE_URL || 'https://openpropertyassociation.ca';
-// Base branch for PRs - if set, use this instead of repo's default branch
-const GITHUB_BASE_BRANCH = process.env.GITHUB_BASE_BRANCH || null;
+
+/**
+ * Get the base URL for VDR from tenant config
+ * Constructs from GitHub repository URL if available
+ */
+function getBaseUrl() {
+  const tenantConfig = getTenantConfig();
+  // Use GitHub Pages URL convention: https://{owner}.github.io/{repo}
+  // Or fallback to hardcoded value
+  const github = tenantConfig?.github || {};
+  if (github.owner && github.repo) {
+    // Common pattern: org repos often have custom domains
+    // For now, use the legacy BASE_URL env var or default
+    return process.env.BASE_URL || 'https://openpropertyassociation.ca';
+  }
+  return process.env.BASE_URL || 'https://openpropertyassociation.ca';
+}
 
 // Get configuration (base URLs and paths for VCT, Schema, Context, Entities, Vocab, and Harmonization)
 router.get('/config', requireAuth, async (req, res) => {
   try {
     // Check for saved settings
     const savedSettings = await getDataRegistrySettings();
+    const ghSettings = getGitHubSettings();
+    const baseUrl = getBaseUrl();
 
     // Return both base URLs and configurable paths
     res.json({
       // Base URLs for constructing full URIs
-      vctBaseUrl: `${BASE_URL}/${VCT_FOLDER_PATH}/`,
-      schemaBaseUrl: `${BASE_URL}/${SCHEMA_FOLDER_PATH}/`,
-      contextBaseUrl: `${BASE_URL}/${CONTEXT_FOLDER_PATH}/`,
-      entityBaseUrl: `${BASE_URL}/${ENTITY_FOLDER_PATH}/`,
-      vocabBaseUrl: `${BASE_URL}/${VOCAB_FOLDER_PATH}/`,
-      harmonizationBaseUrl: `${BASE_URL}/${HARMONIZATION_FOLDER_PATH}/`,
-      // Configurable paths (from saved settings or defaults)
-      schemaPath: savedSettings?.schemaPath || SCHEMA_FOLDER_PATH,
-      vctPath: savedSettings?.vctPath || VCT_FOLDER_PATH,
-      contextPath: savedSettings?.contextPath || CONTEXT_FOLDER_PATH,
+      vctBaseUrl: `${baseUrl}/${ghSettings.vctPath}/`,
+      schemaBaseUrl: `${baseUrl}/${ghSettings.schemaPath}/`,
+      contextBaseUrl: `${baseUrl}/${ghSettings.contextPath}/`,
+      entityBaseUrl: `${baseUrl}/${ghSettings.entityPath}/`,
+      vocabBaseUrl: `${baseUrl}/${VOCAB_FOLDER_PATH}/`,
+      harmonizationBaseUrl: `${baseUrl}/${HARMONIZATION_FOLDER_PATH}/`,
+      // Configurable paths (from saved settings or tenant config)
+      schemaPath: savedSettings?.schemaPath || ghSettings.schemaPath,
+      vctPath: savedSettings?.vctPath || ghSettings.vctPath,
+      contextPath: savedSettings?.contextPath || ghSettings.contextPath,
     });
   } catch (error) {
     console.error('Error fetching config:', error);

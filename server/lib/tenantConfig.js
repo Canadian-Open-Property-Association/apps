@@ -36,12 +36,18 @@ const DEFAULT_TENANT_CONFIG = {
     logoUrl: '/cornerstone-logo.png',
   },
   github: {
+    repositoryUrl: 'https://github.com/Canadian-Open-Property-Association/governance',
+    baseBranch: 'main',
+    // Derived fields (populated on save after API validation)
     owner: 'Canadian-Open-Property-Association',
     repo: 'governance',
-    baseBranch: 'main',
+    // token: undefined - optional, for private repos
+    // organizationName: undefined - populated from GitHub API
+    // organizationAvatarUrl: undefined - populated from GitHub API
+    // isPrivate: undefined - populated from GitHub API
   },
   vdr: {
-    baseUrl: 'https://openpropertyassociation.ca',
+    // Note: baseUrl removed as redundant - repository URL is source of truth
     paths: {
       vct: 'credentials/vct',
       schemas: 'credentials/schemas',
@@ -81,12 +87,20 @@ function ensureAssetsDir() {
 /**
  * Load tenant configuration from file
  * Returns merged config with defaults for any missing fields
+ * Handles backward compatibility: migrates old owner/repo to repositoryUrl
  */
 export function getTenantConfig() {
   try {
     if (fs.existsSync(TENANT_CONFIG_FILE)) {
       const fileContent = fs.readFileSync(TENANT_CONFIG_FILE, 'utf-8');
       const savedConfig = JSON.parse(fileContent);
+
+      // Handle backward compatibility: if old config has owner/repo but no repositoryUrl
+      let githubConfig = { ...savedConfig.github };
+      if (!githubConfig.repositoryUrl && githubConfig.owner && githubConfig.repo) {
+        githubConfig.repositoryUrl = `https://github.com/${githubConfig.owner}/${githubConfig.repo}`;
+        githubConfig.needsMigration = true; // Flag to show migration notice in UI
+      }
 
       // Deep merge with defaults to ensure all fields exist
       return {
@@ -96,7 +110,7 @@ export function getTenantConfig() {
         },
         github: {
           ...DEFAULT_TENANT_CONFIG.github,
-          ...savedConfig.github,
+          ...githubConfig,
         },
         vdr: {
           ...DEFAULT_TENANT_CONFIG.vdr,

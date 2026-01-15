@@ -24,9 +24,15 @@ export interface EcosystemConfig {
  * GitHub repository configuration
  */
 export interface GitHubConfig {
-  owner: string;
-  repo: string;
-  baseBranch?: string;
+  repositoryUrl: string;           // Full GitHub URL (e.g., https://github.com/org/repo)
+  token?: string;                  // GitHub Personal Access Token (for private repos)
+  baseBranch?: string;             // Default branch for operations
+  // Derived/cached from API:
+  owner?: string;                  // Parsed from URL
+  repo?: string;                   // Parsed from URL
+  organizationName?: string;       // Fetched from GitHub API
+  organizationAvatarUrl?: string;  // Fetched from GitHub API
+  isPrivate?: boolean;             // Fetched from GitHub API
 }
 
 /**
@@ -43,9 +49,9 @@ export interface VdrPaths {
 
 /**
  * VDR configuration
+ * Note: baseUrl removed as redundant - repository URL is the source of truth
  */
 export interface VdrConfig {
-  baseUrl: string;
   paths: VdrPaths;
 }
 
@@ -80,12 +86,13 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
     logoUrl: '/cornerstone-logo.png',
   },
   github: {
+    repositoryUrl: 'https://github.com/Canadian-Open-Property-Association/governance',
+    baseBranch: 'main',
+    // Derived fields (populated on save after API validation)
     owner: 'Canadian-Open-Property-Association',
     repo: 'governance',
-    baseBranch: 'main',
   },
   vdr: {
-    baseUrl: 'https://openpropertyassociation.ca',
     paths: {
       vct: 'credentials/vct',
       schemas: 'credentials/schemas',

@@ -1116,6 +1116,134 @@ app.delete('/api/admin/tenant-config', requireProjectAuth, requireAdmin, (req, r
 });
 
 // =============================================================================
+// GitHub Repository Validation
+// =============================================================================
+
+/**
+ * Parse GitHub repository URL to extract owner and repo
+ */
+function parseGitHubUrl(url) {
+  try {
+    const patterns = [
+      /github\.com\/([^/]+)\/([^/]+?)(?:\.git)?(?:\/.*)?$/,
+      /^([^/]+)\/([^/]+)$/, // Simple owner/repo format
+    ];
+
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match) {
+        return { owner: match[1], repo: match[2].replace(/\.git$/, '') };
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Validate GitHub repository and fetch organization/owner info
+ * POST /api/admin/github/validate
+ * Body: { repositoryUrl: string, token?: string }
+ * Returns: { valid, owner, repo, organizationName, organizationAvatarUrl, isPrivate, defaultBranch, error? }
+ */
+app.post('/api/admin/github/validate', requireProjectAuth, requireAdmin, async (req, res) => {
+  try {
+    const { repositoryUrl, token } = req.body;
+
+    if (!repositoryUrl) {
+      return res.status(400).json({
+        valid: false,
+        error: 'Repository URL is required',
+      });
+    }
+
+    const parsed = parseGitHubUrl(repositoryUrl);
+    if (!parsed) {
+      return res.status(400).json({
+        valid: false,
+        error: 'Invalid GitHub URL format. Use: https://github.com/owner/repo',
+      });
+    }
+
+    const { owner, repo } = parsed;
+
+    // Build headers for GitHub API
+    const headers = {
+      'Accept': 'application/vnd.github.v3+json',
+      'User-Agent': 'credential-design-tools',
+    };
+
+    // Use provided token, or fall back to env var
+    const authToken = token || process.env.GITHUB_TOKEN;
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    // Fetch repository info
+    const repoResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+      headers,
+    });
+
+    if (!repoResponse.ok) {
+      if (repoResponse.status === 404) {
+        return res.json({
+          valid: false,
+          error: 'Repository not found. Check the URL or provide a token for private repos.',
+        });
+      }
+      if (repoResponse.status === 401 || repoResponse.status === 403) {
+        return res.json({
+          valid: false,
+          error: 'Authentication required. Provide a valid GitHub token.',
+        });
+      }
+      return res.json({
+        valid: false,
+        error: `GitHub API error: ${repoResponse.status} ${repoResponse.statusText}`,
+      });
+    }
+
+    const repoData = await repoResponse.json();
+
+    // Fetch owner info (could be org or user)
+    const ownerResponse = await fetch(`https://api.github.com/users/${owner}`, {
+      headers,
+    });
+
+    let organizationName = owner;
+    let organizationAvatarUrl = '';
+
+    if (ownerResponse.ok) {
+      const ownerData = await ownerResponse.json();
+      organizationName = ownerData.name || ownerData.login || owner;
+      organizationAvatarUrl = ownerData.avatar_url || '';
+    }
+
+    // Log the validation
+    const username = req.session?.user?.login || 'unknown';
+    logAccess(req.session?.user?.id || 'unknown', username, 'github_repo_validate', 'settings');
+
+    res.json({
+      valid: true,
+      owner,
+      repo,
+      organizationName,
+      organizationAvatarUrl,
+      isPrivate: repoData.private || false,
+      defaultBranch: repoData.default_branch || 'main',
+    });
+
+  } catch (error) {
+    console.error('Error validating GitHub repository:', error);
+    res.status(500).json({
+      valid: false,
+      error: error.message || 'Failed to validate repository',
+    });
+  }
+});
+
+// =============================================================================
 // Orbit Configuration (admin only)
 // =============================================================================
 

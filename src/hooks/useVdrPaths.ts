@@ -67,7 +67,9 @@ export function useVdrPaths() {
    * @returns Full URL like "https://example.com/credentials/vct/my-file.json"
    */
   const getFullUrl = (type: VdrPathType, filename: string): string => {
-    const baseUrl = tenantConfig?.vdr?.baseUrl || DEFAULT_BASE_URL;
+    // Base URL is now derived from GitHub repository or uses default
+    // In the future, this could construct a GitHub Pages URL from the repository
+    const baseUrl = DEFAULT_BASE_URL;
     const path = getPath(type, filename);
     // Remove trailing slash from baseUrl and join
     const cleanBaseUrl = baseUrl.replace(/\/$/, '');
@@ -76,9 +78,10 @@ export function useVdrPaths() {
 
   /**
    * Get the VDR base URL
+   * Note: baseUrl was removed from VdrConfig as redundant with GitHub repository URL
    */
   const getBaseUrl = (): string => {
-    return tenantConfig?.vdr?.baseUrl || DEFAULT_BASE_URL;
+    return DEFAULT_BASE_URL;
   };
 
   /**
