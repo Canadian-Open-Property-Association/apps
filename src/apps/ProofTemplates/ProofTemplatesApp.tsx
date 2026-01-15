@@ -83,7 +83,6 @@ export default function ProofTemplatesApp() {
     currentTemplate,
     saveTemplate,
     isSaving,
-    templateTypes,
     fetchTemplates,
     fetchCatalogueCredentials,
   } = useProofTemplateStore();

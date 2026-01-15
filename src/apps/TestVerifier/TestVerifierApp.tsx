@@ -34,38 +34,39 @@ export default function TestVerifierApp() {
       console.log('[TestVerifier] Socket event:', event, data);
 
       // Map socket events to proof request status updates
+      const credProofId = data.credProofId as string | undefined;
       switch (event) {
         case 'proof_scanned':
-          if (data.credProofId) {
-            updateProofRequestStatusFromSocket(data.credProofId, 'scanned');
+          if (credProofId) {
+            updateProofRequestStatusFromSocket(credProofId, 'scanned');
           }
           break;
         case 'proof_request_sent':
-          if (data.credProofId) {
-            updateProofRequestStatusFromSocket(data.credProofId, 'request-sent');
+          if (credProofId) {
+            updateProofRequestStatusFromSocket(credProofId, 'request-sent');
           }
           break;
         case 'proof_received':
-          if (data.credProofId) {
-            updateProofRequestStatusFromSocket(data.credProofId, 'proof-received');
+          if (credProofId) {
+            updateProofRequestStatusFromSocket(credProofId, 'proof-received');
           }
           break;
         case 'proof_verified':
-          if (data.credProofId) {
-            updateProofRequestStatusFromSocket(data.credProofId, 'verified', data.result);
+          if (credProofId) {
+            updateProofRequestStatusFromSocket(credProofId, 'verified', data.result as string | undefined);
           }
           break;
         case 'done':
-          if (data.credProofId) {
+          if (credProofId) {
             // Check if it's a verification success or failure
             if (data.success) {
-              updateProofRequestStatusFromSocket(data.credProofId, 'verified', data.result);
+              updateProofRequestStatusFromSocket(credProofId, 'verified', data.result as string | undefined);
             }
           }
           break;
         case 'error':
-          if (data.credProofId) {
-            updateProofRequestStatusFromSocket(data.credProofId, 'failed');
+          if (credProofId) {
+            updateProofRequestStatusFromSocket(credProofId, 'failed');
           }
           break;
       }

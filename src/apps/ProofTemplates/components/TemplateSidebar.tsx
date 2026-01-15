@@ -8,7 +8,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useProofTemplateStore } from '../../../store/proofTemplateStore';
 import {
-  PROOF_TEMPLATE_CATEGORIES,
   ProofTemplateListItem,
   CREDENTIAL_FORMAT_LABELS,
   CredentialFormat,
@@ -52,12 +51,6 @@ export default function TemplateSidebar({ onCreateTemplate }: TemplateSidebarPro
       }
       return next;
     });
-  };
-
-  // Get category label
-  const getCategoryLabel = (value: string): string => {
-    const category = PROOF_TEMPLATE_CATEGORIES.find((c) => c.value === value);
-    return category?.label || value;
   };
 
   // Filter templates by search query

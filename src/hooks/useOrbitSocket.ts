@@ -24,6 +24,8 @@ export type OrbitEventType =
   | 'offer_received'
   | 'offer_accepted'
   | 'credential_issued'
+  | 'proof_scanned'
+  | 'proof_request_sent'
   | 'proof_received'
   | 'proof_verified'
   | 'connection_established'
@@ -40,7 +42,10 @@ export interface OrbitEventData {
   connectionId?: string;
   credentialId?: string;
   proofId?: string;
+  credProofId?: string;
   status?: string;
+  success?: boolean;
+  result?: unknown;
   error?: string;
   raw?: unknown;
   [key: string]: unknown;

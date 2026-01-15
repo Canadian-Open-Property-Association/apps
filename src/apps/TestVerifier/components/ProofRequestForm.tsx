@@ -8,7 +8,6 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTestVerifierStore } from '../../../store/testVerifierStore';
 import { CREDENTIAL_FORMAT_LABELS } from '../../../types/proofTemplate';
-import { QRCodeSVG } from 'qrcode.react';
 
 interface ProofRequestFormProps {
   socketSessionId: string | null;
@@ -20,7 +19,6 @@ export default function ProofRequestForm({ socketSessionId }: ProofRequestFormPr
   const {
     templates,
     selectedTemplate,
-    currentProofRequest,
     isLoading,
     error,
     selectTemplate,

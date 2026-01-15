@@ -15,7 +15,7 @@ interface VerifierCatalogProps {
   socketSessionId: string | null;
 }
 
-export default function VerifierCatalog({ socketSessionId }: VerifierCatalogProps) {
+export default function VerifierCatalog({ socketSessionId: _socketSessionId }: VerifierCatalogProps) {
   const navigate = useNavigate();
   const {
     templates,

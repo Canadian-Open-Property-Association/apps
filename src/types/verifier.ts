@@ -5,7 +5,7 @@
  * and Orbit verifier API integration.
  */
 
-import type { ProofTemplate, CredentialFormat } from './proofTemplate';
+import type { CredentialFormat } from './proofTemplate';
 
 // Proof Request Status
 export type ProofRequestStatus =
