@@ -7,7 +7,12 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useProofTemplateStore } from '../../../store/proofTemplateStore';
-import { PROOF_TEMPLATE_CATEGORIES, ProofTemplateListItem } from '../../../types/proofTemplate';
+import {
+  PROOF_TEMPLATE_CATEGORIES,
+  ProofTemplateListItem,
+  CREDENTIAL_FORMAT_LABELS,
+  CredentialFormat,
+} from '../../../types/proofTemplate';
 
 interface TemplateSidebarProps {
   onCreateTemplate: () => void;
@@ -63,34 +68,38 @@ export default function TemplateSidebar({ onCreateTemplate }: TemplateSidebarPro
       (template) =>
         template.name.toLowerCase().includes(query) ||
         template.description?.toLowerCase().includes(query) ||
-        getCategoryLabel(template.category).toLowerCase().includes(query)
+        CREDENTIAL_FORMAT_LABELS[template.credentialFormat]?.toLowerCase().includes(query)
     );
   }, [templates, searchQuery]);
 
-  // Group templates by category
+  // Group templates by credential format
   const groupedTemplates = useMemo(() => {
     const groups: Record<string, ProofTemplateListItem[]> = {};
-    const orderedCategories: string[] = [];
+    const orderedFormats: string[] = [];
 
-    // Collect categories
+    // Collect formats
     filteredTemplates.forEach((template) => {
-      const category = template.category || 'general';
-      if (!orderedCategories.includes(category)) {
-        orderedCategories.push(category);
+      const format = template.credentialFormat || 'anoncreds';
+      if (!orderedFormats.includes(format)) {
+        orderedFormats.push(format);
       }
     });
 
-    // Sort by category label
-    orderedCategories.sort((a, b) => getCategoryLabel(a).localeCompare(getCategoryLabel(b)));
+    // Sort by format label
+    orderedFormats.sort((a, b) =>
+      (CREDENTIAL_FORMAT_LABELS[a as CredentialFormat] || a).localeCompare(
+        CREDENTIAL_FORMAT_LABELS[b as CredentialFormat] || b
+      )
+    );
 
     // Group templates
-    orderedCategories.forEach((category) => {
-      groups[category] = filteredTemplates
-        .filter((t) => (t.category || 'general') === category)
+    orderedFormats.forEach((format) => {
+      groups[format] = filteredTemplates
+        .filter((t) => (t.credentialFormat || 'anoncreds') === format)
         .sort((a, b) => a.name.localeCompare(b.name));
     });
 
-    return { groups, orderedCategories };
+    return { groups, orderedFormats };
   }, [filteredTemplates]);
 
   // Handle delete
@@ -101,7 +110,7 @@ export default function TemplateSidebar({ onCreateTemplate }: TemplateSidebarPro
       if (selectedTemplateId === templateId) {
         setSelectedTemplateId(null);
       }
-    } catch (err) {
+    } catch {
       // Error handled in store
     }
   };
@@ -111,7 +120,7 @@ export default function TemplateSidebar({ onCreateTemplate }: TemplateSidebarPro
     try {
       const cloned = await cloneTemplate(templateId);
       setSelectedTemplateId(cloned.id);
-    } catch (err) {
+    } catch {
       // Error handled in store
     }
   };
@@ -269,18 +278,18 @@ export default function TemplateSidebar({ onCreateTemplate }: TemplateSidebarPro
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto">
-          {/* Template list grouped by category */}
+          {/* Template list grouped by credential format */}
           <div>
-            {groupedTemplates.orderedCategories.map((category) => {
-              const templatesInGroup = groupedTemplates.groups[category];
-              const isCollapsed = collapsedSections.has(category);
-              const sectionLabel = getCategoryLabel(category);
+            {groupedTemplates.orderedFormats.map((format) => {
+              const templatesInGroup = groupedTemplates.groups[format];
+              const isCollapsed = collapsedSections.has(format);
+              const formatLabel = CREDENTIAL_FORMAT_LABELS[format as CredentialFormat] || format;
 
               return (
-                <div key={category}>
+                <div key={format}>
                   {/* Section header */}
                   <button
-                    onClick={() => toggleSection(category)}
+                    onClick={() => toggleSection(format)}
                     className="w-full flex items-center gap-2 px-3 py-2 border-y border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors"
                   >
                     <svg
@@ -299,7 +308,7 @@ export default function TemplateSidebar({ onCreateTemplate }: TemplateSidebarPro
                       />
                     </svg>
                     <span className="text-xs font-medium uppercase tracking-wide flex-1 text-left text-gray-600">
-                      {sectionLabel}
+                      {formatLabel}
                     </span>
                     <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-200 text-gray-700">
                       {templatesInGroup.length}
@@ -356,10 +365,15 @@ export default function TemplateSidebar({ onCreateTemplate }: TemplateSidebarPro
                                   {template.status === 'published' && (
                                     <span className="flex-shrink-0 w-2 h-2 rounded-full bg-green-500" title="Published" />
                                   )}
+                                  {template.publishedToVerifier && (
+                                    <span className="flex-shrink-0 px-1.5 py-0.5 text-xs bg-purple-100 text-purple-700 rounded" title="Published to Test Verifier">
+                                      Verifier
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500">
                                   <span>
-                                    {template.claimCount} claim{template.claimCount !== 1 ? 's' : ''}
+                                    {template.credentialCount} cred{template.credentialCount !== 1 ? 's' : ''}
                                   </span>
                                   <span>&middot;</span>
                                   <span>{formatDate(template.updatedAt)}</span>

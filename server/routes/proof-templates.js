@@ -3,12 +3,17 @@
  *
  * CRUD operations for proof templates in the Proof Templates Builder app.
  * Uses PostgreSQL via Drizzle ORM.
+ *
+ * New structure (v2):
+ * - Templates reference credentials from Credential Catalogue
+ * - One credential format per template (for Orbit compound proof compatibility)
+ * - requestedCredentials array replaces claims
+ * - Publishing to Test Verifier app
  */
 
 import express from 'express';
-import crypto from 'crypto';
 import { getDb, schema } from '../db/index.js';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import { requireAuth, getOctokit } from '../auth.js';
 
 const router = express.Router();
@@ -51,22 +56,23 @@ const getCurrentUser = (req) => {
 };
 
 /**
- * Convert database row to ProofTemplate response
+ * Convert database row to ProofTemplate response (full template)
  */
 const toProofTemplateResponse = (row) => ({
   id: row.id,
   name: row.name,
-  description: row.description,
-  purpose: row.purpose,
-  claims: row.claims || [],
-  format: row.format,
+  description: row.description || '',
+  version: row.version || '1.0.0',
+  credentialFormat: row.credentialFormat || 'anoncreds',
+  requestedCredentials: row.requestedCredentials || [],
   metadata: {
-    category: row.category,
-    version: row.version,
-    author: row.githubUsername || row.authorName,
-    tags: row.tags || [],
+    author: row.metadata?.author || row.githubUsername || row.authorName,
+    ecosystemTag: row.metadata?.ecosystemTag || '',
+    tags: row.metadata?.tags || [],
+    ...(row.metadata || {}),
   },
   status: row.status,
+  publishedToVerifier: row.publishedToVerifier || false,
   vdrUri: row.vdrUri,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
@@ -79,10 +85,11 @@ const toProofTemplateResponse = (row) => ({
 const toListItemResponse = (row) => ({
   id: row.id,
   name: row.name,
-  description: row.description,
-  category: row.category,
+  description: row.description || '',
+  credentialFormat: row.credentialFormat || 'anoncreds',
   status: row.status,
-  claimCount: (row.claims || []).length,
+  credentialCount: (row.requestedCredentials || []).length,
+  publishedToVerifier: row.publishedToVerifier || false,
   vdrUri: row.vdrUri,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
@@ -111,6 +118,37 @@ router.get('/', requireDatabase, async (req, res) => {
   } catch (error) {
     console.error('Error fetching proof templates:', error);
     res.status(500).json({ error: 'Failed to fetch proof templates' });
+  }
+});
+
+/**
+ * GET /api/proof-templates/published
+ * Get all templates published to Test Verifier (for Test Verifier app)
+ */
+router.get('/published', requireDatabase, async (req, res) => {
+  try {
+    const user = getCurrentUser(req);
+
+    if (!user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    // Get templates that are published to verifier for this user
+    const templates = await req.db
+      .select()
+      .from(schema.proofTemplates)
+      .where(
+        and(
+          eq(schema.proofTemplates.githubUserId, user.githubUserId),
+          eq(schema.proofTemplates.publishedToVerifier, true)
+        )
+      )
+      .orderBy(desc(schema.proofTemplates.updatedAt));
+
+    res.json(templates.map(toProofTemplateResponse));
+  } catch (error) {
+    console.error('Error fetching published proof templates:', error);
+    res.status(500).json({ error: 'Failed to fetch published proof templates' });
   }
 });
 
@@ -160,10 +198,20 @@ router.post('/', requireDatabase, async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const { name, description, purpose, category } = req.body;
+    const { name, description, credentialFormat, ecosystemTag } = req.body;
 
     if (!name) {
       return res.status(400).json({ error: 'Name is required' });
+    }
+
+    // Validate credential format
+    const validFormats = ['anoncreds', 'w3c-jsonld', 'w3c-sd-jwt', 'iso-18013-5'];
+    const format = credentialFormat || 'anoncreds';
+    if (!validFormats.includes(format)) {
+      return res.status(400).json({
+        error: 'Invalid credential format',
+        message: `Format must be one of: ${validFormats.join(', ')}`,
+      });
     }
 
     const [template] = await req.db
@@ -171,13 +219,16 @@ router.post('/', requireDatabase, async (req, res) => {
       .values({
         name,
         description: description || '',
-        purpose: purpose || '',
-        claims: [],
-        format: 'presentation-exchange',
-        category: category || 'general',
         version: '1.0.0',
-        tags: [],
+        credentialFormat: format,
+        requestedCredentials: [],
+        metadata: {
+          author: user.authorName || user.githubUsername,
+          ecosystemTag: ecosystemTag || '',
+          tags: [],
+        },
         status: 'draft',
+        publishedToVerifier: false,
         githubUserId: user.githubUserId,
         githubUsername: user.githubUsername,
         authorName: user.authorName,
@@ -194,7 +245,7 @@ router.post('/', requireDatabase, async (req, res) => {
 
 /**
  * PUT /api/proof-templates/:id
- * Update a proof template (only drafts can be updated)
+ * Update a proof template
  */
 router.put('/:id', requireDatabase, async (req, res) => {
   try {
@@ -219,15 +270,7 @@ router.put('/:id', requireDatabase, async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Allow updates to published templates (they can be re-published)
-    // if (existingTemplate.status === 'published') {
-    //   return res.status(400).json({
-    //     error: 'Cannot edit published template',
-    //     message: 'Clone this template to create a new draft for editing.',
-    //   });
-    // }
-
-    const { name, description, purpose, claims, metadata } = req.body;
+    const { name, description, version, requestedCredentials, metadata, publishedToVerifier } = req.body;
 
     const updateData = {
       updatedAt: new Date(),
@@ -235,12 +278,15 @@ router.put('/:id', requireDatabase, async (req, res) => {
 
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
-    if (purpose !== undefined) updateData.purpose = purpose;
-    if (claims !== undefined) updateData.claims = claims;
-    if (metadata) {
-      if (metadata.category !== undefined) updateData.category = metadata.category;
-      if (metadata.version !== undefined) updateData.version = metadata.version;
-      if (metadata.tags !== undefined) updateData.tags = metadata.tags;
+    if (version !== undefined) updateData.version = version;
+    if (requestedCredentials !== undefined) updateData.requestedCredentials = requestedCredentials;
+    if (publishedToVerifier !== undefined) updateData.publishedToVerifier = publishedToVerifier;
+    if (metadata !== undefined) {
+      // Merge with existing metadata
+      updateData.metadata = {
+        ...(existingTemplate.metadata || {}),
+        ...metadata,
+      };
     }
 
     const [updatedTemplate] = await req.db
@@ -253,6 +299,55 @@ router.put('/:id', requireDatabase, async (req, res) => {
   } catch (error) {
     console.error('Error updating proof template:', error);
     res.status(500).json({ error: 'Failed to update proof template' });
+  }
+});
+
+/**
+ * PATCH /api/proof-templates/:id/publish-to-verifier
+ * Toggle publishedToVerifier status for Test Verifier app
+ */
+router.patch('/:id/publish-to-verifier', requireDatabase, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { enabled } = req.body;
+    const user = getCurrentUser(req);
+
+    if (!user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ error: 'enabled (boolean) is required' });
+    }
+
+    // Check ownership
+    const [existingTemplate] = await req.db
+      .select()
+      .from(schema.proofTemplates)
+      .where(eq(schema.proofTemplates.id, id));
+
+    if (!existingTemplate) {
+      return res.status(404).json({ error: 'Proof template not found' });
+    }
+
+    if (existingTemplate.githubUserId !== user.githubUserId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Update publishedToVerifier status
+    const [updatedTemplate] = await req.db
+      .update(schema.proofTemplates)
+      .set({
+        publishedToVerifier: enabled,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.proofTemplates.id, id))
+      .returning();
+
+    res.json({ success: true, publishedToVerifier: updatedTemplate.publishedToVerifier });
+  } catch (error) {
+    console.error('Error updating publish-to-verifier status:', error);
+    res.status(500).json({ error: 'Failed to update verifier status' });
   }
 });
 
@@ -322,20 +417,21 @@ router.post('/:id/publish', requireDatabase, requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Validate template has claims
-    if (!template.claims || template.claims.length === 0) {
+    // Validate template has requested credentials
+    if (!template.requestedCredentials || template.requestedCredentials.length === 0) {
       return res.status(400).json({
-        error: 'Cannot publish template without claims',
-        message: 'Add at least one claim to the template before publishing.',
+        error: 'Cannot publish template without requested credentials',
+        message: 'Add at least one credential to the template before publishing.',
       });
     }
 
-    // Generate Presentation Exchange definition
-    const presentationDefinition = toPresentationDefinition(template);
+    // Generate the proof template JSON
+    const templateJson = toPublishableFormat(template);
 
-    // Create filename from category and name
+    // Create filename from ecosystem tag and name
+    const ecosystemTag = template.metadata?.ecosystemTag || 'general';
     const safeName = template.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-    const filename = `${template.category}-${safeName}.json`;
+    const filename = `${ecosystemTag}-${safeName}.json`;
     const filePath = `${PROOF_TEMPLATE_FOLDER_PATH}/${filename}`;
 
     const octokit = getOctokit(req);
@@ -386,7 +482,7 @@ router.post('/:id/publish', requireDatabase, requireAuth, async (req, res) => {
     }
 
     // Create or update the file
-    const fileContent = JSON.stringify(presentationDefinition, null, 2);
+    const fileContent = JSON.stringify(templateJson, null, 2);
     const encodedContent = Buffer.from(fileContent).toString('base64');
     const isUpdate = existingSha !== null;
 
@@ -402,13 +498,16 @@ router.post('/:id/publish', requireDatabase, requireAuth, async (req, res) => {
 
     // Create a pull request
     const prTitle = isUpdate ? `Update proof template: ${template.name}` : `Add proof template: ${template.name}`;
+    const credentialList = template.requestedCredentials
+      .map((c) => `- ${c.credentialName}: ${c.requestedAttributes?.length || 0} attributes, ${c.predicates?.length || 0} predicates`)
+      .join('\n');
     const prBody = `This PR ${isUpdate ? 'updates' : 'adds'} the proof template **${template.name}**.
 
-**Purpose:** ${template.purpose || 'Not specified'}
-**Category:** ${template.category}
-**Claims:** ${template.claims.length}
+**Description:** ${template.description || 'Not specified'}
+**Credential Format:** ${template.credentialFormat}
+**Requested Credentials:** ${template.requestedCredentials.length}
 
-${template.claims.map((c) => `- ${c.label || c.name}: ${c.purpose || 'No description'}`).join('\n')}
+${credentialList}
 
 Created by @${req.session.user.login} using the [Cornerstone Network Apps](https://apps.openpropertyassociation.ca).`;
 
@@ -477,13 +576,15 @@ router.post('/:id/clone', requireDatabase, async (req, res) => {
       .values({
         name: `${existingTemplate.name} (Copy)`,
         description: existingTemplate.description,
-        purpose: existingTemplate.purpose,
-        claims: existingTemplate.claims,
-        format: existingTemplate.format,
-        category: existingTemplate.category,
         version: '1.0.0', // Reset version for clone
-        tags: existingTemplate.tags,
+        credentialFormat: existingTemplate.credentialFormat,
+        requestedCredentials: existingTemplate.requestedCredentials,
+        metadata: {
+          ...existingTemplate.metadata,
+          author: user.authorName || user.githubUsername,
+        },
         status: 'draft',
+        publishedToVerifier: false,
         githubUserId: user.githubUserId,
         githubUsername: user.githubUsername,
         authorName: user.authorName,
@@ -500,111 +601,50 @@ router.post('/:id/clone', requireDatabase, async (req, res) => {
 });
 
 /**
- * Convert a ProofTemplate to DIF Presentation Exchange format
+ * Convert a ProofTemplate to publishable JSON format
+ * This is our custom format designed for third-party verifier consumption
  */
-function toPresentationDefinition(template) {
+function toPublishableFormat(template) {
+  const ecosystemTag = template.metadata?.ecosystemTag || 'general';
+  const safeName = template.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
   return {
-    id: template.id,
+    id: `${ecosystemTag}.${safeName}.${template.version || '1.0.0'}`,
     name: template.name,
-    purpose: template.purpose,
-    format: {
-      jwt_vc: { alg: ['ES256', 'ES384'] },
-      jwt_vp: { alg: ['ES256', 'ES384'] },
+    description: template.description || '',
+    version: template.version || '1.0.0',
+    credentialFormat: template.credentialFormat,
+    requestedCredentials: (template.requestedCredentials || []).map((cred) => ({
+      id: cred.id,
+      catalogueCredentialId: cred.catalogueCredentialId,
+      credentialName: cred.credentialName,
+      restrictions: cred.restrictions,
+      requestedAttributes: (cred.requestedAttributes || []).map((attr) => ({
+        attributeName: attr.attributeName,
+        label: attr.label,
+        required: attr.required,
+        selectiveDisclosure: attr.selectiveDisclosure,
+        ...(attr.constraints && { constraints: attr.constraints }),
+      })),
+      predicates: (cred.predicates || []).map((pred) => ({
+        attributeName: pred.attributeName,
+        label: pred.label,
+        predicateType: pred.predicateType,
+        operator: pred.operator,
+        value: pred.value,
+        revealResult: pred.revealResult,
+      })),
+    })),
+    metadata: {
+      author: template.metadata?.author || template.githubUsername || template.authorName,
+      ecosystemTag,
+      tags: template.metadata?.tags || [],
     },
-    input_descriptors: template.claims.map((claim) => claimToInputDescriptor(claim)),
+    status: template.status,
+    publishedToVerifier: template.publishedToVerifier,
+    createdAt: template.createdAt,
+    updatedAt: template.updatedAt,
   };
-}
-
-function claimToInputDescriptor(claim) {
-  const fields = [
-    {
-      id: claim.id,
-      path: [`$.credentialSubject.${claim.fieldPath}`, `$.vc.credentialSubject.${claim.fieldPath}`],
-      purpose: claim.purpose,
-      ...buildFieldConstraints(claim),
-    },
-  ];
-
-  // Add credential type filter if specified
-  if (claim.credentialType) {
-    fields.push({
-      path: ['$.type', '$.vc.type'],
-      filter: {
-        type: 'array',
-        contains: { const: claim.credentialType },
-      },
-    });
-  }
-
-  const constraints = {
-    fields,
-  };
-
-  // Check for limit_disclosure constraints
-  const limitDisclosure = (claim.constraints || []).find((c) => c.type === 'limit_disclosure');
-  if (limitDisclosure) {
-    constraints.limit_disclosure = 'required';
-  }
-
-  return {
-    id: claim.id,
-    name: claim.label || claim.name,
-    purpose: claim.purpose,
-    constraints,
-  };
-}
-
-function buildFieldConstraints(claim) {
-  const result = {};
-
-  for (const constraint of claim.constraints || []) {
-    if (constraint.type === 'predicate') {
-      result.predicate = 'required';
-      result.filter = buildPredicateFilter(constraint.config);
-    } else if (constraint.type === 'field_match') {
-      const config = constraint.config;
-      if (config.expectedValues?.length === 1) {
-        result.filter = { const: config.expectedValues[0] };
-      } else if (config.expectedValues?.length > 1) {
-        result.filter = { enum: config.expectedValues };
-      }
-    }
-  }
-
-  return result;
-}
-
-function buildPredicateFilter(config) {
-  const filter = {};
-
-  switch (config.operator) {
-    case 'equals':
-      filter.const = config.value;
-      break;
-    case 'not_equals':
-      filter.not = { const: config.value };
-      break;
-    case 'greater_than':
-      filter.exclusiveMinimum = Number(config.value);
-      break;
-    case 'less_than':
-      filter.exclusiveMaximum = Number(config.value);
-      break;
-    case 'greater_or_equal':
-      filter.minimum = Number(config.value);
-      break;
-    case 'less_or_equal':
-      filter.maximum = Number(config.value);
-      break;
-  }
-
-  if (config.predicateType === 'date') {
-    filter.format = 'date';
-  } else if (config.predicateType === 'integer') {
-    filter.type = 'integer';
-  }
-
-  return filter;
 }
 
 export default router;

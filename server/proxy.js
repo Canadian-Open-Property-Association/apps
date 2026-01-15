@@ -22,6 +22,7 @@ import badgesRouter from './routes/badges.js';
 import proofTemplatesRouter from './routes/proof-templates.js';
 import issuerRouter from './routes/issuer.js';
 import credentialCatalogueRouter from './routes/credential-catalogue.js';
+import testVerifierRouter from './routes/test-verifier.js';
 import { initializeDatabase } from './db/index.js';
 import {
   getOrbitConfig,
@@ -190,6 +191,7 @@ app.use('/api/badges', badgesRouter);
 app.use('/api/proof-templates', proofTemplatesRouter);
 app.use('/api/issuer', issuerRouter);
 app.use('/api/credential-catalogue', credentialCatalogueRouter);
+app.use('/api/test-verifier', testVerifierRouter);
 
 // Swagger API documentation
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(specs, {

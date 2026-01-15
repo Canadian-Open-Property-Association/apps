@@ -2,31 +2,43 @@
  * Template Config Panel
  *
  * Two-pane layout for configuring a proof template:
- * - Left pane: Template metadata and claims list
- * - Right pane: Selected claim editor
+ * - Left pane: Template metadata, credential format, and requested credentials list
+ * - Right pane: Selected credential attribute/predicate editor
  */
 
+import { useState } from 'react';
 import { useProofTemplateStore } from '../../../store/proofTemplateStore';
-import ClaimEditor from './ClaimEditor';
+import {
+  CredentialFormat,
+  CREDENTIAL_FORMAT_LABELS,
+} from '../../../types/proofTemplate';
+import CredentialPicker from './CredentialPicker';
+import RequestedCredentialEditor from './RequestedCredentialEditor';
 
 export default function TemplateConfigPanel() {
   const {
     currentTemplate,
-    selectedClaimId,
+    selectedCredentialId,
+    filteredCatalogueCredentials,
     isLoading,
     error,
     updateTemplateName,
-    updateTemplatePurpose,
+    updateTemplateDescription,
+    updateTemplateVersion,
     updateTemplateMetadata,
-    addClaim,
-    updateClaim,
-    removeClaim,
-    selectClaim,
+    updateCredentialFormat,
+    addRequestedCredential,
+    removeRequestedCredential,
+    selectCredential,
     clearError,
     templateTypes,
   } = useProofTemplateStore();
 
-  const selectedClaim = currentTemplate?.claims.find((c) => c.id === selectedClaimId);
+  const [showCredentialPicker, setShowCredentialPicker] = useState(false);
+
+  const selectedRequestedCredential = currentTemplate?.requestedCredentials.find(
+    (c) => c.id === selectedCredentialId
+  );
 
   // Loading state
   if (isLoading && !currentTemplate) {
@@ -65,6 +77,15 @@ export default function TemplateConfigPanel() {
     );
   }
 
+  const handleFormatChange = (format: CredentialFormat) => {
+    if (currentTemplate.requestedCredentials.length > 0) {
+      if (!confirm('Changing format will clear all requested credentials. Continue?')) {
+        return;
+      }
+    }
+    updateCredentialFormat(format);
+  };
+
   return (
     <div className="h-full flex flex-col">
       {/* Error banner */}
@@ -81,7 +102,7 @@ export default function TemplateConfigPanel() {
 
       {/* Two-pane layout */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left pane - Template metadata and claims list */}
+        {/* Left pane - Template metadata and credentials list */}
         <div className="w-80 flex-shrink-0 bg-white border-r flex flex-col overflow-hidden">
           {/* Template metadata */}
           <div className="p-4 border-b space-y-3">
@@ -106,16 +127,43 @@ export default function TemplateConfigPanel() {
               </div>
             </div>
 
-            {/* Purpose */}
+            {/* Description */}
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Purpose</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
               <textarea
-                value={currentTemplate.purpose}
-                onChange={(e) => updateTemplatePurpose(e.target.value)}
-                placeholder="What does this template verify? (shown to credential holders)"
+                value={currentTemplate.description}
+                onChange={(e) => updateTemplateDescription(e.target.value)}
+                placeholder="What does this template verify?"
                 rows={2}
                 className="w-full text-sm px-2 py-1.5 border border-gray-200 rounded resize-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
+            </div>
+
+            {/* Credential Format (locked after credentials added) */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Credential Format
+                {currentTemplate.requestedCredentials.length > 0 && (
+                  <span className="ml-1 text-gray-400">(locked)</span>
+                )}
+              </label>
+              <select
+                value={currentTemplate.credentialFormat}
+                onChange={(e) => handleFormatChange(e.target.value as CredentialFormat)}
+                disabled={currentTemplate.requestedCredentials.length > 0}
+                className={`w-full text-sm px-2 py-1.5 border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
+                  currentTemplate.requestedCredentials.length > 0 ? 'bg-gray-100 cursor-not-allowed' : ''
+                }`}
+              >
+                {(Object.keys(CREDENTIAL_FORMAT_LABELS) as CredentialFormat[]).map((format) => (
+                  <option key={format} value={format}>
+                    {CREDENTIAL_FORMAT_LABELS[format]}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">
+                One format per template (Orbit compound proof requirement)
+              </p>
             </div>
 
             {/* Category and Version */}
@@ -136,22 +184,24 @@ export default function TemplateConfigPanel() {
                 <label className="block text-xs font-medium text-gray-500 mb-1">Version</label>
                 <input
                   type="text"
-                  value={currentTemplate.metadata.version}
-                  onChange={(e) => updateTemplateMetadata({ version: e.target.value })}
+                  value={currentTemplate.version}
+                  onChange={(e) => updateTemplateVersion(e.target.value)}
                   className="w-full text-sm px-2 py-1.5 border border-gray-200 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
           </div>
 
-          {/* Claims list */}
+          {/* Requested Credentials list */}
           <div className="flex-1 overflow-y-auto">
-            <div className="p-3 border-b bg-gray-50 flex items-center justify-between sticky top-0">
-              <h3 className="text-sm font-medium text-gray-700">Claims ({currentTemplate.claims.length})</h3>
+            <div className="p-3 border-b bg-gray-50 flex items-center justify-between sticky top-0 z-10">
+              <h3 className="text-sm font-medium text-gray-700">
+                Requested Credentials ({currentTemplate.requestedCredentials.length})
+              </h3>
               <button
-                onClick={addClaim}
+                onClick={() => setShowCredentialPicker(true)}
                 className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
-                title="Add claim"
+                title="Add credential from catalogue"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -159,27 +209,27 @@ export default function TemplateConfigPanel() {
               </button>
             </div>
 
-            {currentTemplate.claims.length === 0 ? (
+            {currentTemplate.requestedCredentials.length === 0 ? (
               <div className="p-6 text-center text-gray-500">
                 <svg className="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                 </svg>
-                <p className="text-sm">No claims yet</p>
+                <p className="text-sm">No credentials yet</p>
                 <button
-                  onClick={addClaim}
+                  onClick={() => setShowCredentialPicker(true)}
                   className="mt-2 text-sm text-blue-600 hover:text-blue-800"
                 >
-                  Add your first claim
+                  Add from Credential Catalogue
                 </button>
               </div>
             ) : (
               <div className="divide-y">
-                {currentTemplate.claims.map((claim, index) => (
+                {currentTemplate.requestedCredentials.map((cred, index) => (
                   <div
-                    key={claim.id}
-                    onClick={() => selectClaim(claim.id)}
+                    key={cred.id}
+                    onClick={() => selectCredential(cred.id)}
                     className={`p-3 cursor-pointer transition-colors ${
-                      selectedClaimId === claim.id
+                      selectedCredentialId === cred.id
                         ? 'bg-blue-50 border-l-2 border-blue-600'
                         : 'hover:bg-gray-50'
                     }`}
@@ -187,18 +237,17 @@ export default function TemplateConfigPanel() {
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-gray-900 truncate">
-                          {claim.label || claim.name || `Claim ${index + 1}`}
+                          {cred.credentialName || `Credential ${index + 1}`}
                         </div>
-                        {claim.purpose && (
-                          <div className="text-xs text-gray-500 truncate mt-0.5">{claim.purpose}</div>
-                        )}
-                        <div className="flex items-center gap-2 mt-1">
-                          {claim.required && (
-                            <span className="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded">Required</span>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {cred.requestedAttributes.length > 0 && (
+                            <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
+                              {cred.requestedAttributes.length} attr
+                            </span>
                           )}
-                          {claim.constraints.length > 0 && (
+                          {cred.predicates.length > 0 && (
                             <span className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded">
-                              {claim.constraints.length} constraint{claim.constraints.length !== 1 ? 's' : ''}
+                              {cred.predicates.length} predicate{cred.predicates.length !== 1 ? 's' : ''}
                             </span>
                           )}
                         </div>
@@ -206,10 +255,10 @@ export default function TemplateConfigPanel() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          removeClaim(claim.id);
+                          removeRequestedCredential(cred.id);
                         }}
                         className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                        title="Remove claim"
+                        title="Remove credential"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -223,26 +272,36 @@ export default function TemplateConfigPanel() {
           </div>
         </div>
 
-        {/* Right pane - Claim editor */}
+        {/* Right pane - Credential editor */}
         <div className="flex-1 bg-gray-50 overflow-y-auto">
-          {selectedClaim ? (
-            <ClaimEditor
-              claim={selectedClaim}
-              onUpdate={(updates) => updateClaim(selectedClaim.id, updates)}
-            />
+          {selectedRequestedCredential ? (
+            <RequestedCredentialEditor credential={selectedRequestedCredential} />
           ) : (
             <div className="h-full flex items-center justify-center text-gray-500">
               <div className="text-center">
                 <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
                 </svg>
-                <p>Select a claim to edit</p>
-                <p className="text-sm mt-1">or add a new claim to get started</p>
+                <p>Select a credential to configure</p>
+                <p className="text-sm mt-1">or add a credential from the catalogue</p>
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Credential Picker Modal */}
+      {showCredentialPicker && (
+        <CredentialPicker
+          credentials={filteredCatalogueCredentials}
+          existingCredentialIds={currentTemplate.requestedCredentials.map((c) => c.catalogueCredentialId)}
+          onSelect={(credential) => {
+            addRequestedCredential(credential);
+            setShowCredentialPicker(false);
+          }}
+          onClose={() => setShowCredentialPicker(false)}
+        />
+      )}
     </div>
   );
 }

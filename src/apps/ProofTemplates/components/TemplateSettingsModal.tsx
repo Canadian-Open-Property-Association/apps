@@ -1,18 +1,20 @@
 /**
  * Template Settings Modal
  *
- * Modal for managing proof template types.
- * Matches Credential Catalogue's SettingsModal layout with left menu and right content.
+ * Modal for managing proof template settings:
+ * - Template Types: Manage categories for templates
+ * - Test Verifier: Enable/disable templates for Test Verifier app
  */
 
 import { useState, useEffect } from 'react';
 import { useProofTemplateStore } from '../../../store/proofTemplateStore';
+import { CREDENTIAL_FORMAT_LABELS, CredentialFormat } from '../../../types/proofTemplate';
 
 interface TemplateSettingsModalProps {
   onClose: () => void;
 }
 
-type SettingsCategory = 'template-types';
+type SettingsCategory = 'template-types' | 'test-verifier';
 
 const CATEGORIES = [
   {
@@ -29,21 +31,44 @@ const CATEGORIES = [
       </svg>
     ),
   },
+  {
+    id: 'test-verifier' as const,
+    label: 'Test Verifier',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+        />
+      </svg>
+    ),
+  },
 ];
 
 export default function TemplateSettingsModal({ onClose }: TemplateSettingsModalProps) {
-  const { templateTypes, fetchTemplateTypes, addTemplateType, deleteTemplateType } =
-    useProofTemplateStore();
+  const {
+    templates,
+    templateTypes,
+    fetchTemplates,
+    fetchTemplateTypes,
+    addTemplateType,
+    deleteTemplateType,
+    publishToVerifier,
+  } = useProofTemplateStore();
 
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>('template-types');
   const [newTypeName, setNewTypeName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
-  // Fetch types on mount
+  // Fetch types and templates on mount
   useEffect(() => {
     fetchTemplateTypes();
-  }, [fetchTemplateTypes]);
+    fetchTemplates();
+  }, [fetchTemplateTypes, fetchTemplates]);
 
   // Generate ID from name
   const generateId = (name: string) => {
@@ -92,6 +117,19 @@ export default function TemplateSettingsModal({ onClose }: TemplateSettingsModal
     }
   };
 
+  // Toggle template for verifier
+  const handleToggleVerifier = async (templateId: string, currentlyEnabled: boolean) => {
+    setTogglingId(templateId);
+    setError(null);
+    try {
+      await publishToVerifier(templateId, !currentlyEnabled);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update verifier status');
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-white rounded-xl shadow-2xl w-[800px] h-[600px] flex flex-col">
@@ -121,7 +159,7 @@ export default function TemplateSettingsModal({ onClose }: TemplateSettingsModal
             </div>
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Template Settings</h2>
-              <p className="text-sm text-gray-500">Configure template options and types</p>
+              <p className="text-sm text-gray-500">Configure template options and publishing</p>
             </div>
           </div>
           <button
@@ -281,6 +319,118 @@ export default function TemplateSettingsModal({ onClose }: TemplateSettingsModal
                         </button>
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Test Verifier */}
+              {activeCategory === 'test-verifier' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-base font-medium text-gray-900">Test Verifier</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Enable templates to be available in the Test Verifier app for generating
+                      proof requests.
+                    </p>
+                  </div>
+
+                  {/* Templates List */}
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">
+                      Templates ({templates.length})
+                    </h4>
+
+                    {templates.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <svg
+                          className="w-12 h-12 mx-auto text-gray-300 mb-3"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                          />
+                        </svg>
+                        <p className="text-sm">No templates yet</p>
+                        <p className="text-xs mt-1">Create templates first to enable them here</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {templates.map((template) => {
+                          const isToggling = togglingId === template.id;
+                          return (
+                            <div
+                              key={template.id}
+                              className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200"
+                            >
+                              {/* Template Info */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-gray-900 truncate">
+                                    {template.name}
+                                  </span>
+                                  <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                    {CREDENTIAL_FORMAT_LABELS[template.credentialFormat as CredentialFormat] || template.credentialFormat}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-0.5 truncate">
+                                  {template.credentialCount} credential{template.credentialCount !== 1 ? 's' : ''} requested
+                                </p>
+                              </div>
+
+                              {/* Toggle Switch */}
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={template.publishedToVerifier}
+                                  onChange={() => handleToggleVerifier(template.id, template.publishedToVerifier)}
+                                  disabled={isToggling}
+                                  className="sr-only peer"
+                                />
+                                <div className={`
+                                  w-11 h-6 bg-gray-200 rounded-full peer
+                                  peer-checked:bg-purple-600
+                                  peer-focus:ring-4 peer-focus:ring-purple-300
+                                  after:content-[''] after:absolute after:top-0.5 after:left-[2px]
+                                  after:bg-white after:border-gray-300 after:border after:rounded-full
+                                  after:h-5 after:w-5 after:transition-all
+                                  peer-checked:after:translate-x-full peer-checked:after:border-white
+                                  ${isToggling ? 'opacity-50 cursor-wait' : ''}
+                                `} />
+                                {isToggling && (
+                                  <div className="absolute inset-0 flex items-center justify-center">
+                                    <svg className="animate-spin h-4 w-4 text-purple-600" fill="none" viewBox="0 0 24 24">
+                                      <circle
+                                        className="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                      />
+                                      <path
+                                        className="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                      />
+                                    </svg>
+                                  </div>
+                                )}
+                              </label>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <p className="text-xs text-gray-500 mt-4">
+                      Enabled templates will appear in the Test Verifier app where you can generate
+                      QR codes for proof requests.
+                    </p>
                   </div>
                 </div>
               )}

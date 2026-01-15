@@ -91,18 +91,21 @@ export const proofTemplates = pgTable('proof_templates', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
-  purpose: text('purpose'), // What this template verifies (shown to holder)
-  claims: jsonb('claims').notNull().default([]), // Array of Claim objects
-  format: varchar('format', { length: 50 }).notNull().default('presentation-exchange'),
+  version: varchar('version', { length: 50 }).default('1.0.0'),
+
+  // Credential format (one per template for Orbit compound proof compatibility)
+  credentialFormat: varchar('credential_format', { length: 50 }).notNull().default('anoncreds'),
+
+  // Requested credentials (replaces claims array)
+  requestedCredentials: jsonb('requested_credentials').notNull().default([]),
 
   // Metadata
-  category: varchar('category', { length: 100 }).default('general'),
-  version: varchar('version', { length: 50 }).default('1.0.0'),
-  tags: jsonb('tags').default([]),
+  metadata: jsonb('metadata').default({}), // { author, ecosystemTag, tags[] }
 
   // Status and publishing
   status: varchar('status', { length: 20 }).notNull().default('draft'), // 'draft' | 'published'
   vdrUri: varchar('vdr_uri', { length: 500 }), // URI after publishing to VDR
+  publishedToVerifier: boolean('published_to_verifier').default(false).notNull(), // Available in Test Verifier app
 
   // Author info (captured from COPA auth)
   authorName: varchar('author_name', { length: 255 }),
@@ -120,5 +123,6 @@ export const proofTemplates = pgTable('proof_templates', {
 }, (table) => ({
   githubUserIdx: index('idx_proof_templates_github_user').on(table.githubUserId),
   statusIdx: index('idx_proof_templates_status').on(table.status),
-  categoryIdx: index('idx_proof_templates_category').on(table.category),
+  credentialFormatIdx: index('idx_proof_templates_credential_format').on(table.credentialFormat),
+  publishedToVerifierIdx: index('idx_proof_templates_published_to_verifier').on(table.publishedToVerifier),
 }));

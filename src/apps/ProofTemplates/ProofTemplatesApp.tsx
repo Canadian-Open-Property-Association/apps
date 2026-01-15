@@ -10,6 +10,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useAppTracking } from '../../hooks/useAppTracking';
 import { useProofTemplateStore } from '../../store/proofTemplateStore';
+import { CredentialFormat, CREDENTIAL_FORMAT_LABELS } from '../../types/proofTemplate';
 import TemplateSidebar from './components/TemplateSidebar';
 import TemplateConfigPanel from './components/TemplateConfigPanel';
 import PresentationPreview from './components/PresentationPreview';
@@ -20,7 +21,6 @@ import {
   UnsavedIndicator,
   PanelToggles,
   PanelToggle,
-  CreatePrButton,
   SettingsButton
 } from '../../components/AppNavBar';
 
@@ -80,12 +80,12 @@ export default function ProofTemplatesApp() {
     toggleJsonPreview,
     createTemplate,
     setSelectedTemplateId,
-    getPresentationDefinition,
     currentTemplate,
     saveTemplate,
-    publishTemplate,
     isSaving,
     templateTypes,
+    fetchTemplates,
+    fetchCatalogueCredentials,
   } = useProofTemplateStore();
 
   // Panel width for resizable JSON preview (in pixels)
@@ -102,24 +102,25 @@ export default function ProofTemplatesApp() {
   const [showSettings, setShowSettings] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
-  const [newCategory, setNewCategory] = useState('general');
+  const [newFormat, setNewFormat] = useState<CredentialFormat>('anoncreds');
+  const [newEcosystemTag, setNewEcosystemTag] = useState('');
   const [isCreating, setIsCreating] = useState(false);
-
-  // Publish modal state
-  const [showPublishModal, setShowPublishModal] = useState(false);
-  const [publishMessage, setPublishMessage] = useState('');
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [publishResult, setPublishResult] = useState<{ success: boolean; prUrl?: string; error?: string } | null>(null);
 
   // Track unsaved changes
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Fetch templates and credentials on mount
+  useEffect(() => {
+    fetchTemplates();
+    fetchCatalogueCredentials();
+  }, [fetchTemplates, fetchCatalogueCredentials]);
 
   // Track changes
   useEffect(() => {
     if (currentTemplate) {
       setHasUnsavedChanges(true);
     }
-  }, [currentTemplate?.name, currentTemplate?.description, currentTemplate?.purpose, currentTemplate?.claims, currentTemplate?.metadata]);
+  }, [currentTemplate?.name, currentTemplate?.description, currentTemplate?.version, currentTemplate?.requestedCredentials, currentTemplate?.metadata]);
 
   // Handle save
   const handleSave = useCallback(async () => {
@@ -132,41 +133,25 @@ export default function ProofTemplatesApp() {
     }
   }, [currentTemplate, hasUnsavedChanges, saveTemplate]);
 
-  // Handle publish
-  const handlePublish = async () => {
-    setIsPublishing(true);
-    setPublishResult(null);
-    try {
-      const result = await publishTemplate(publishMessage || undefined);
-      setPublishResult({ success: true, prUrl: result.prUrl });
-    } catch (err) {
-      setPublishResult({ success: false, error: err instanceof Error ? err.message : 'Failed to publish' });
-    } finally {
-      setIsPublishing(false);
-    }
-  };
-
   // Handle create template
   const handleCreate = async () => {
     if (!newName.trim()) return;
 
     setIsCreating(true);
     try {
-      const template = await createTemplate(newName.trim(), newDescription.trim(), newCategory);
+      const template = await createTemplate(newName.trim(), newFormat, newDescription.trim(), newEcosystemTag || undefined);
       setShowNewModal(false);
       setNewName('');
       setNewDescription('');
-      setNewCategory('general');
+      setNewFormat('anoncreds');
+      setNewEcosystemTag('');
       setSelectedTemplateId(template.id);
-    } catch (err) {
+    } catch {
       // Error handled in store
     } finally {
       setIsCreating(false);
     }
   };
-
-  // Get presentation definition for JSON preview
-  const definition = getPresentationDefinition();
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
@@ -179,10 +164,6 @@ export default function ProofTemplatesApp() {
                 onClick={handleSave}
                 disabled={!hasUnsavedChanges}
                 isSaving={isSaving}
-              />
-              <CreatePrButton
-                onClick={() => setShowPublishModal(true)}
-                disabled={currentTemplate.claims.length === 0}
               />
               <UnsavedIndicator show={hasUnsavedChanges && !isSaving} />
               {isSaving && <span className="text-xs text-blue-600">Saving...</span>}
@@ -232,7 +213,7 @@ export default function ProofTemplatesApp() {
               <>
                 <ResizableDivider onDrag={handleDividerDrag} />
                 <div className="flex-1 bg-gray-900 flex flex-col overflow-hidden">
-                  <PresentationPreview definition={definition} />
+                  <PresentationPreview template={currentTemplate} />
                 </div>
               </>
             )}
@@ -292,22 +273,43 @@ export default function ProofTemplatesApp() {
                   onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
                 />
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category
+                  Credential Format <span className="text-red-500">*</span>
                 </label>
                 <select
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
+                  value={newFormat}
+                  onChange={(e) => setNewFormat(e.target.value as CredentialFormat)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  {templateTypes.map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.name}
+                  {(Object.keys(CREDENTIAL_FORMAT_LABELS) as CredentialFormat[]).map((format) => (
+                    <option key={format} value={format}>
+                      {CREDENTIAL_FORMAT_LABELS[format]}
                     </option>
                   ))}
                 </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  All credentials in this template must use the same format
+                </p>
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Ecosystem Tag
+                </label>
+                <input
+                  type="text"
+                  value={newEcosystemTag}
+                  onChange={(e) => setNewEcosystemTag(e.target.value)}
+                  placeholder="e.g., bcdt, sovrin"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Used in template ID: ecosystemtag.templatename.version
+                </p>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Description
@@ -327,7 +329,8 @@ export default function ProofTemplatesApp() {
                   setShowNewModal(false);
                   setNewName('');
                   setNewDescription('');
-                  setNewCategory('general');
+                  setNewFormat('anoncreds');
+                  setNewEcosystemTag('');
                 }}
                 className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                 disabled={isCreating}
@@ -351,117 +354,6 @@ export default function ProofTemplatesApp() {
 
       {/* Settings Modal */}
       {showSettings && <TemplateSettingsModal onClose={() => setShowSettings(false)} />}
-
-      {/* Publish Modal */}
-      {showPublishModal && currentTemplate && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4">
-            <div className="p-6 border-b">
-              <h2 className="text-xl font-semibold text-gray-900">Publish to VDR</h2>
-              <p className="text-gray-600 text-sm mt-1">
-                This will create a pull request to add this proof template to the Verifiable Data Registry.
-              </p>
-            </div>
-
-            {publishResult ? (
-              <div className="p-6">
-                {publishResult.success ? (
-                  <div className="text-center">
-                    <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-4">
-                      <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Pull Request Created!</h3>
-                    <p className="text-gray-600 text-sm mb-4">
-                      Your proof template has been submitted for review.
-                    </p>
-                    <a
-                      href={publishResult.prUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800"
-                    >
-                      View Pull Request
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                    </a>
-                  </div>
-                ) : (
-                  <div className="text-center">
-                    <div className="w-16 h-16 mx-auto bg-red-100 rounded-full flex items-center justify-center mb-4">
-                      <svg className="w-8 h-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Publishing Failed</h3>
-                    <p className="text-red-600 text-sm">{publishResult.error}</p>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Commit Message (optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={publishMessage}
-                    onChange={(e) => setPublishMessage(e.target.value)}
-                    placeholder={`Add proof template: ${currentTemplate.name}`}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Template Summary</h4>
-                  <dl className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <dt className="text-gray-500">Name:</dt>
-                      <dd className="font-medium">{currentTemplate.name}</dd>
-                    </div>
-                    <div className="flex justify-between">
-                      <dt className="text-gray-500">Category:</dt>
-                      <dd>{currentTemplate.metadata.category}</dd>
-                    </div>
-                    <div className="flex justify-between">
-                      <dt className="text-gray-500">Claims:</dt>
-                      <dd>{currentTemplate.claims.length}</dd>
-                    </div>
-                  </dl>
-                </div>
-              </div>
-            )}
-
-            <div className="p-6 border-t bg-gray-50 rounded-b-xl flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowPublishModal(false);
-                  setPublishMessage('');
-                  setPublishResult(null);
-                }}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                {publishResult ? 'Close' : 'Cancel'}
-              </button>
-              {!publishResult && (
-                <button
-                  onClick={handlePublish}
-                  disabled={isPublishing}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-                >
-                  {isPublishing && (
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                  )}
-                  Create Pull Request
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
