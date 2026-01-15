@@ -54,9 +54,16 @@ const DEFAULT_TENANT_CONFIG = {
   apps: {
     enabledApps: [
       'vct-builder',
+      'schema-builder',
+      'data-dictionary',
+      'entity-manager',
+      'data-harmonization',
+      'badges',
+      'proofs-template-builder',
       'forms-builder',
-      'proof-templates',
       'test-issuer',
+      'test-verifier',
+      'credential-catalogue',
       'settings',
     ],
   },
