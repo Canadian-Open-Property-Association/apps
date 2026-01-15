@@ -68,6 +68,28 @@ async function saveDataRegistrySettings(settings) {
 const VOCAB_FOLDER_PATH = process.env.VOCAB_FOLDER_PATH || 'credentials/contexts';
 const HARMONIZATION_FOLDER_PATH = process.env.HARMONIZATION_FOLDER_PATH || 'credentials/harmonization';
 
+// Legacy constants for backward compatibility - these call getGitHubSettings() each time
+// This ensures all routes use the dynamic tenant config
+function getGitHubRepoOwner() { return getGitHubSettings().owner; }
+function getGitHubRepoName() { return getGitHubSettings().repo; }
+function getGitHubBaseBranch() { return getGitHubSettings().baseBranch; }
+function getVctFolderPath() { return getGitHubSettings().vctPath; }
+function getSchemaFolderPath() { return getGitHubSettings().schemaPath; }
+function getContextFolderPath() { return getGitHubSettings().contextPath; }
+function getEntityFolderPath() { return getGitHubSettings().entityPath; }
+function getBadgeFolderPath() { return getGitHubSettings().badgePath; }
+
+// For backward compat with code using constants - these are now getters
+const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || 'Canadian-Open-Property-Association';
+const GITHUB_REPO_NAME = process.env.GITHUB_REPO_NAME || 'governance';
+const GITHUB_BASE_BRANCH = process.env.GITHUB_BASE_BRANCH || null;
+const VCT_FOLDER_PATH = process.env.VCT_FOLDER_PATH || 'credentials/vct';
+const SCHEMA_FOLDER_PATH = process.env.SCHEMA_FOLDER_PATH || 'credentials/schemas';
+const CONTEXT_FOLDER_PATH = process.env.CONTEXT_FOLDER_PATH || 'credentials/contexts';
+const ENTITY_FOLDER_PATH = process.env.ENTITY_FOLDER_PATH || 'credentials/entities';
+const BADGE_FOLDER_PATH = process.env.BADGE_FOLDER_PATH || 'credentials/badges';
+const BASE_URL = process.env.BASE_URL || 'https://openpropertyassociation.ca';
+
 /**
  * Get the base URL for VDR from tenant config
  * Constructs from GitHub repository URL if available
@@ -1406,12 +1428,16 @@ router.get('/published-assets', requireAuth, async (req, res) => {
 
 // Note: fs, path, fileURLToPath, __dirname, and ASSETS_DIR are already defined at top of file
 
-// Asset type to GitHub path mapping
-const ASSET_TYPE_PATHS = {
-  'entity-logo': `${ENTITY_FOLDER_PATH}/logos`,
-  'credential-background': `${VCT_FOLDER_PATH}/backgrounds`,
-  'credential-icon': `${VCT_FOLDER_PATH}/icons`,
-};
+// Asset type to GitHub path mapping - uses tenant config dynamically
+function getAssetTypePath(assetType) {
+  const settings = getGitHubSettings();
+  const paths = {
+    'entity-logo': `${settings.entityPath}/logos`,
+    'credential-background': `${settings.vctPath}/backgrounds`,
+    'credential-icon': `${settings.vctPath}/icons`,
+  };
+  return paths[assetType] || null;
+}
 
 // Create PR to publish an asset to GitHub VDR
 router.post('/asset', requireAuth, async (req, res) => {
@@ -1424,7 +1450,8 @@ router.post('/asset', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'filename, localUri, and assetType are required' });
     }
 
-    if (!ASSET_TYPE_PATHS[assetType]) {
+    const folderPath = getAssetTypePath(assetType);
+    if (!folderPath) {
       return res.status(400).json({ error: `Invalid assetType: ${assetType}` });
     }
 
@@ -1451,23 +1478,25 @@ router.post('/asset', requireAuth, async (req, res) => {
       targetFilename = `${safeName}${ext}`;
     }
 
-    const folderPath = ASSET_TYPE_PATHS[assetType];
     const filePath = `${folderPath}/${targetFilename}`;
 
+    // Get GitHub settings from tenant config
+    const ghSettings = getGitHubSettings();
+
     // Get the default branch
-    let baseBranch = GITHUB_BASE_BRANCH;
+    let baseBranch = ghSettings.baseBranch;
     if (!baseBranch) {
       const { data: repoData } = await octokit.rest.repos.get({
-        owner: GITHUB_REPO_OWNER,
-        repo: GITHUB_REPO_NAME,
+        owner: ghSettings.owner,
+        repo: ghSettings.repo,
       });
       baseBranch = repoData.default_branch;
     }
 
     // Get the base branch ref
     const { data: ref } = await octokit.rest.git.getRef({
-      owner: GITHUB_REPO_OWNER,
-      repo: GITHUB_REPO_NAME,
+      owner: ghSettings.owner,
+      repo: ghSettings.repo,
       ref: `heads/${baseBranch}`,
     });
 
