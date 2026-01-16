@@ -76,7 +76,7 @@ export async function initializeDatabase() {
   }
 
   try {
-    // Create tables using raw SQL (Drizzle migrations would be better for production)
+    // Step 1: Create base tables (without proof_templates new columns)
     await pool.query(`
       -- Forms table
       CREATE TABLE IF NOT EXISTS forms (
@@ -149,18 +149,14 @@ export async function initializeDatabase() {
 
       CREATE INDEX IF NOT EXISTS idx_proof_requests_cred_proof_id ON proof_requests(cred_proof_id);
 
-      -- Proof Templates table for storing proof template definitions
+      -- Proof Templates table - base structure
       CREATE TABLE IF NOT EXISTS proof_templates (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name VARCHAR(255) NOT NULL,
         description TEXT,
         version VARCHAR(50) DEFAULT '1.0.0',
-        credential_format VARCHAR(50) NOT NULL DEFAULT 'anoncreds',
-        requested_credentials JSONB NOT NULL DEFAULT '[]',
-        metadata JSONB DEFAULT '{}',
         status VARCHAR(20) NOT NULL DEFAULT 'draft',
         vdr_uri VARCHAR(500),
-        published_to_verifier BOOLEAN NOT NULL DEFAULT false,
         author_name VARCHAR(255),
         author_email VARCHAR(255),
         github_user_id VARCHAR(255),
@@ -173,10 +169,11 @@ export async function initializeDatabase() {
 
       CREATE INDEX IF NOT EXISTS idx_proof_templates_github_user ON proof_templates(github_user_id);
       CREATE INDEX IF NOT EXISTS idx_proof_templates_status ON proof_templates(status);
-      CREATE INDEX IF NOT EXISTS idx_proof_templates_credential_format ON proof_templates(credential_format);
-      CREATE INDEX IF NOT EXISTS idx_proof_templates_published_to_verifier ON proof_templates(published_to_verifier);
+    `);
 
-      -- Migration: Add new columns to existing proof_templates table if they don't exist
+    // Step 2: Run migrations to add new columns to proof_templates
+    // This is separate so it runs after the table exists
+    await pool.query(`
       DO $$
       BEGIN
         -- Add credential_format column if it doesn't exist
@@ -203,6 +200,12 @@ export async function initializeDatabase() {
           ALTER TABLE proof_templates ADD COLUMN published_to_verifier BOOLEAN NOT NULL DEFAULT false;
         END IF;
       END $$;
+    `);
+
+    // Step 3: Create indexes for the new columns (after they exist)
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_proof_templates_credential_format ON proof_templates(credential_format);
+      CREATE INDEX IF NOT EXISTS idx_proof_templates_published_to_verifier ON proof_templates(published_to_verifier);
     `);
 
     console.log('Forms Builder: Database tables initialized');
